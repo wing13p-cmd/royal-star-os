@@ -1,0 +1,19 @@
+{
+  "admin": {
+    "id": "admin-brandon",
+    "username": "brandon.sterling@royalstaros.com",
+    "displayName": "Brandon Sterling",
+    "role": "System Administrator",
+    "passwordHash": "ebee2f6b358fbcd4770df2f588ff8d0f:268b1e601f80bd9c70e9fb4f4f9adeac6b8eff17289e2823ff7db54a7b045c527c044080478050557983fbe4cacee4a238ff0a1142de7de52a57492adbf54890",
+    "createdAt": "2026-08-05T20:15:31.474Z",
+    "updatedAt": "2026-08-05T20:15:31.474Z"
+  },
+  "version": 1,
+  "sessions": [],
+  "failedLogins": [],
+  "settings": {
+    "ttlMs": 3600000,
+    "failureWindowMs": 900000,
+    "maxFailures": 5
+  }
+}

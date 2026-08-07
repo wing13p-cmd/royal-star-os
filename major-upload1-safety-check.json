@@ -1,0 +1,9 @@
+{
+  "routeDealSyncBranchPresent": true,
+  "routePortfolioCollectionStillPresent": true,
+  "importApprovalRequiresExplicitAction": true,
+  "importRefreshesPortfolio": true,
+  "commandCenterFunctionPresent": true,
+  "navLabelsPresent": true,
+  "gossIntact": true
+}

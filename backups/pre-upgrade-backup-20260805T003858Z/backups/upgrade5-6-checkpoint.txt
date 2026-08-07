@@ -1,0 +1,14 @@
+Upgrade 5/6 Rollback Checkpoint
+Created: 2026-07-30
+Status: COMPLETE
+
+Verification:
+- npm test: PASS (50 passed, 0 failed)
+- npm run build: PASS
+- node scripts/verify-system.mjs: PASS
+
+Notes:
+- Unified Executive Intelligence Layer now powers executive alerts, today's priorities, capital reserve monitoring, portfolio risk monitoring, business health, cash flow forecasting, opportunity ranking, and system health.
+- Existing Command Center layout, styling, navigation, widgets, shell, and spacing were preserved.
+- The shared service centralizes executive calculations while preserving current outputs for the live dashboard surfaces.
+- This checkpoint can be used as a rollback reference for the completed Upgrade 5/6 state.

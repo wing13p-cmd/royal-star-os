@@ -1,0 +1,15 @@
+{
+  "changed": {
+    "deals": true,
+    "properties": true,
+    "portfolio": true,
+    "rehabProjects": false
+  },
+  "counts": {
+    "deals": 1,
+    "properties": 2,
+    "portfolio": 2,
+    "rehabProjects": 0
+  },
+  "dealCoreValuesUnchanged": true
+}

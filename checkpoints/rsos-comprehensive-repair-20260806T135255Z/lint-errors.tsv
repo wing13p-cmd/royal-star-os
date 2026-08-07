@@ -1,0 +1,220 @@
+src/App.jsx	6	10	no-unused-vars	'version' is defined but never used.
+src/App.jsx	29	10	no-unused-vars	'systemStatus' is assigned a value but never used.
+src/App.jsx	96	7	react-hooks/set-state-in-effect	Error: Calling setState synchronously within an effect can trigger cascading renders Effects are intended to synchronize state between React
+src/components/AppraiserPacketBuilder.jsx	6	7	no-unused-vars	'API_BASE_URL' is assigned a value but never used.
+src/components/AppraiserPacketBuilder.jsx	42	7	no-unused-vars	'compQualityOptions' is assigned a value but never used.
+src/components/AppraiserPacketBuilder.jsx	150	10	no-unused-vars	'formatPercent' is defined but never used.
+src/components/AppraiserPacketBuilder.jsx	155	10	no-unused-vars	'formatNumber' is defined but never used.
+src/components/AppraiserPacketBuilder.jsx	431	10	no-unused-vars	'computeCompMetrics' is defined but never used.
+src/components/AppraiserPacketBuilder.jsx	472	180	no-unused-vars	'onOpenDealIntelligence' is defined but never used.
+src/components/AppraiserPacketBuilder.jsx	477	10	no-unused-vars	'lenders' is assigned a value but never used.
+src/components/AppraiserPacketBuilder.jsx	534	16	no-unused-vars	'error' is defined but never used.
+src/components/AppraiserPacketBuilder.jsx	557	10	react-hooks/set-state-in-effect	Error: Calling setState synchronously within an effect can trigger cascading renders Effects are intended to synchronize state between React
+src/components/AppraiserPacketBuilder.jsx	682	9	no-unused-vars	'handleArrayField' is assigned a value but never used.
+src/components/AppraiserPacketBuilder.jsx	686	9	no-unused-vars	'removeArrayItem' is assigned a value but never used.
+src/components/AppraiserPacketBuilder.jsx	770	14	no-unused-vars	'error' is defined but never used.
+src/components/AppraiserPacketBuilder.jsx	786	14	no-unused-vars	'error' is defined but never used.
+src/components/AppraiserPacketBuilder.jsx	879	9	no-unused-vars	'updateCompForPacket' is assigned a value but never used.
+src/components/BrrrrAnalyzer.jsx	45	10	no-unused-vars	'getMonthlyPayment' is defined but never used.
+src/components/BrrrrAnalyzer.recalculation.test.js	6	32	no-undef	'process' is not defined.
+src/components/CompDatabase.jsx	495	7	react-hooks/set-state-in-effect	Error: Calling setState synchronously within an effect can trigger cascading renders Effects are intended to synchronize state between React
+src/components/CompDatabase.jsx	515	7	react-hooks/set-state-in-effect	Error: Calling setState synchronously within an effect can trigger cascading renders Effects are intended to synchronize state between React
+src/components/CompDatabase.jsx	610	5	react-hooks/set-state-in-effect	Error: Calling setState synchronously within an effect can trigger cascading renders Effects are intended to synchronize state between React
+src/components/ContractorHub.jsx	6	7	no-unused-vars	'API_BASE_URL' is assigned a value but never used.
+src/components/ContractorHub.jsx	158	9	no-unused-vars	'hasMissingW9' is assigned a value but never used.
+src/components/Dashboard.jsx	103	75	no-unused-vars	'onOpenFlipAnalyzer' is defined but never used.
+src/components/Dashboard.jsx	103	95	no-unused-vars	'onOpenBrrrrAnalyzer' is defined but never used.
+src/components/Dashboard.jsx	103	300	no-unused-vars	'onOpenVendorDatabase' is defined but never used.
+src/components/Dashboard.jsx	103	322	no-unused-vars	'onOpenMaterialMatrix' is defined but never used.
+src/components/Dashboard.jsx	308	9	no-unused-vars	'releaseReadinessSummary' is assigned a value but never used.
+src/components/Dashboard.jsx	407	5	react-hooks/set-state-in-effect	Error: Calling setState synchronously within an effect can trigger cascading renders Effects are intended to synchronize state between React
+src/components/DealAnalyzer.jsx	9	7	no-unused-vars	'API_BASE_URL' is assigned a value but never used.
+src/components/DealAnalyzer.jsx	41	17	react-refresh/only-export-components	Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+src/components/DealAnalyzer.jsx	98	10	no-unused-vars	'createStorageDeal' is defined but never used.
+src/components/DealAnalyzer.jsx	157	5	react-hooks/set-state-in-effect	Error: Calling setState synchronously within an effect can trigger cascading renders Effects are intended to synchronize state between React
+src/components/DealIntelligence.jsx	7	48	no-unused-vars	'scenarioSafeDisplay' is defined but never used.
+src/components/DealIntelligence.jsx	12	10	no-unused-vars	'buildArvIntelligence' is defined but never used.
+src/components/DealIntelligence.jsx	12	32	no-unused-vars	'buildBuyBoxIntelligence' is defined but never used.
+src/components/DealIntelligence.jsx	12	81	no-unused-vars	'buildAppraisalIntelligence' is defined but never used.
+src/components/DealIntelligence.jsx	60	17	react-refresh/only-export-components	Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+src/components/DealIntelligence.jsx	93	9	no-unused-vars	'financingCosts' is assigned a value but never used.
+src/components/DealIntelligence.jsx	94	9	no-unused-vars	'closingCosts' is assigned a value but never used.
+src/components/DealIntelligence.jsx	95	9	no-unused-vars	'taxes' is assigned a value but never used.
+src/components/DealIntelligence.jsx	96	9	no-unused-vars	'insurance' is assigned a value but never used.
+src/components/DealIntelligence.jsx	104	9	no-unused-vars	'strategy' is assigned a value but never used.
+src/components/DealIntelligence.jsx	108	9	no-unused-vars	'yearBuilt' is assigned a value but never used.
+src/components/DealIntelligence.jsx	122	9	no-unused-vars	'estimatedSellingCosts' is assigned a value but never used.
+src/components/DealIntelligence.jsx	216	9	no-unused-vars	'upgradedOfferSummary' is assigned a value but never used.
+src/components/DealIntelligence.jsx	544	5	react-hooks/set-state-in-effect	Error: Calling setState synchronously within an effect can trigger cascading renders Effects are intended to synchronize state between React
+src/components/DealIntelligence.jsx	655	17	no-unused-vars	'viewModel' is assigned a value but never used.
+src/components/DealIntelligence.jsx	741	25	react-hooks/preserve-manual-memoization	Compilation Skipped: Existing memoization could not be preserved React Compiler has skipped optimizing this component because the existing m
+src/components/Dealintake.jsx	9	7	no-unused-vars	'API_BASE_URL' is assigned a value but never used.
+src/components/Dealintake.jsx	67	7	react-hooks/set-state-in-effect	Error: Calling setState synchronously within an effect can trigger cascading renders Effects are intended to synchronize state between React
+src/components/LenderDashboard.jsx	5	7	no-unused-vars	'API_BASE_URL' is assigned a value but never used.
+src/components/LenderDashboard.jsx	150	10	no-unused-vars	'createId' is defined but never used.
+src/components/LenderDashboard.jsx	175	10	no-unused-vars	'formatNumber' is defined but never used.
+src/components/LenderDashboard.jsx	180	10	no-unused-vars	'formatDate' is defined but never used.
+src/components/LenderDashboard.jsx	539	173	no-unused-vars	'onOpenDealIntelligence' is defined but never used.
+src/components/LenderDashboard.jsx	617	16	no-unused-vars	'error' is defined but never used.
+src/components/LenderDashboard.jsx	639	10	react-hooks/set-state-in-effect	Error: Calling setState synchronously within an effect can trigger cascading renders Effects are intended to synchronize state between React
+src/components/LenderDashboard.jsx	849	14	no-unused-vars	'error' is defined but never used.
+src/components/LenderDashboard.jsx	865	14	no-unused-vars	'error' is defined but never used.
+src/components/MaterialMatrix.jsx	6	7	no-unused-vars	'API_BASE_URL' is assigned a value but never used.
+src/components/MaterialMatrix.jsx	131	172	no-unused-vars	'onOpenDealIntelligence' is defined but never used.
+src/components/MaterialMatrix.jsx	134	10	no-unused-vars	'vendors' is assigned a value but never used.
+src/components/MaterialMatrix.jsx	266	9	no-unused-vars	'selectedMaterial' is assigned a value but never used.
+src/components/NeighborhoodDatabase.jsx	5	7	no-unused-vars	'API_BASE_URL' is assigned a value but never used.
+src/components/NeighborhoodDatabase.jsx	112	10	no-unused-vars	'formatNumber' is defined but never used.
+src/components/NeighborhoodDatabase.jsx	434	10	no-unused-vars	'isStale' is defined but never used.
+src/components/PortfolioDashboard.jsx	9	7	no-unused-vars	'API_BASE_URL' is assigned a value but never used.
+src/components/PortfolioDashboard.jsx	213	5	react-hooks/set-state-in-effect	Error: Calling setState synchronously within an effect can trigger cascading renders Effects are intended to synchronize state between React
+src/components/PortfolioDashboard.syncIntegration.test.js	6	33	no-undef	'process' is not defined.
+src/components/ProductVault.jsx	6	7	no-unused-vars	'API_BASE_URL' is assigned a value but never used.
+src/components/ProductVault.jsx	76	10	no-unused-vars	'formatPercent' is defined but never used.
+src/components/ProductVault.jsx	397	14	no-unused-vars	'error' is defined but never used.
+src/components/PropertyDatabase.jsx	4	10	no-unused-vars	'buildModuleSyncState' is defined but never used.
+src/components/PropertyDatabase.jsx	7	7	no-unused-vars	'API_BASE_URL' is assigned a value but never used.
+src/components/PropertyDatabase.jsx	208	10	no-unused-vars	'formatNumber' is defined but never used.
+src/components/PropertyDatabase.jsx	213	10	no-unused-vars	'formatDate' is defined but never used.
+src/components/PropertyDatabase.jsx	593	3	no-unused-vars	'onOpenDealIntelligence' is defined but never used.
+src/components/PropertyDatabase.jsx	609	24	no-unused-vars	'setCountyFilter' is assigned a value but never used.
+src/components/PropertyDatabase.jsx	612	27	no-unused-vars	'setOccupancyFilter' is assigned a value but never used.
+src/components/PropertyDatabase.jsx	614	31	no-unused-vars	'setMissingParcelFilter' is assigned a value but never used.
+src/components/PropertyDatabase.jsx	615	31	no-unused-vars	'setMissingSourceFilter' is assigned a value but never used.
+src/components/PropertyDatabase.jsx	616	27	no-unused-vars	'setStaleDataFilter' is assigned a value but never used.
+src/components/PropertyDatabase.jsx	821	9	no-unused-vars	'countyOptions' is assigned a value but never used.
+src/components/PropertyDatabase.jsx	824	9	no-unused-vars	'occupancyOptionsList' is assigned a value but never used.
+src/components/RehabProjectTracker.jsx	4	32	no-unused-vars	'buildRehabProjectFromDeal' is defined but never used.
+src/components/RehabProjectTracker.jsx	7	7	no-unused-vars	'API_BASE_URL' is assigned a value but never used.
+src/components/RehabProjectTracker.jsx	277	177	no-unused-vars	'onOpenDealIntelligence' is defined but never used.
+src/components/RehabProjectTracker.jsx	277	376	no-unused-vars	'onOpenDealIntake' is defined but never used.
+src/components/RehabProjectTracker.jsx	282	10	no-unused-vars	'vendors' is assigned a value but never used.
+src/components/RehabProjectTracker.jsx	283	10	no-unused-vars	'materials' is assigned a value but never used.
+src/components/RehabProjectTracker.jsx	330	14	no-unused-vars	'error' is defined but never used.
+src/components/RehabProjectTracker.jsx	378	10	react-hooks/set-state-in-effect	Error: Calling setState synchronously within an effect can trigger cascading renders Effects are intended to synchronize state between React
+src/components/RehabProjectTracker.jsx	383	9	no-unused-vars	'syncState' is assigned a value but never used.
+src/components/RehabProjectTracker.jsx	593	14	no-unused-vars	'error' is defined but never used.
+src/components/RehabProjectTracker.jsx	696	9	no-unused-vars	'reorderPhase' is assigned a value but never used.
+src/components/VendorDatabase.jsx	6	7	no-unused-vars	'API_BASE_URL' is assigned a value but never used.
+src/components/VendorDatabase.jsx	31	7	no-unused-vars	'riskLevelOptions' is assigned a value but never used.
+src/components/VendorDatabase.jsx	122	10	no-unused-vars	'formatPercent' is defined but never used.
+src/components/VendorDatabase.jsx	132	10	no-unused-vars	'formatDate' is defined but never used.
+src/components/VendorDatabase.jsx	388	3	no-unused-vars	'onOpenDealIntelligence' is defined but never used.
+src/components/VendorDatabase.jsx	405	27	no-unused-vars	'setPreferredFilter' is assigned a value but never used.
+src/components/VendorDatabase.jsx	407	26	no-unused-vars	'setDeliveryFilter' is assigned a value but never used.
+src/components/VendorDatabase.jsx	408	24	no-unused-vars	'setPickupFilter' is assigned a value but never used.
+src/components/VendorDatabase.jsx	410	22	no-unused-vars	'setRiskFilter' is assigned a value but never used.
+src/components/VendorDatabase.jsx	411	26	no-unused-vars	'setMinScoreFilter' is assigned a value but never used.
+src/components/VendorDatabase.jsx	419	10	no-unused-vars	'importedProductVendor' is assigned a value but never used.
+src/components/VendorDatabase.jsx	419	33	no-unused-vars	'setImportedProductVendor' is assigned a value but never used.
+src/components/aiDecisionEngine.js	34	10	no-unused-vars	'safeDisplay' is defined but never used.
+src/components/aiDecisionEngine.js	127	9	no-unused-vars	'rehabBudget' is assigned a value but never used.
+src/components/aiDecisionEngine.js	128	9	no-unused-vars	'arv' is assigned a value but never used.
+src/components/aiDecisionEngine.js	431	9	no-unused-vars	'rehabPerSqft' is assigned a value but never used.
+src/components/aiDecisionEngine.js	616	9	no-unused-vars	'cashRequired' is assigned a value but never used.
+src/components/capitalAllocationEngine.js	24	10	no-unused-vars	'formatPercent' is defined but never used.
+src/components/capitalAllocationEngine.js	153	9	no-unused-vars	'dealList' is assigned a value but never used.
+src/components/capitalAllocationEngine.js	295	9	no-unused-vars	'debt' is assigned a value but never used.
+src/components/capitalAllocationEngine.js	296	9	no-unused-vars	'refinance' is assigned a value but never used.
+src/components/capitalAllocationEngine.js	399	9	no-unused-vars	'contractors' is assigned a value but never used.
+src/components/commandCenterIntelligence.js	25	10	no-unused-vars	'formatPercent' is defined but never used.
+src/components/commandCenterIntelligence.js	31	10	no-unused-vars	'formatSignedCurrency' is defined but never used.
+src/components/commandCenterIntelligence.js	195	9	no-unused-vars	'lenderList' is assigned a value but never used.
+src/components/commandCenterIntelligence.js	315	127	no-undef	'property' is not defined.
+src/components/commandCenterIntelligence.js	336	9	no-unused-vars	'lenderList' is assigned a value but never used.
+src/components/enterpriseAutomationOrchestrator.js	42	9	no-unused-vars	'analysis' is assigned a value but never used.
+src/components/enterpriseIntelligenceLayer.js	130	9	no-unused-vars	'deal' is assigned a value but never used.
+src/components/enterpriseMonitoringEngine.js	19	10	no-unused-vars	'normalizeArray' is defined but never used.
+src/components/enterpriseMonitoringEngine.js	47	49	no-unused-vars	'options' is assigned a value but never used.
+src/components/enterpriseRecoveryEngine.js	1	35	no-unused-vars	'enterpriseEventTypes' is defined but never used.
+src/components/enterpriseRecoveryEngine.js	31	47	no-unused-vars	'options' is assigned a value but never used.
+src/components/enterpriseWorkflowEngine.js	79	14	no-unused-vars	'error' is defined but never used.
+src/components/enterpriseWorkflowEngine.js	118	47	no-unused-vars	'options' is assigned a value but never used.
+src/components/enterpriseWorkflowEngine.js	132	11	no-unused-vars	'appraisalPackets' is assigned a value but never used.
+src/components/executiveDecisionDashboard.js	126	63	no-unused-vars	'redTeamReview' is defined but never used.
+src/components/executiveDecisionDashboard.js	263	70	no-unused-vars	'redTeamReview' is defined but never used.
+src/components/executiveDecisionDashboard.js	498	12	no-unused-vars	'error' is defined but never used.
+src/components/executiveDecisionExecutionEngine.js	74	43	no-unused-vars	'signals' is defined but never used.
+src/components/executiveDecisionExecutionEngine.js	92	9	no-unused-vars	'baseCapitalEfficiency' is assigned a value but never used.
+src/components/executiveIntelligence.js	49	47	no-unused-vars	'deal' is assigned a value but never used.
+src/components/executiveIntelligence.js	247	127	no-undef	'property' is not defined.
+src/components/executivePortfolioPrioritizationEngine.js	65	37	no-unused-vars	'deal' is assigned a value but never used.
+src/components/executiveRecommendationEngine.js	62	9	no-unused-vars	'financingExposure' is assigned a value but never used.
+src/components/executiveStrategyOptimizationEngine.js	59	35	no-unused-vars	'score' is defined but never used.
+src/components/executiveStrategyOptimizationEngine.js	59	42	no-unused-vars	'signals' is defined but never used.
+src/components/executiveStrategyOptimizationEngine.js	70	35	no-unused-vars	'signals' is defined but never used.
+src/components/executiveStrategyOptimizationEngine.js	89	9	no-unused-vars	'deal' is assigned a value but never used.
+src/components/executiveStrategyOptimizationEngine.js	93	9	no-unused-vars	'executiveActionQueue' is assigned a value but never used.
+src/components/executiveStrategyOptimizationEngine.js	94	9	no-unused-vars	'capitalAllocationEngine' is assigned a value but never used.
+src/components/executiveStrategyOptimizationEngine.js	98	9	no-unused-vars	'reserveShortfall' is assigned a value but never used.
+src/components/executiveStrategyOptimizationEngine.js	103	9	no-unused-vars	'liquidityRatio' is assigned a value but never used.
+src/components/financeIntelligence.js	215	5	no-dupe-keys	Duplicate key 'minimumLoanAmount'.
+src/components/financeIntelligence.test.js	34	5	no-dupe-keys	Duplicate key 'maximumLTC'.
+src/components/intelligenceUpgradeEngine.js	17	10	no-unused-vars	'buildDecisionReasonText' is defined but never used.
+src/components/intelligenceUpgradeEngine.js	728	7	no-useless-assignment	The value assigned to 'classification' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	729	7	no-useless-assignment	The value assigned to 'explanation' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	836	7	no-useless-assignment	The value assigned to 'classification' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	897	9	no-unused-vars	'normalizedArv' is assigned a value but never used.
+src/components/intelligenceUpgradeEngine.js	910	7	no-useless-assignment	The value assigned to 'overallMarketRating' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	916	7	no-useless-assignment	The value assigned to 'opportunityRating' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	976	7	no-useless-assignment	The value assigned to 'recommendationLabel' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	1163	7	no-useless-assignment	The value assigned to 'decision' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	1520	5	no-dupe-keys	Duplicate key 'controllingMao'.
+src/components/intelligenceUpgradeEngine.js	1550	7	no-useless-assignment	The value assigned to 'recommendation' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	1551	7	no-useless-assignment	The value assigned to 'confidence' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	1552	7	no-useless-assignment	The value assigned to 'reasons' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	1738	9	no-unused-vars	'holdingCosts' is assigned a value but never used.
+src/components/intelligenceUpgradeEngine.js	1934	9	no-unused-vars	'baseCost' is assigned a value but never used.
+src/components/intelligenceUpgradeEngine.js	2054	139	no-unused-vars	'riskProfile' is assigned a value but never used.
+src/components/intelligenceUpgradeEngine.js	2054	178	no-unused-vars	'executiveMarketSummary' is assigned a value but never used.
+src/components/intelligenceUpgradeEngine.js	2056	9	no-unused-vars	'purchaseEvidence' is assigned a value but never used.
+src/components/intelligenceUpgradeEngine.js	2072	9	no-unused-vars	'hardFailure' is assigned a value but never used.
+src/components/intelligenceUpgradeEngine.js	2083	7	no-useless-assignment	The value assigned to 'primaryAction' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	2084	7	no-useless-assignment	The value assigned to 'secondaryAction' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	2085	7	no-useless-assignment	The value assigned to 'investmentDecision' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	2086	7	no-useless-assignment	The value assigned to 'strategy' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	2087	7	no-useless-assignment	The value assigned to 'aiDecision' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	2088	7	no-useless-assignment	The value assigned to 'executiveDecision' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	2089	7	no-useless-assignment	The value assigned to 'baseRecommendation' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	2090	7	no-useless-assignment	The value assigned to 'worstCaseRecommendation' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	2091	7	no-useless-assignment	The value assigned to 'downsideRecommendation' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	2092	7	no-useless-assignment	The value assigned to 'enterpriseRoute' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	2093	7	no-useless-assignment	The value assigned to 'qualification' is not used in subsequent statements.
+src/components/intelligenceUpgradeEngine.js	2224	63	no-unused-vars	'flipAnalysis' is assigned a value but never used.
+src/components/intelligenceUpgradeEngine.js	2265	33	no-unused-vars	'deal' is assigned a value but never used.
+src/components/intelligenceUpgradeEngine.js	2299	30	no-unused-vars	'deal' is assigned a value but never used.
+src/components/intelligenceUpgradeEngine.js	2465	9	no-unused-vars	'monthlyInterest' is assigned a value but never used.
+src/components/intelligenceUpgradeEngine.test.js	3	526	no-unused-vars	'buildKnowledgeIntelligence' is defined but never used.
+src/components/intelligenceUpgradeEngine.test.js	3	554	no-unused-vars	'buildSearchIntelligence' is defined but never used.
+src/components/intelligenceUpgradeEngine.test.js	3	579	no-unused-vars	'buildReportingIntelligence' is defined but never used.
+src/components/intelligenceUpgradeEngine.test.js	3	607	no-unused-vars	'buildDocumentAutomationIntelligence' is defined but never used.
+src/components/intelligenceUpgradeEngine.test.js	3	644	no-unused-vars	'buildAiCommandRouting' is defined but never used.
+src/components/portfolioEnterpriseUpgradeEngine.js	35	10	no-unused-vars	'formatCurrency' is defined but never used.
+src/components/portfolioIntelligence.js	44	10	no-unused-vars	'formatSignedCurrency' is defined but never used.
+src/components/portfolioIntelligence.js	244	9	no-unused-vars	'totalMonthlyRent' is assigned a value but never used.
+src/components/portfolioIntelligence.js	439	30	no-unused-vars	'summary' is assigned a value but never used.
+src/components/portfolioIntelligence.js	439	60	no-unused-vars	'scenarios' is assigned a value but never used.
+src/components/portfolioIntelligence.js	513	9	no-unused-vars	'normalizedLenders' is assigned a value but never used.
+src/components/portfolioIntelligence.js	515	9	no-unused-vars	'normalizedDealsData' is assigned a value but never used.
+src/components/portfolioIntelligence.js	516	9	no-unused-vars	'normalizedAppraisalPackets' is assigned a value but never used.
+src/components/redTeamReview.js	75	10	no-unused-vars	'getHighestRiskWarning' is defined but never used.
+src/components/redTeamReview.js	134	11	no-unused-vars	'appraisedValue' is assigned a value but never used.
+src/components/redTeamReview.js	153	11	no-unused-vars	'valuationScore' is assigned a value but never used.
+src/components/redTeamReview.js	159	11	no-unused-vars	'scenarioSummaryDscr' is assigned a value but never used.
+src/components/redTeamReview.js	391	12	no-unused-vars	'error' is defined but never used.
+src/components/refinanceExitOptimizer.js	85	10	no-unused-vars	'getDscr' is defined but never used.
+src/components/refinanceExitOptimizer.js	126	9	no-unused-vars	'deals' is assigned a value but never used.
+src/components/refinanceExitOptimizer.js	127	9	no-unused-vars	'portfolioIntelligence' is assigned a value but never used.
+src/components/refinanceExitOptimizer.js	128	9	no-unused-vars	'capitalAllocationEngine' is assigned a value but never used.
+src/components/refinanceExitOptimizer.js	178	9	no-unused-vars	'monthlyOperatingExpenses' is assigned a value but never used.
+src/components/refinanceExitOptimizer.js	231	40	no-constant-binary-expression	Unexpected constant nullishness on the left-hand side of a `??` expression.
+src/components/refinanceExitOptimizer.js	237	9	no-unused-vars	'appraisalStatus' is assigned a value but never used.
+src/components/refinanceExitOptimizer.js	238	9	no-unused-vars	'insuranceStatus' is assigned a value but never used.
+src/components/refinanceExitOptimizer.js	239	9	no-unused-vars	'titleStatus' is assigned a value but never used.
+src/components/refinanceExitOptimizer.js	243	9	no-unused-vars	'leaseStatus' is assigned a value but never used.
+src/components/refinanceExitOptimizer.js	248	7	no-useless-assignment	The value assigned to 'refinanceReadiness' is not used in subsequent statements.
+src/utils/enterpriseUiIntegration.test.js	3	166	no-unused-vars	'buildReleaseReadinessViewModel' is defined but never used.
+src/utils/liveEnterpriseIntelligence.js	4	40	no-unused-vars	'createOperationsService' is defined but never used.
+src/utils/liveEnterpriseIntelligence.js	53	40	no-unused-vars	'properties' is assigned a value but never used.
+src/utils/liveEnterpriseIntelligence.js	53	91	no-unused-vars	'portfolioEntries' is assigned a value but never used.
+src/utils/liveEnterpriseIntelligence.js	53	114	no-unused-vars	'alerts' is assigned a value but never used.

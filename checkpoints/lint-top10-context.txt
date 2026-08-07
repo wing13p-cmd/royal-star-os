@@ -1,0 +1,773 @@
+
+### src/components/AppraiserPacketBuilder.jsx
+
+-- 6:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+    4: import { buildAppraisalPacketIntelligence } from "./optionExpansionIntelligence.js";
+    5: 
+    6: const API_BASE_URL = "";
+    7: 
+    8: const navigation = [
+
+-- 42:7 no-unused-vars 'compQualityOptions' is assigned a value but never used.
+   40: const strategyOptions = ["Flip", "BRRRR", "Long-Term Rental", "Short-Term Rental", "Wholesale", "Hold", "Undecided"];
+   41: const propertyTypeOptions = ["Single Family", "Duplex", "Triplex", "Fourplex", "Condominium", "Townhouse", "Mixed Use", "Other"];
+   42: const compQualityOptions = ["Excellent", "Good", "Fair", "Weak", "Reject"];
+   43: const sortOptions = [
+   44:   ["name", "Packet Name"],
+
+-- 150:10 no-unused-vars 'formatPercent' is defined but never used.
+  148: }
+  149: 
+  150: function formatPercent(value) {
+  151:   if (value === "" || value === null || value === undefined || !Number.isFinite(Number(value))) return "Insufficient Data";
+  152:   return `${Number(value).toFixed(1)}%`;
+
+-- 155:10 no-unused-vars 'formatNumber' is defined but never used.
+  153: }
+  154: 
+  155: function formatNumber(value) {
+  156:   if (value === "" || value === null || value === undefined || !Number.isFinite(Number(value))) return "Insufficient Data";
+  157:   return Number(value).toLocaleString("en-US", { maximumFractionDigits: 1 });
+
+-- 431:10 no-unused-vars 'computeCompMetrics' is defined but never used.
+  429: }
+  430: 
+  431: function computeCompMetrics(comp) {
+  432:   const salePrice = Number(comp.salePrice || 0);
+  433:   const squareFeet = Number(comp.squareFeet || 0);
+
+-- 472:180 no-unused-vars 'onOpenDealIntelligence' is defined but never used.
+  470: }
+  471: 
+  472: export default function AppraiserPacketBuilder({ onBack, onOpenDealAnalyzer, onOpenFlipAnalyzer, onOpenBrrrrAnalyzer, onOpenProductVault, onOpenContractorHub, onOpenCompDatabase, onOpenDealIntelligence, onOpenNeighborhoodDatabase, onOpenPortfolioDashboard, onOpenPropertyDatabase, onOpenVendorDatabase, onOpenMaterialMatrix, onOpenLenderDashboard, onOpenDealIntake }) {
+  473:   const [packets, setPackets] = useState([]);
+  474:   const [properties, setProperties] = useState([]);
+
+-- 477:10 no-unused-vars 'lenders' is assigned a value but never used.
+  475:   const [deals, setDeals] = useState([]);
+  476:   const [comps, setComps] = useState([]);
+  477:   const [lenders, setLenders] = useState([]);
+  478:   const [formValues, setFormValues] = useState(initialValues);
+  479:   const [editingId, setEditingId] = useState(null);
+
+-- 534:16 no-unused-vars 'error' is defined but never used.
+  532:         const data = await response.json();
+  533:         return Array.isArray(data) ? data : [];
+  534:       } catch (error) {
+  535:         try {
+  536:           const stored = JSON.parse(window.localStorage.getItem(storageKey) || "[]") || [];
+
+-- 685:9 no-unused-vars 'handleArrayField' is assigned a value but never used.
+  683:   };
+  684: 
+  685:   const handleArrayField = (name, value) => {
+  686:     setFormValues((current) => ({ ...current, [name]: [...(current[name] || []), value] }));
+  687:   };
+
+-- 689:9 no-unused-vars 'removeArrayItem' is assigned a value but never used.
+  687:   };
+  688: 
+  689:   const removeArrayItem = (name, index) => {
+  690:     setFormValues((current) => ({ ...current, [name]: (current[name] || []).filter((_, itemIndex) => itemIndex !== index) }));
+  691:   };
+
+-- 773:14 no-unused-vars 'error' is defined but never used.
+  771:       window.localStorage.setItem("royalStarAppraisalPackets", JSON.stringify(nextPackets));
+  772:       setMessage({ type: "success", text: "Packet deleted successfully." });
+  773:     } catch (error) {
+  774:       const nextPackets = packets.filter((item) => item.id !== packetId);
+  775:       setPackets(nextPackets);
+
+-- 789:14 no-unused-vars 'error' is defined but never used.
+  787:       const saved = await response.json();
+  788:       setPackets((current) => current.map((item) => (item.id === packet.id ? saved : item)));
+  789:     } catch (error) {
+  790:       setPackets((current) => current.map((item) => (item.id === packet.id ? updated : item)));
+  791:     }
+
+-- 882:9 no-unused-vars 'updateCompForPacket' is assigned a value but never used.
+  880:   };
+  881: 
+  882:   const updateCompForPacket = (compId, field, value) => {
+  883:     const nextPackets = packets.map((packet) => {
+  884:       if (packet.id !== formValues.id) return packet;
+
+### src/components/DealIntelligence.jsx
+
+-- 7:48 no-unused-vars 'scenarioSafeDisplay' is defined but never used.
+    5: import { buildFinancingIntelligence, buildLenderComparison } from "./financeIntelligence.js";
+    6: import { buildRecommendationEngine } from "./recommendationEngine.js";
+    7: import { buildScenarioAnalysis, safeDisplay as scenarioSafeDisplay } from "./scenarioAnalysis.js";
+    8: import { buildRedTeamReview, safeDisplay as redTeamSafeDisplay } from "./redTeamReview.js";
+    9: import { buildExecutiveDecisionDashboard } from "./executiveDecisionDashboard.js";
+
+-- 12:10 no-unused-vars 'buildArvIntelligence' is defined but never used.
+   10: import { buildExecutiveDecisionExecutionEngine } from "./executiveDecisionExecutionEngine.js";
+   11: import { buildRefinanceExitOptimizer } from "./refinanceExitOptimizer.js";
+   12: import { buildArvIntelligence, buildBuyBoxIntelligence, buildOfferIntelligence, buildAppraisalIntelligence, normalizeDealForIntelligence, buildUnifiedUnderwritingIntelligence, buildUnderwritingMetrics, buildEnterpriseDealIntelligenceSummary } from "./intelligenceUpgradeEngine.js";
+   13: import { buildAiDecisionEngine } from "./aiDecisionEngine.js";
+   14: import { getSidebarNavigation } from "../utils/navigationModel.js";
+
+-- 12:32 no-unused-vars 'buildBuyBoxIntelligence' is defined but never used.
+   10: import { buildExecutiveDecisionExecutionEngine } from "./executiveDecisionExecutionEngine.js";
+   11: import { buildRefinanceExitOptimizer } from "./refinanceExitOptimizer.js";
+   12: import { buildArvIntelligence, buildBuyBoxIntelligence, buildOfferIntelligence, buildAppraisalIntelligence, normalizeDealForIntelligence, buildUnifiedUnderwritingIntelligence, buildUnderwritingMetrics, buildEnterpriseDealIntelligenceSummary } from "./intelligenceUpgradeEngine.js";
+   13: import { buildAiDecisionEngine } from "./aiDecisionEngine.js";
+   14: import { getSidebarNavigation } from "../utils/navigationModel.js";
+
+-- 12:81 no-unused-vars 'buildAppraisalIntelligence' is defined but never used.
+   10: import { buildExecutiveDecisionExecutionEngine } from "./executiveDecisionExecutionEngine.js";
+   11: import { buildRefinanceExitOptimizer } from "./refinanceExitOptimizer.js";
+   12: import { buildArvIntelligence, buildBuyBoxIntelligence, buildOfferIntelligence, buildAppraisalIntelligence, normalizeDealForIntelligence, buildUnifiedUnderwritingIntelligence, buildUnderwritingMetrics, buildEnterpriseDealIntelligenceSummary } from "./intelligenceUpgradeEngine.js";
+   13: import { buildAiDecisionEngine } from "./aiDecisionEngine.js";
+   14: import { getSidebarNavigation } from "../utils/navigationModel.js";
+
+-- 93:9 no-unused-vars 'financingCosts' is assigned a value but never used.
+   91:   const purchasePrice = safeNumber(normalizedDeal.purchasePrice ?? normalizedDeal.askingPrice);
+   92:   const rehabBudget = safeNumber(normalizedDeal.rehabBudget);
+   93:   const financingCosts = safeNumber(normalizedDeal.financingCosts);
+   94:   const closingCosts = safeNumber(normalizedDeal.closingCosts);
+   95:   const taxes = safeNumber(normalizedDeal.taxes);
+
+-- 94:9 no-unused-vars 'closingCosts' is assigned a value but never used.
+   92:   const rehabBudget = safeNumber(normalizedDeal.rehabBudget);
+   93:   const financingCosts = safeNumber(normalizedDeal.financingCosts);
+   94:   const closingCosts = safeNumber(normalizedDeal.closingCosts);
+   95:   const taxes = safeNumber(normalizedDeal.taxes);
+   96:   const insurance = safeNumber(normalizedDeal.insurance);
+
+-- 95:9 no-unused-vars 'taxes' is assigned a value but never used.
+   93:   const financingCosts = safeNumber(normalizedDeal.financingCosts);
+   94:   const closingCosts = safeNumber(normalizedDeal.closingCosts);
+   95:   const taxes = safeNumber(normalizedDeal.taxes);
+   96:   const insurance = safeNumber(normalizedDeal.insurance);
+   97:   const arv = safeNumber(normalizedDeal.estimatedArv ?? normalizedDeal.arv ?? normalizedDeal.projectedARV ?? normalizedDeal.currentValue);
+
+-- 96:9 no-unused-vars 'insurance' is assigned a value but never used.
+   94:   const closingCosts = safeNumber(normalizedDeal.closingCosts);
+   95:   const taxes = safeNumber(normalizedDeal.taxes);
+   96:   const insurance = safeNumber(normalizedDeal.insurance);
+   97:   const arv = safeNumber(normalizedDeal.estimatedArv ?? normalizedDeal.arv ?? normalizedDeal.projectedARV ?? normalizedDeal.currentValue);
+   98:   const estimatedRent = safeNumber(normalizedDeal.estimatedRent ?? normalizedDeal.marketRent ?? normalizedDeal.projectedRent);
+
+-- 104:9 no-unused-vars 'strategy' is assigned a value but never used.
+  102:   const appraisedValue = safeNumber(normalizedDeal.appraisedValue ?? 0);
+  103:   const propertyType = normalizedDeal.propertyType || "";
+  104:   const strategy = normalizedDeal.strategy || "";
+  105:   const squareFeet = safeNumber(normalizedDeal.squareFeet);
+  106:   const bedrooms = safeNumber(normalizedDeal.bedrooms);
+
+-- 108:9 no-unused-vars 'yearBuilt' is assigned a value but never used.
+  106:   const bedrooms = safeNumber(normalizedDeal.bedrooms);
+  107:   const bathrooms = safeNumber(normalizedDeal.bathrooms);
+  108:   const yearBuilt = safeNumber(normalizedDeal.yearBuilt);
+  109:   const zipCode = normalizedDeal.zipCode || normalizedDeal.zip || "";
+  110:   const city = normalizedDeal.city || "";
+
+-- 122:9 no-unused-vars 'estimatedSellingCosts' is assigned a value but never used.
+  120:   const sharedDecision = underwritingDecision?.sharedDecision || null;
+  121:   const totalProjectCost = underwritingMetrics.totalProjectCost;
+  122:   const estimatedSellingCosts = underwritingMetrics.sellingCosts;
+  123:   const grossSpread = underwritingMetrics.grossProfit;
+  124:   const canonicalProjectedProfit = safeNumber(sharedDecision?.projectedProfit ?? underwritingMetrics.profit ?? underwritingDecision?.flipAnalysis?.netProfit ?? 0);
+
+-- 216:9 no-unused-vars 'upgradedOfferSummary' is assigned a value but never used.
+  214:   const valuationScore = Math.round(Math.max(0, Math.min(100, 30 + (supportedArv > 0 ? 20 : 0) + (appraisedValue > 0 ? 15 : 0) + (compCount >= 3 ? 20 : compCount >= 1 ? 10 : 0) + (projectedArv > 0 ? 15 : 0))));
+  215:   const valuationExplanation = supportedArv > 0 ? `Supported ARV of ${formatCurrency(supportedArv)} provides a clear basis for valuation.` : "Supported ARV is not yet established.";
+  216:   const upgradedOfferSummary = upgradeOffer.offerSummary;
+  217: 
+  218:   const warnings = [];
+
+-- 658:17 no-unused-vars 'viewModel' is assigned a value but never used.
+  656:             ? liveDealIntelligence.find((entry) => String(entry.id) === String(deal.id) || String(entry.dealId) === String(deal.id) || String(entry.propertyId) === String(deal.id)) || null
+  657:             : null;
+  658:           const viewModel = buildDealIntelligenceViewModel({
+  659:             deal,
+  660:             backendRecord,
+
+-- 746:25 react-hooks/preserve-manual-memoization Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.
+
+  744 |   }, [analysis, deals, lenders, selectedLenderIds]);
+  745 |
+> 746 |   const redTeamReview = useMemo(() => {
+      |                         ^^^^^^^^^^^^^^^
+> 747 |     const baseDeal = deals[0] || {};
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 748 |     const topDeal = analysis[0] || {};
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 749 |     return buildRedTeamReview(baseDeal, topDeal, scenarioAnalysis || {});
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 750 |   }, [analysis, deals, scenarioAnalysis]);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Could not preserve existing memoization
+  751 |
+  752 |   const summary = useMemo(() => {
+  753 |     const totalDeals = analysis.length;
+  744:   }, [analysis, deals, lenders, selectedLenderIds]);
+  745: 
+  746:   const redTeamReview = useMemo(() => {
+  747:     const baseDeal = deals[0] || {};
+  748:     const topDeal = analysis[0] || {};
+
+### src/components/LenderDashboard.jsx
+
+-- 5:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+    3: import logo from "../assets/royal-star-logo.png";
+    4: 
+    5: const API_BASE_URL = "";
+    6: 
+    7: const navigation = [
+
+-- 150:10 no-unused-vars 'createId' is defined but never used.
+  148: };
+  149: 
+  150: function createId(prefix = "lender") {
+  151:   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  152: }
+
+-- 175:10 no-unused-vars 'formatNumber' is defined but never used.
+  173: }
+  174: 
+  175: function formatNumber(value) {
+  176:   if (value === "" || value === null || value === undefined || !Number.isFinite(Number(value))) return "Insufficient Data";
+  177:   return Number(value).toLocaleString("en-US", { maximumFractionDigits: 1 });
+
+-- 180:10 no-unused-vars 'formatDate' is defined but never used.
+  178: }
+  179: 
+  180: function formatDate(value) {
+  181:   if (!value) return "—";
+  182:   const date = new Date(value);
+
+-- 539:173 no-unused-vars 'onOpenDealIntelligence' is defined but never used.
+  537: }
+  538: 
+  539: export default function LenderDashboard({ onBack, onOpenDealAnalyzer, onOpenFlipAnalyzer, onOpenBrrrrAnalyzer, onOpenProductVault, onOpenContractorHub, onOpenCompDatabase, onOpenDealIntelligence, onOpenNeighborhoodDatabase, onOpenPortfolioDashboard, onOpenPropertyDatabase, onOpenVendorDatabase, onOpenMaterialMatrix, onOpenDealIntake }) {
+  540:   const [lenders, setLenders] = useState([]);
+  541:   const [deals, setDeals] = useState([]);
+
+-- 617:16 no-unused-vars 'error' is defined but never used.
+  615:         const data = await response.json();
+  616:         return Array.isArray(data) ? data : [];
+  617:       } catch (error) {
+  618:         try {
+  619:           const stored = JSON.parse(window.localStorage.getItem(storageKey) || "[]") || [];
+
+-- 852:14 no-unused-vars 'error' is defined but never used.
+  850:       window.localStorage.setItem("royalStarLenders", JSON.stringify(nextLenders));
+  851:       setMessage({ type: "success", text: "Lender deleted successfully." });
+  852:     } catch (error) {
+  853:       const nextLenders = lenders.filter((item) => item.id !== lenderId);
+  854:       setLenders(nextLenders);
+
+-- 868:14 no-unused-vars 'error' is defined but never used.
+  866:       const saved = await response.json();
+  867:       setLenders((current) => current.map((item) => (item.id === lender.id ? saved : item)));
+  868:     } catch (error) {
+  869:       setLenders((current) => current.map((item) => (item.id === lender.id ? updated : item)));
+  870:       window.localStorage.setItem("royalStarLenders", JSON.stringify(lenders.map((item) => (item.id === lender.id ? updated : item))));
+
+### src/components/PropertyDatabase.jsx
+
+-- 4:10 no-unused-vars 'buildModuleSyncState' is defined but never used.
+    2: import { buildApiUrl } from "../utils/apiClient.js";
+    3: import logo from "../assets/royal-star-logo.png";
+    4: import { buildModuleSyncState } from "./moduleSync.js";
+    5: import { buildImportPreview, normalizeRecordForStorage } from "./enterpriseDataIntegration.js";
+    6: 
+
+-- 7:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+    5: import { buildImportPreview, normalizeRecordForStorage } from "./enterpriseDataIntegration.js";
+    6: 
+    7: const API_BASE_URL = "";
+    8: 
+    9: const navigation = [
+
+-- 208:10 no-unused-vars 'formatNumber' is defined but never used.
+  206: }
+  207: 
+  208: function formatNumber(value) {
+  209:   if (value === "" || value === null || value === undefined || !Number.isFinite(Number(value))) return "Insufficient Data";
+  210:   return Number(value).toLocaleString("en-US", { maximumFractionDigits: 1 });
+
+-- 213:10 no-unused-vars 'formatDate' is defined but never used.
+  211: }
+  212: 
+  213: function formatDate(value) {
+  214:   if (!value) return "—";
+  215:   const date = new Date(value);
+
+-- 593:3 no-unused-vars 'onOpenDealIntelligence' is defined but never used.
+  591:   onOpenContractorHub,
+  592:   onOpenCompDatabase,
+  593:   onOpenDealIntelligence,
+  594:   onOpenNeighborhoodDatabase,
+  595:   onOpenPortfolioDashboard,
+
+-- 609:24 no-unused-vars 'setCountyFilter' is assigned a value but never used.
+  607:   const [propertyTypeFilter, setPropertyTypeFilter] = useState("All");
+  608:   const [cityFilter, setCityFilter] = useState("All");
+  609:   const [countyFilter, setCountyFilter] = useState("All");
+  610:   const [stateFilter, setStateFilter] = useState("All");
+  611:   const [zipFilter, setZipFilter] = useState("All");
+
+-- 612:27 no-unused-vars 'setOccupancyFilter' is assigned a value but never used.
+  610:   const [stateFilter, setStateFilter] = useState("All");
+  611:   const [zipFilter, setZipFilter] = useState("All");
+  612:   const [occupancyFilter, setOccupancyFilter] = useState("All");
+  613:   const [favoriteFilter, setFavoriteFilter] = useState("All");
+  614:   const [missingParcelFilter, setMissingParcelFilter] = useState("All");
+
+-- 614:31 no-unused-vars 'setMissingParcelFilter' is assigned a value but never used.
+  612:   const [occupancyFilter, setOccupancyFilter] = useState("All");
+  613:   const [favoriteFilter, setFavoriteFilter] = useState("All");
+  614:   const [missingParcelFilter, setMissingParcelFilter] = useState("All");
+  615:   const [missingSourceFilter, setMissingSourceFilter] = useState("All");
+  616:   const [staleDataFilter, setStaleDataFilter] = useState("All");
+
+-- 615:31 no-unused-vars 'setMissingSourceFilter' is assigned a value but never used.
+  613:   const [favoriteFilter, setFavoriteFilter] = useState("All");
+  614:   const [missingParcelFilter, setMissingParcelFilter] = useState("All");
+  615:   const [missingSourceFilter, setMissingSourceFilter] = useState("All");
+  616:   const [staleDataFilter, setStaleDataFilter] = useState("All");
+  617:   const [sortBy, setSortBy] = useState("newest");
+
+-- 616:27 no-unused-vars 'setStaleDataFilter' is assigned a value but never used.
+  614:   const [missingParcelFilter, setMissingParcelFilter] = useState("All");
+  615:   const [missingSourceFilter, setMissingSourceFilter] = useState("All");
+  616:   const [staleDataFilter, setStaleDataFilter] = useState("All");
+  617:   const [sortBy, setSortBy] = useState("newest");
+  618:   const [comparisonIds, setComparisonIds] = useState([]);
+
+-- 821:9 no-unused-vars 'countyOptions' is assigned a value but never used.
+  819:   const propertyTypeOptionsList = useMemo(() => ["All", ...Array.from(new Set(normalizedProperties.map((property) => property.propertyType).filter(Boolean))).sort()], [normalizedProperties]);
+  820:   const cityOptions = useMemo(() => ["All", ...Array.from(new Set(normalizedProperties.map((property) => property.city).filter(Boolean))).sort()], [normalizedProperties]);
+  821:   const countyOptions = useMemo(() => ["All", ...Array.from(new Set(normalizedProperties.map((property) => property.county).filter(Boolean))).sort()], [normalizedProperties]);
+  822:   const stateOptions = useMemo(() => ["All", ...Array.from(new Set(normalizedProperties.map((property) => property.state).filter(Boolean))).sort()], [normalizedProperties]);
+  823:   const zipOptions = useMemo(() => ["All", ...Array.from(new Set(normalizedProperties.map((property) => property.zipCode).filter(Boolean))).sort()], [normalizedProperties]);
+
+-- 824:9 no-unused-vars 'occupancyOptionsList' is assigned a value but never used.
+  822:   const stateOptions = useMemo(() => ["All", ...Array.from(new Set(normalizedProperties.map((property) => property.state).filter(Boolean))).sort()], [normalizedProperties]);
+  823:   const zipOptions = useMemo(() => ["All", ...Array.from(new Set(normalizedProperties.map((property) => property.zipCode).filter(Boolean))).sort()], [normalizedProperties]);
+  824:   const occupancyOptionsList = useMemo(() => ["All", ...occupancyOptions], []);
+  825: 
+  826:   const handleFieldChange = (event) => {
+
+### src/components/RehabProjectTracker.jsx
+
+-- 4:32 no-unused-vars 'buildRehabProjectFromDeal' is defined but never used.
+    2: import { buildApiUrl } from "../utils/apiClient.js";
+    3: import logo from "../assets/royal-star-logo.png";
+    4: import { buildModuleSyncState, buildRehabProjectFromDeal } from "./moduleSync.js";
+    5: import { buildProjectExecutionIntelligenceEngine } from "./projectExecutionIntelligenceEngine.js";
+    6: 
+
+-- 7:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+    5: import { buildProjectExecutionIntelligenceEngine } from "./projectExecutionIntelligenceEngine.js";
+    6: 
+    7: const API_BASE_URL = "";
+    8: 
+    9: const projectStatusOptions = ["Planning", "Pre-Construction", "Permitting", "Ready to Start", "In Progress", "On Hold", "Delayed", "Punch List", "Final Inspection", "Complete", "Closed", "Cancelled"];
+
+-- 277:177 no-unused-vars 'onOpenDealIntelligence' is defined but never used.
+  275: }
+  276: 
+  277: export default function RehabProjectTracker({ onBack, onOpenDealAnalyzer, onOpenFlipAnalyzer, onOpenBrrrrAnalyzer, onOpenProductVault, onOpenContractorHub, onOpenCompDatabase, onOpenDealIntelligence, onOpenNeighborhoodDatabase, onOpenPortfolioDashboard, onOpenPropertyDatabase, onOpenVendorDatabase, onOpenMaterialMatrix, onOpenLenderDashboard, onOpenAppraiserPacketBuilder, onOpenDealIntake }) {
+  278:   const [projects, setProjects] = useState([]);
+  279:   const [properties, setProperties] = useState([]);
+
+-- 277:376 no-unused-vars 'onOpenDealIntake' is defined but never used.
+  275: }
+  276: 
+  277: export default function RehabProjectTracker({ onBack, onOpenDealAnalyzer, onOpenFlipAnalyzer, onOpenBrrrrAnalyzer, onOpenProductVault, onOpenContractorHub, onOpenCompDatabase, onOpenDealIntelligence, onOpenNeighborhoodDatabase, onOpenPortfolioDashboard, onOpenPropertyDatabase, onOpenVendorDatabase, onOpenMaterialMatrix, onOpenLenderDashboard, onOpenAppraiserPacketBuilder, onOpenDealIntake }) {
+  278:   const [projects, setProjects] = useState([]);
+  279:   const [properties, setProperties] = useState([]);
+
+-- 282:10 no-unused-vars 'vendors' is assigned a value but never used.
+  280:   const [deals, setDeals] = useState([]);
+  281:   const [contractors, setContractors] = useState([]);
+  282:   const [vendors, setVendors] = useState([]);
+  283:   const [materials, setMaterials] = useState([]);
+  284:   const [lenders, setLenders] = useState([]);
+
+-- 283:10 no-unused-vars 'materials' is assigned a value but never used.
+  281:   const [contractors, setContractors] = useState([]);
+  282:   const [vendors, setVendors] = useState([]);
+  283:   const [materials, setMaterials] = useState([]);
+  284:   const [lenders, setLenders] = useState([]);
+  285:   const [appraisalPackets, setAppraisalPackets] = useState([]);
+
+-- 330:14 no-unused-vars 'error' is defined but never used.
+  328:       const data = await response.json();
+  329:       setProjects(Array.isArray(data) ? data : []);
+  330:     } catch (error) {
+  331:       try {
+  332:         const stored = JSON.parse(window.localStorage.getItem("royalStarRehabProjects") || "[]") || [];
+
+-- 386:9 no-unused-vars 'syncState' is assigned a value but never used.
+  384: 
+  385:   const enrichedProjects = useMemo(() => projects.map((project) => buildProjectRecord(project)), [projects]);
+  386:   const syncState = useMemo(() => buildModuleSyncState({ deals, properties, portfolioEntries: [], rehabProjects: projects, contractors, lenders, appraisalPackets }), [deals, properties, projects, contractors, lenders, appraisalPackets]);
+  387: 
+  388:   const visibleProjects = useMemo(() => {
+
+-- 596:14 no-unused-vars 'error' is defined but never used.
+  594:       setMessage({ type: "success", text: `${editingId ? "Project updated successfully." : "Project added successfully."}${linkedDealMessage}` });
+  595:       resetForm();
+  596:     } catch (error) {
+  597:       const nextProjects = editingId ? projects.map((item) => (item.id === editingId ? payload : item)) : [...projects, payload];
+  598:       setProjects(nextProjects);
+
+-- 699:9 no-unused-vars 'reorderPhase' is assigned a value but never used.
+  697:   const editPhase = (phase) => setPhaseDraft({ ...phase });
+  698:   const removePhase = (phaseId) => setFormValues((current) => ({ ...current, phases: (current.phases || []).filter((phase) => phase.id !== phaseId) }));
+  699:   const reorderPhase = (phaseId, direction) => setFormValues((current) => ({ ...current, phases: (current.phases || []).reduce((acc, phase, index, phases) => { if (phase.id === phaseId) { const targetIndex = direction === "up" ? index - 1 : index + 1; if (targetIndex >= 0 && targetIndex < phases.length) { const [moved] = phases.splice(index, 1); phases.splice(targetIndex, 0, moved); } } return acc; }, current.phases || []) }));
+  700: 
+  701:   const addBudgetItem = () => {
+
+### src/components/VendorDatabase.jsx
+
+-- 6:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+    4: import { buildImportPreview, normalizeRecordForStorage } from "./enterpriseDataIntegration.js";
+    5: 
+    6: const API_BASE_URL = "";
+    7: 
+    8: const navigation = [
+
+-- 31:7 no-unused-vars 'riskLevelOptions' is assigned a value but never used.
+   29: const favoriteOptions = ["All", "Favorites Only"];
+   30: const complianceStatusOptions = ["All", "Compliant", "Expiring Soon", "Missing Documents", "Expired", "Not Required"];
+   31: const riskLevelOptions = ["All", "Low", "Moderate", "High", "Critical"];
+   32: const sortOptions = [
+   33:   ["name", "Vendor Name"],
+
+-- 122:10 no-unused-vars 'formatPercent' is defined but never used.
+  120: }
+  121: 
+  122: function formatPercent(value) {
+  123:   if (value === "" || value === null || value === undefined || !Number.isFinite(Number(value))) return "Insufficient Data";
+  124:   return `${Number(value).toFixed(1)}%`;
+
+-- 132:10 no-unused-vars 'formatDate' is defined but never used.
+  130: }
+  131: 
+  132: function formatDate(value) {
+  133:   if (!value) return "—";
+  134:   const date = new Date(value);
+
+-- 388:3 no-unused-vars 'onOpenDealIntelligence' is defined but never used.
+  386:   onOpenContractorHub,
+  387:   onOpenCompDatabase,
+  388:   onOpenDealIntelligence,
+  389:   onOpenNeighborhoodDatabase,
+  390:   onOpenPortfolioDashboard,
+
+-- 405:27 no-unused-vars 'setPreferredFilter' is assigned a value but never used.
+  403:   const [activeFilter, setActiveFilter] = useState("All");
+  404:   const [pricingTierFilter, setPricingTierFilter] = useState("All");
+  405:   const [preferredFilter, setPreferredFilter] = useState("All");
+  406:   const [favoriteFilter, setFavoriteFilter] = useState("All");
+  407:   const [deliveryFilter, setDeliveryFilter] = useState("All");
+
+-- 407:26 no-unused-vars 'setDeliveryFilter' is assigned a value but never used.
+  405:   const [preferredFilter, setPreferredFilter] = useState("All");
+  406:   const [favoriteFilter, setFavoriteFilter] = useState("All");
+  407:   const [deliveryFilter, setDeliveryFilter] = useState("All");
+  408:   const [pickupFilter, setPickupFilter] = useState("All");
+  409:   const [complianceFilter, setComplianceFilter] = useState("All");
+
+-- 408:24 no-unused-vars 'setPickupFilter' is assigned a value but never used.
+  406:   const [favoriteFilter, setFavoriteFilter] = useState("All");
+  407:   const [deliveryFilter, setDeliveryFilter] = useState("All");
+  408:   const [pickupFilter, setPickupFilter] = useState("All");
+  409:   const [complianceFilter, setComplianceFilter] = useState("All");
+  410:   const [riskFilter, setRiskFilter] = useState("All");
+
+-- 410:22 no-unused-vars 'setRiskFilter' is assigned a value but never used.
+  408:   const [pickupFilter, setPickupFilter] = useState("All");
+  409:   const [complianceFilter, setComplianceFilter] = useState("All");
+  410:   const [riskFilter, setRiskFilter] = useState("All");
+  411:   const [minScoreFilter, setMinScoreFilter] = useState("All");
+  412:   const [sortBy, setSortBy] = useState("name");
+
+-- 411:26 no-unused-vars 'setMinScoreFilter' is assigned a value but never used.
+  409:   const [complianceFilter, setComplianceFilter] = useState("All");
+  410:   const [riskFilter, setRiskFilter] = useState("All");
+  411:   const [minScoreFilter, setMinScoreFilter] = useState("All");
+  412:   const [sortBy, setSortBy] = useState("name");
+  413:   const [comparisonIds, setComparisonIds] = useState([]);
+
+-- 419:10 no-unused-vars 'importedProductVendor' is assigned a value but never used.
+  417:   const [importPreview, setImportPreview] = useState(null);
+  418:   const [importing, setImporting] = useState(false);
+  419:   const [importedProductVendor, setImportedProductVendor] = useState("");
+  420: 
+  421:   useEffect(() => {
+
+-- 419:33 no-unused-vars 'setImportedProductVendor' is assigned a value but never used.
+  417:   const [importPreview, setImportPreview] = useState(null);
+  418:   const [importing, setImporting] = useState(false);
+  419:   const [importedProductVendor, setImportedProductVendor] = useState("");
+  420: 
+  421:   useEffect(() => {
+
+### src/components/executiveStrategyOptimizationEngine.js
+
+-- 59:35 no-unused-vars 'score' is defined but never used.
+   57: }
+   58: 
+   59: function buildReasoning(strategy, score, signals) {
+   60:   if (strategy.key === 'Aggressive Growth') return 'Higher upside is available, but capital deployment and risk discipline must remain tight.';
+   61:   if (strategy.key === 'Balanced Growth') return 'The current opportunity set supports a balanced mix of growth and resilience.';
+
+-- 59:42 no-unused-vars 'signals' is defined but never used.
+   57: }
+   58: 
+   59: function buildReasoning(strategy, score, signals) {
+   60:   if (strategy.key === 'Aggressive Growth') return 'Higher upside is available, but capital deployment and risk discipline must remain tight.';
+   61:   if (strategy.key === 'Balanced Growth') return 'The current opportunity set supports a balanced mix of growth and resilience.';
+
+-- 70:35 no-unused-vars 'signals' is defined but never used.
+   68: }
+   69: 
+   70: function buildTradeOffs(strategy, signals) {
+   71:   if (strategy.key === 'Aggressive Growth') return ['Higher capital deployment', 'Greater sensitivity to market timing'];
+   72:   if (strategy.key === 'Balanced Growth') return ['Moderate capital deployment', 'Some reserve pressure remains'];
+
+-- 89:9 no-unused-vars 'deal' is assigned a value but never used.
+   87: 
+   88: export function buildExecutiveStrategyOptimizationEngine(payload = {}) {
+   89:   const deal = normalizeObject(payload.deal);
+   90:   const analysis = normalizeObject(payload.analysis);
+   91:   const portfolioIntelligence = normalizeObject(payload.portfolioIntelligence);
+
+-- 93:9 no-unused-vars 'executiveActionQueue' is assigned a value but never used.
+   91:   const portfolioIntelligence = normalizeObject(payload.portfolioIntelligence);
+   92:   const executiveRecommendationEngine = normalizeObject(payload.executiveRecommendationEngine);
+   93:   const executiveActionQueue = normalizeObject(payload.executiveActionQueue);
+   94:   const capitalAllocationEngine = normalizeObject(payload.capitalAllocationEngine);
+   95:   const marketAnalysis = normalizeObject(payload.marketAnalysis);
+
+-- 94:9 no-unused-vars 'capitalAllocationEngine' is assigned a value but never used.
+   92:   const executiveRecommendationEngine = normalizeObject(payload.executiveRecommendationEngine);
+   93:   const executiveActionQueue = normalizeObject(payload.executiveActionQueue);
+   94:   const capitalAllocationEngine = normalizeObject(payload.capitalAllocationEngine);
+   95:   const marketAnalysis = normalizeObject(payload.marketAnalysis);
+   96:   const forecastAnalysis = normalizeObject(payload.forecastAnalysis);
+
+-- 98:9 no-unused-vars 'reserveShortfall' is assigned a value but never used.
+   96:   const forecastAnalysis = normalizeObject(payload.forecastAnalysis);
+   97: 
+   98:   const reserveShortfall = safeNumber(portfolioIntelligence.summary?.reserveShortfallValue);
+   99:   const availableLiquidity = safeNumber(portfolioIntelligence.summary?.availableLiquidity);
+  100:   const cashRequired = safeNumber(analysis.cashRequired);
+
+-- 103:9 no-unused-vars 'liquidityRatio' is assigned a value but never used.
+  101:   const balanceScore = safeNumber(portfolioIntelligence.portfolioBalancingEngine?.portfolioBalanceScore);
+  102:   const diversification = safeNumber(portfolioIntelligence.portfolioBalancingEngine?.diversificationScore);
+  103:   const liquidityRatio = safeNumber(portfolioIntelligence.portfolioBalancingEngine?.liquidityReserveRatio);
+  104:   const riskScore = safeNumber(analysis.overallRisk);
+  105:   const forecastConfidence = safeNumber(forecastAnalysis.forecastConfidence);
+
+### src/components/intelligenceUpgradeEngine.js
+
+-- 17:10 no-unused-vars 'buildDecisionReasonText' is defined but never used.
+   15: }
+   16: 
+   17: function buildDecisionReasonText(value, fallback = "Insufficient Data") {
+   18:   if (value === null || value === undefined || value === "") return fallback;
+   19:   return String(value).trim();
+
+-- 900:9 no-unused-vars 'normalizedArv' is assigned a value but never used.
+  898: export function buildExecutiveMarketSummaryEngine(deal = {}, arv = {}, market = {}, opportunity = {}, forecast = {}, recommendation = {}) {
+  899:   const normalizedDeal = normalizeDealForIntelligence(deal);
+  900:   const normalizedArv = arv || {};
+  901:   const normalizedMarket = market || {};
+  902:   const normalizedOpportunity = opportunity || {};
+
+-- 1751:9 no-unused-vars 'holdingCosts' is assigned a value but never used.
+ 1749:   const contingency = metrics.contingency;
+ 1750:   const financingCosts = metrics.financingCosts;
+ 1751:   const holdingCosts = metrics.holdingCost;
+ 1752:   const sellingCosts = metrics.sellingCosts;
+ 1753:   const closingCosts = metrics.closingCosts;
+
+-- 1947:9 no-unused-vars 'baseCost' is assigned a value but never used.
+ 1945:   const financingCosts = safeNumber(deal.financingCosts || 0);
+ 1946:   const closingCosts = safeNumber(deal.closingCosts || 0);
+ 1947:   const baseCost = purchasePrice + rehabBudget + holdingCosts + financingCosts + closingCosts;
+ 1948:   const buildScenario = (label, arvFactor, rehabFactor, holdFactor, rateFactor = 1) => {
+ 1949:     const scenarioArv = baseArv * arvFactor;
+
+-- 2067:139 no-unused-vars 'riskProfile' is assigned a value but never used.
+ 2065: }
+ 2066: 
+ 2067: function buildSharedDecisionResult(normalizedDeal = {}, financingAnalysis = {}, arvAnalysis = {}, buyBoxAnalysis = {}, flipAnalysis = {}, riskProfile = {}, recommendation = {}, executiveMarketSummary = {}, options = {}) {
+ 2068:   const projectStatus = String(normalizedDeal.status || normalizedDeal.projectStatus || "").trim().toLowerCase();
+ 2069:   const purchaseEvidence = Boolean(normalizedDeal.purchasePrice || normalizedDeal.askingPrice || normalizedDeal.actualLoanAmount || normalizedDeal.purchaseDate || normalizedDeal.purchasedAt || normalizedDeal.completedAt || /acquired|owned|rehab|listed|refinancing|held/i.test(String(normalizedDeal.notes || "")) || /acquired|owned|rehab|listed|refinancing|held/i.test(String(normalizedDeal.status || "")));
+
+-- 2067:178 no-unused-vars 'executiveMarketSummary' is assigned a value but never used.
+ 2065: }
+ 2066: 
+ 2067: function buildSharedDecisionResult(normalizedDeal = {}, financingAnalysis = {}, arvAnalysis = {}, buyBoxAnalysis = {}, flipAnalysis = {}, riskProfile = {}, recommendation = {}, executiveMarketSummary = {}, options = {}) {
+ 2068:   const projectStatus = String(normalizedDeal.status || normalizedDeal.projectStatus || "").trim().toLowerCase();
+ 2069:   const purchaseEvidence = Boolean(normalizedDeal.purchasePrice || normalizedDeal.askingPrice || normalizedDeal.actualLoanAmount || normalizedDeal.purchaseDate || normalizedDeal.purchasedAt || normalizedDeal.completedAt || /acquired|owned|rehab|listed|refinancing|held/i.test(String(normalizedDeal.notes || "")) || /acquired|owned|rehab|listed|refinancing|held/i.test(String(normalizedDeal.status || "")));
+
+-- 2069:9 no-unused-vars 'purchaseEvidence' is assigned a value but never used.
+ 2067: function buildSharedDecisionResult(normalizedDeal = {}, financingAnalysis = {}, arvAnalysis = {}, buyBoxAnalysis = {}, flipAnalysis = {}, riskProfile = {}, recommendation = {}, executiveMarketSummary = {}, options = {}) {
+ 2068:   const projectStatus = String(normalizedDeal.status || normalizedDeal.projectStatus || "").trim().toLowerCase();
+ 2069:   const purchaseEvidence = Boolean(normalizedDeal.purchasePrice || normalizedDeal.askingPrice || normalizedDeal.actualLoanAmount || normalizedDeal.purchaseDate || normalizedDeal.purchasedAt || normalizedDeal.completedAt || /acquired|owned|rehab|listed|refinancing|held/i.test(String(normalizedDeal.notes || "")) || /acquired|owned|rehab|listed|refinancing|held/i.test(String(normalizedDeal.status || "")));
+ 2070:   const isOwnedProjectMode = ["acquired", "in-rehab", "owned", "listed", "refinancing", "held"].includes(projectStatus)
+ 2071:     || /purchased|owned|acquired|in rehab|rehab|refinancing|listed|held/i.test(String(normalizedDeal.notes || ""))
+
+-- 2085:9 no-unused-vars 'hardFailure' is assigned a value but never used.
+ 2083:   const financingCostSource = financingAnalysis?.financingCostSource || (effectiveFinancingCosts > 0 ? "calculated" : "manual-override");
+ 2084:   const buyBoxResult = String(buyBoxAnalysis?.result || buyBoxAnalysis?.decision || "INSUFFICIENT DATA").toUpperCase();
+ 2085:   const hardFailure = /not qualified|insufficient capital|insufficient funds|reject/i.test(String(recommendation?.action || "")) || projectedProfit <= 0 && buyBoxResult !== "PASS";
+ 2086:   const hasMissingData = Boolean(options.missingData || financingAnalysis?.missingFields?.length || (!normalizedDeal.estimatedArv && !normalizedDeal.supportedARV));
+ 2087:   const dataCompleteness = clamp(safeNumber(options.dataCompleteness ?? (normalizedDeal.purchasePrice && normalizedDeal.rehabBudget && normalizedDeal.estimatedArv && financingAnalysis?.actualLoanAmount && financingAnalysis?.initialCashInvested && financingAnalysis?.monthlyCarry ? 100 : 60)), 0, 100);
+
+-- 2237:63 no-unused-vars 'flipAnalysis' is assigned a value but never used.
+ 2235: }
+ 2236: 
+ 2237: function buildCashForecast(deal = {}, financingAnalysis = {}, flipAnalysis = {}) {
+ 2238:   const monthlyRent = safeNumber(deal.estimatedRent || deal.marketRent || deal.projectedRent || 0);
+ 2239:   const monthlyDebtService = safeNumber(financingAnalysis?.monthlyCarry || 0);
+
+-- 2278:33 no-unused-vars 'deal' is assigned a value but never used.
+ 2276: }
+ 2277: 
+ 2278: function buildGovernanceSignals(deal = {}, financingAnalysis = {}, buyBoxAnalysis = {}, sharedDecision = {}) {
+ 2279:   const approvalReady = safeNumber(financingAnalysis?.projectedProfit || 0) > 0 && (buyBoxAnalysis?.result === "PASS" || buyBoxAnalysis?.result === "CONDITIONAL");
+ 2280:   return {
+
+-- 2312:30 no-unused-vars 'deal' is assigned a value but never used.
+ 2310: }
+ 2311: 
+ 2312: function buildRefreshSignals(deal = {}, sharedDecision = {}) {
+ 2313:   return {
+ 2314:     moduleSyncStatus: "Synchronized",
+
+-- 2478:9 no-unused-vars 'monthlyInterest' is assigned a value but never used.
+ 2476:   const effectiveLoanAmount = actualLoanAmount ?? normalizedInputs.rehabFundingAmount ?? normalizedInputs.lenderLoanAmount ?? (normalizedInputs.acquisitionLoan && normalizedInputs.fundedRehab ? normalizedInputs.acquisitionLoan + normalizedInputs.fundedRehab : null);
+ 2477:   const loanAmount = effectiveLoanAmount ?? (purchasePrice > 0 ? purchasePrice : 0);
+ 2478:   const monthlyInterest = loanAmount > 0 && normalizedInputs.annualInterestRate ? loanAmount * (normalizedInputs.annualInterestRate / 100) / 12 : 0;
+ 2479:   const requestedLoanTermMonths = safeNumber(normalizedInputs.loanTermMonths ?? normalizedInputs.amortizationTermMonths ?? normalizedDeal.loanTermMonths ?? normalizedDeal.amortizationTermMonths ?? 0);
+ 2480:   const loanTermMonths = requestedLoanTermMonths > 0 ? requestedLoanTermMonths : 360;
+
+### src/components/portfolioIntelligence.js
+
+-- 44:10 no-unused-vars 'formatSignedCurrency' is defined but never used.
+   42: }
+   43: 
+   44: function formatSignedCurrency(value) {
+   45:   const parsed = Number(value);
+   46:   if (!Number.isFinite(parsed)) return "Insufficient Data";
+
+-- 244:9 no-unused-vars 'totalMonthlyRent' is assigned a value but never used.
+  242:   const totalRehabBudget = safeNumber(summary.totalRehabBudget || 0);
+  243:   const totalMonthlyCashFlow = safeNumber(summary.totalMonthlyCashFlow || 0);
+  244:   const totalMonthlyRent = safeNumber(summary.totalMonthlyRent || 0);
+  245:   const leverageRatio = totalValue > 0 ? (totalDebt / totalValue) * 100 : 0;
+  246:   const concentrationByCity = normalizedProperties.reduce((accumulator, property) => {
+
+-- 439:30 no-unused-vars 'summary' is assigned a value but never used.
+  437: }
+  438: 
+  439: function buildIntegrityAudit(summary = {}, forecasts = [], scenarios = []) {
+  440:   const forecastConfidence = Array.isArray(forecasts) && forecasts.length ? forecasts.reduce((sum, entry) => sum + safeNumber(entry.confidenceScore), 0) / forecasts.length : 0;
+  441:   return {
+
+-- 439:60 no-unused-vars 'scenarios' is assigned a value but never used.
+  437: }
+  438: 
+  439: function buildIntegrityAudit(summary = {}, forecasts = [], scenarios = []) {
+  440:   const forecastConfidence = Array.isArray(forecasts) && forecasts.length ? forecasts.reduce((sum, entry) => sum + safeNumber(entry.confidenceScore), 0) / forecasts.length : 0;
+  441:   return {
+
+-- 513:9 no-unused-vars 'normalizedLenders' is assigned a value but never used.
+  511:   const normalizedDeals = Array.isArray(dealResults) ? dealResults : [];
+  512:   const normalizedRehabProjects = Array.isArray(rehabProjects) ? rehabProjects : [];
+  513:   const normalizedLenders = Array.isArray(lenders) ? lenders : [];
+  514:   const normalizedContractors = Array.isArray(contractors) ? contractors : [];
+  515:   const normalizedDealsData = Array.isArray(deals) ? deals : [];
+
+-- 515:9 no-unused-vars 'normalizedDealsData' is assigned a value but never used.
+  513:   const normalizedLenders = Array.isArray(lenders) ? lenders : [];
+  514:   const normalizedContractors = Array.isArray(contractors) ? contractors : [];
+  515:   const normalizedDealsData = Array.isArray(deals) ? deals : [];
+  516:   const normalizedAppraisalPackets = Array.isArray(appraisalPackets) ? appraisalPackets : [];
+  517:   const normalizedNotes = Array.isArray(portfolioNotes) ? portfolioNotes : [];
+
+-- 516:9 no-unused-vars 'normalizedAppraisalPackets' is assigned a value but never used.
+  514:   const normalizedContractors = Array.isArray(contractors) ? contractors : [];
+  515:   const normalizedDealsData = Array.isArray(deals) ? deals : [];
+  516:   const normalizedAppraisalPackets = Array.isArray(appraisalPackets) ? appraisalPackets : [];
+  517:   const normalizedNotes = Array.isArray(portfolioNotes) ? portfolioNotes : [];
+  518: 
+
+### src/components/refinanceExitOptimizer.js
+
+-- 85:10 no-unused-vars 'getDscr' is defined but never used.
+   83: }
+   84: 
+   85: function getDscr(property) {
+   86:   const annualNoi = getAnnualNoi(property);
+   87:   const annualDebtService = safeNumber(property.monthlyDebtService ?? property.debtService ?? property.payment) * 12;
+
+-- 126:9 no-unused-vars 'deals' is assigned a value but never used.
+  124: export function buildRefinanceExitOptimizer(payload = {}) {
+  125:   const properties = safeArray(payload.properties);
+  126:   const deals = safeArray(payload.deals);
+  127:   const portfolioIntelligence = safeObject(payload.portfolioIntelligence);
+  128:   const capitalAllocationEngine = safeObject(payload.capitalAllocationEngine);
+
+-- 127:9 no-unused-vars 'portfolioIntelligence' is assigned a value but never used.
+  125:   const properties = safeArray(payload.properties);
+  126:   const deals = safeArray(payload.deals);
+  127:   const portfolioIntelligence = safeObject(payload.portfolioIntelligence);
+  128:   const capitalAllocationEngine = safeObject(payload.capitalAllocationEngine);
+  129: 
+
+-- 128:9 no-unused-vars 'capitalAllocationEngine' is assigned a value but never used.
+  126:   const deals = safeArray(payload.deals);
+  127:   const portfolioIntelligence = safeObject(payload.portfolioIntelligence);
+  128:   const capitalAllocationEngine = safeObject(payload.capitalAllocationEngine);
+  129: 
+  130:   if (!properties.length) {
+
+-- 178:9 no-unused-vars 'monthlyOperatingExpenses' is assigned a value but never used.
+  176:   const currentLoanBalance = safeNumber(supportedProperty.currentLoanBalance ?? supportedProperty.loanBalance ?? supportedProperty.currentDebt ?? supportedProperty.debt);
+  177:   const monthlyRent = safeNumber(supportedProperty.monthlyRent ?? supportedProperty.effectiveRent);
+  178:   const monthlyOperatingExpenses = safeNumber(supportedProperty.monthlyOperatingExpenses ?? supportedProperty.operatingExpenses);
+  179:   const monthlyDebtService = safeNumber(supportedProperty.monthlyDebtService ?? supportedProperty.debtService ?? supportedProperty.payment);
+  180:   const rehabRemainingBudget = safeNumber(supportedProperty.rehabRemainingBudget ?? supportedProperty.remainingRehabBudget ?? supportedProperty.rehabBudgetRemaining ?? supportedProperty.rehabNeed);
+
+-- 240:9 no-unused-vars 'appraisalStatus' is assigned a value but never used.
+  238:   const postRefinanceMonthlyCashFlow = safeNumber(supportedProperty.monthlyRent ?? supportedProperty.effectiveRent) - safeNumber(supportedProperty.monthlyOperatingExpenses ?? supportedProperty.operatingExpenses) - newMonthlyPayment;
+  239:   const postRefinanceDscr = monthlyDebtService > 0 ? (annualNoi / (monthlyDebtService * 12)) : 0;
+  240:   const appraisalStatus = safeDisplay(supportedProperty.appraisalStatus ?? supportedProperty.appraisalComplete, 'Insufficient Data');
+  241:   const insuranceStatus = safeDisplay(supportedProperty.insuranceStatus ?? supportedProperty.insuranceCurrent, 'Insufficient Data');
+  242:   const titleStatus = safeDisplay(supportedProperty.titleStatus ?? supportedProperty.titleClear, 'Insufficient Data');
+
+-- 241:9 no-unused-vars 'insuranceStatus' is assigned a value but never used.
+  239:   const postRefinanceDscr = monthlyDebtService > 0 ? (annualNoi / (monthlyDebtService * 12)) : 0;
+  240:   const appraisalStatus = safeDisplay(supportedProperty.appraisalStatus ?? supportedProperty.appraisalComplete, 'Insufficient Data');
+  241:   const insuranceStatus = safeDisplay(supportedProperty.insuranceStatus ?? supportedProperty.insuranceCurrent, 'Insufficient Data');
+  242:   const titleStatus = safeDisplay(supportedProperty.titleStatus ?? supportedProperty.titleClear, 'Insufficient Data');
+  243:   const documentationCompleteness = safeNumber(supportedProperty.documentationCompleteness ?? 0);
+
+-- 242:9 no-unused-vars 'titleStatus' is assigned a value but never used.
+  240:   const appraisalStatus = safeDisplay(supportedProperty.appraisalStatus ?? supportedProperty.appraisalComplete, 'Insufficient Data');
+  241:   const insuranceStatus = safeDisplay(supportedProperty.insuranceStatus ?? supportedProperty.insuranceCurrent, 'Insufficient Data');
+  242:   const titleStatus = safeDisplay(supportedProperty.titleStatus ?? supportedProperty.titleClear, 'Insufficient Data');
+  243:   const documentationCompleteness = safeNumber(supportedProperty.documentationCompleteness ?? 0);
+  244:   const loanMaturityDate = safeDisplay(supportedProperty.loanMaturityDate ?? supportedProperty.maturityDate, 'Insufficient Data');
+
+-- 246:9 no-unused-vars 'leaseStatus' is assigned a value but never used.
+  244:   const loanMaturityDate = safeDisplay(supportedProperty.loanMaturityDate ?? supportedProperty.maturityDate, 'Insufficient Data');
+  245:   const occupancyRate = safeNumber(supportedProperty.occupancyRate ?? supportedProperty.leaseOccupancy ?? supportedProperty.currentOccupancy);
+  246:   const leaseStatus = safeDisplay(supportedProperty.leaseStatus ?? supportedProperty.tenantStatus, 'Insufficient Data');
+  247:   const rentReady = safeNumber(supportedProperty.monthlyRent ?? supportedProperty.effectiveRent) > 0 && occupancyRate >= 90;
+  248:   const hasAppraisal = safeNumber(supportedProperty.appraisedValue ?? supportedProperty.appraisalValue) > 0 || safeNumber(supportedProperty.supportedARV ?? supportedProperty.projectedARV) > 0;

@@ -1,0 +1,104 @@
+{
+  "templates": [
+    {
+      "id": "template-standard-urban",
+      "name": "Standard Urban Comp Search",
+      "version": 1,
+      "propertyType": "Single Family",
+      "radiusMiles": 0.5,
+      "saleRecencyMonths": 6,
+      "squareFootTolerance": 20,
+      "bedroomTolerance": 1,
+      "bathroomTolerance": 1,
+      "yearBuiltTolerance": 5,
+      "providers": [
+        "manual"
+      ],
+      "resultLimit": 10,
+      "closedSaleRequired": true,
+      "distressedSaleHandling": "Exclude",
+      "photoRequired": false,
+      "minimumSourceQuality": "Fair",
+      "minimumCompQualityScore": 60
+    },
+    {
+      "id": "template-expanded-urban",
+      "name": "Expanded Urban Comp Search",
+      "version": 1,
+      "propertyType": "Single Family",
+      "radiusMiles": 1,
+      "saleRecencyMonths": 12,
+      "squareFootTolerance": 30,
+      "bedroomTolerance": 1,
+      "bathroomTolerance": 1,
+      "yearBuiltTolerance": 8,
+      "providers": [
+        "manual"
+      ],
+      "resultLimit": 15,
+      "closedSaleRequired": true,
+      "distressedSaleHandling": "Review",
+      "photoRequired": false,
+      "minimumSourceQuality": "Fair",
+      "minimumCompQualityScore": 50
+    },
+    {
+      "id": "template-small-multifamily",
+      "name": "Small Multifamily Comp Search",
+      "version": 1,
+      "propertyType": "Multi-Family",
+      "radiusMiles": 1,
+      "saleRecencyMonths": 12,
+      "squareFootTolerance": 25,
+      "bedroomTolerance": 1,
+      "bathroomTolerance": 1,
+      "yearBuiltTolerance": 8,
+      "providers": [
+        "manual"
+      ],
+      "resultLimit": 12,
+      "closedSaleRequired": true,
+      "distressedSaleHandling": "Review",
+      "photoRequired": false,
+      "minimumSourceQuality": "Fair",
+      "minimumCompQualityScore": 55
+    }
+  ],
+  "searchHistory": [],
+  "lifecycle": [],
+  "conflicts": [],
+  "audits": [],
+  "photos": [],
+  "archives": [],
+  "integrity": null,
+  "lastBackup": null,
+  "lastRestoreTest": null,
+  "providerStatus": {
+    "active": false,
+    "provider": "manual"
+  },
+  "manualMode": true,
+  "protectedFacts": {
+    "address": "952 Goss Rd",
+    "city": "Cincinnati",
+    "state": "OH",
+    "zipCode": "45229",
+    "propertyType": "Single Family",
+    "bedrooms": 4,
+    "bathrooms": 2.5,
+    "squareFeet": 1562,
+    "yearBuilt": 1929,
+    "purchasePrice": 135000,
+    "rehabBudget": 60000,
+    "activeArv": 300000,
+    "estimatedRent": 2200,
+    "taxes": 2800,
+    "insurance": 1200,
+    "loanAmount": 182330,
+    "financingCosts": 85575.568,
+    "holdingMonths": 4,
+    "dealScore": 84,
+    "projectedProfit": 107000,
+    "admin": "Brandon Sterling"
+  }
+}

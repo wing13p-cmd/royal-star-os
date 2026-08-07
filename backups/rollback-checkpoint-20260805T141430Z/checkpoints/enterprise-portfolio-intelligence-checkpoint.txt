@@ -1,0 +1,7 @@
+Enterprise portfolio intelligence checkpoint
+Date: 2026-08-03
+Status: Live portfolio health, portfolio risk, reserve status, strategy allocation, and refinance opportunity signals are wired into the Command Center dashboard view model and UI cards.
+Verification:
+- 123 automated tests passed
+- Frontend production build succeeded
+- Backend health endpoint and dashboard data path were exercised through the live dashboard model pipeline

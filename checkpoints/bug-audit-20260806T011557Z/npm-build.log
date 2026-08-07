@@ -1,0 +1,18 @@
+
+> royal-star-os@1.0.0 build
+> npm --prefix app run build
+
+
+> app@1.0.0 build
+> vite build
+
+vite v8.1.5 building client environment for production...
+[2Ktransforming...✓ 85 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                               0.45 kB │ gzip:   0.29 kB
+dist/assets/royal-star-logo-j54ykHpO.png  1,274.32 kB
+dist/assets/index-DykytF2W.css                4.10 kB │ gzip:   1.47 kB
+dist/assets/index-DMK_3q3i.js             1,504.10 kB │ gzip: 368.71 kB
+
+✓ built in 206ms

@@ -1,0 +1,502 @@
+
+> app@1.0.0 lint
+> eslint .
+
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/App.jsx
+   6:10  error  'version' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             no-unused-vars
+  29:10  error  'systemStatus' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               no-unused-vars
+  96:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  94 |   useEffect(() => {
+  95 |     if (!isKnownViewKey(currentView)) {
+> 96 |       setCurrentView("dashboard");
+     |       ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  97 |       return;
+  98 |     }
+  99 |  react-hooks/set-state-in-effect
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/AppraiserPacketBuilder.jsx
+    6:7    error  'API_BASE_URL' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+   42:7    error  'compQualityOptions' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               no-unused-vars
+  150:10   error  'formatPercent' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             no-unused-vars
+  155:10   error  'formatNumber' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              no-unused-vars
+  431:10   error  'computeCompMetrics' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        no-unused-vars
+  472:180  error  'onOpenDealIntelligence' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    no-unused-vars
+  477:10   error  'lenders' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          no-unused-vars
+  534:16   error  'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+  557:10   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  555 |
+  556 |   useEffect(() => {
+> 557 |     void loadPackets();
+      |          ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  558 |     void loadRelatedData();
+  559 |   }, []);
+  560 |  react-hooks/set-state-in-effect
+  682:9    error  'handleArrayField' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 no-unused-vars
+  686:9    error  'removeArrayItem' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  no-unused-vars
+  770:14   error  'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+  786:14   error  'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+  879:9    error  'updateCompForPacket' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/BrrrrAnalyzer.jsx
+  45:10  error  'getMonthlyPayment' is defined but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/BrrrrAnalyzer.recalculation.test.js
+  6:32  error  'process' is not defined  no-undef
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/CompDatabase.jsx
+  495:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  493 |   useEffect(() => {
+  494 |     if (!selectedComp) {
+> 495 |       setCompMediaSummary({ provider: "manual", mediaCount: 0, primaryPhoto: null, rightsStatus: "REMOTE_REFERENCE_ONLY", reviewRequired: true });
+      |       ^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  496 |       return;
+  497 |     }
+  498 |                                                           react-hooks/set-state-in-effect
+  515:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  513 |   useEffect(() => {
+  514 |     if (!selectedComp) {
+> 515 |       setOpsFreshness(null);
+      |       ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  516 |       return;
+  517 |     }
+  518 |     fetch(buildApiUrl("/api/comps/operations/freshness"), {                                                                                                                         react-hooks/set-state-in-effect
+  610:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  608 |
+  609 |   useEffect(() => {
+> 610 |     setEnterpriseDiagnostics(enterpriseUiModel);
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  611 |   }, [enterpriseUiModel]);
+  612 |
+  613 |   const propertyTypeOptions = useMemo(() => ["All", ...Array.from(new Set(normalizedComps.map((comp) => comp.propertyType).filter(Boolean))).sort()], [normalizedComps]);  react-hooks/set-state-in-effect
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/ContractorHub.jsx
+    6:7  error  'API_BASE_URL' is assigned a value but never used  no-unused-vars
+  158:9  error  'hasMissingW9' is assigned a value but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/Dashboard.jsx
+  103:75   error    'onOpenFlipAnalyzer' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  no-unused-vars
+  103:95   error    'onOpenBrrrrAnalyzer' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 no-unused-vars
+  103:300  error    'onOpenVendorDatabase' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                no-unused-vars
+  103:322  error    'onOpenMaterialMatrix' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                no-unused-vars
+  297:6    warning  React Hook useEffect has missing dependencies: 'operationsService' and 'requestCache'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       react-hooks/exhaustive-deps
+  308:9    error    'releaseReadinessSummary' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    no-unused-vars
+  391:6    warning  React Hook useMemo has missing dependencies: 'intelligence.dataSources.deals' and 'intelligence.dataSources.portfolioIntelligence'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          react-hooks/exhaustive-deps
+  407:5    error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  405 |       portfolioIntelligence: intelligence.dataSources.portfolioIntelligence,
+  406 |     }).searchResults;
+> 407 |     setSearchResults(results);
+      |     ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  408 |   }, [intelligence]);
+  409 |
+  410 |   const handleSearch = (event) => {  react-hooks/set-state-in-effect
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/DealAnalyzer.jsx
+    9:7   error  'API_BASE_URL' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             no-unused-vars
+   41:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                react-refresh/only-export-components
+   98:10  error  'createStorageDeal' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 no-unused-vars
+  157:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  155 |
+  156 |   useEffect(() => {
+> 157 |     loadDeals();
+      |     ^^^^^^^^^ Avoid calling setState() directly within an effect
+  158 |   }, [refreshKey]);
+  159 |
+  160 |   const filteredDeals = useMemo(() => {  react-hooks/set-state-in-effect
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/DealIntelligence.jsx
+    7:48  error  'scenarioSafeDisplay' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+   12:10  error  'buildArvIntelligence' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    no-unused-vars
+   12:32  error  'buildBuyBoxIntelligence' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 no-unused-vars
+   12:81  error  'buildAppraisalIntelligence' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              no-unused-vars
+   60:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react-refresh/only-export-components
+   93:9   error  'financingCosts' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 no-unused-vars
+   94:9   error  'closingCosts' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   no-unused-vars
+   95:9   error  'taxes' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          no-unused-vars
+   96:9   error  'insurance' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      no-unused-vars
+  104:9   error  'strategy' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       no-unused-vars
+  108:9   error  'yearBuilt' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      no-unused-vars
+  122:9   error  'estimatedSellingCosts' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          no-unused-vars
+  216:9   error  'upgradedOfferSummary' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           no-unused-vars
+  544:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  542 |
+  543 |   useEffect(() => {
+> 544 |     loadData();
+      |     ^^^^^^^^ Avoid calling setState() directly within an effect
+  545 |
+  546 |     if (typeof window === "undefined") return undefined;
+  547 |                                                             react-hooks/set-state-in-effect
+  655:17  error  'viewModel' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      no-unused-vars
+  741:25  error  Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.
+
+  739 |   }, [analysis, deals, lenders, selectedLenderIds]);
+  740 |
+> 741 |   const redTeamReview = useMemo(() => {
+      |                         ^^^^^^^^^^^^^^^
+> 742 |     const baseDeal = deals[0] || {};
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 743 |     const topDeal = analysis[0] || {};
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 744 |     return buildRedTeamReview(baseDeal, topDeal, scenarioAnalysis || {});
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 745 |   }, [analysis, deals, scenarioAnalysis]);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Could not preserve existing memoization
+  746 |
+  747 |   const summary = useMemo(() => {
+  748 |     const totalDeals = analysis.length;  react-hooks/preserve-manual-memoization
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/Dealintake.jsx
+   9:7  error  'API_BASE_URL' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         no-unused-vars
+  67:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  65 |   useEffect(() => {
+  66 |     if (!dealToEdit) {
+> 67 |       setFormData(initialFormState);
+     |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  68 |       setInitialSnapshot(initialFormState);
+  69 |       return;
+  70 |     }  react-hooks/set-state-in-effect
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/LenderDashboard.jsx
+    5:7    error    'API_BASE_URL' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+  150:10   error    'createId' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  no-unused-vars
+  175:10   error    'formatNumber' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              no-unused-vars
+  180:10   error    'formatDate' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                no-unused-vars
+  539:173  error    'onOpenDealIntelligence' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    no-unused-vars
+  617:16   error    'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+  639:10   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  637 |
+  638 |   useEffect(() => {
+> 639 |     void loadLenders();
+      |          ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  640 |     void loadRelatedData();
+  641 |   }, []);
+  642 |  react-hooks/set-state-in-effect
+  727:6    warning  React Hook useMemo has unnecessary dependencies: 'averageInterestRate' and 'averagePoints'. Either exclude them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        react-hooks/exhaustive-deps
+  849:14   error    'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+  865:14   error    'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/MaterialMatrix.jsx
+    6:7    error  'API_BASE_URL' is assigned a value but never used      no-unused-vars
+  131:172  error  'onOpenDealIntelligence' is defined but never used     no-unused-vars
+  134:10   error  'vendors' is assigned a value but never used           no-unused-vars
+  266:9    error  'selectedMaterial' is assigned a value but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/NeighborhoodDatabase.jsx
+    5:7   error  'API_BASE_URL' is assigned a value but never used  no-unused-vars
+  112:10  error  'formatNumber' is defined but never used           no-unused-vars
+  434:10  error  'isStale' is defined but never used                no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/PortfolioDashboard.jsx
+    9:7  error  'API_BASE_URL' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               no-unused-vars
+  213:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  211 |
+  212 |   useEffect(() => {
+> 213 |     loadPortfolio();
+      |     ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  214 |     loadCrossModuleState();
+  215 |   }, []);
+  216 |  react-hooks/set-state-in-effect
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/PortfolioDashboard.syncIntegration.test.js
+  6:33  error  'process' is not defined  no-undef
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/ProductVault.jsx
+    6:7   error  'API_BASE_URL' is assigned a value but never used  no-unused-vars
+   76:10  error  'formatPercent' is defined but never used          no-unused-vars
+  397:14  error  'error' is defined but never used                  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/PropertyDatabase.jsx
+    4:10  error  'buildModuleSyncState' is defined but never used             no-unused-vars
+    7:7   error  'API_BASE_URL' is assigned a value but never used            no-unused-vars
+  208:10  error  'formatNumber' is defined but never used                     no-unused-vars
+  213:10  error  'formatDate' is defined but never used                       no-unused-vars
+  593:3   error  'onOpenDealIntelligence' is defined but never used           no-unused-vars
+  609:24  error  'setCountyFilter' is assigned a value but never used         no-unused-vars
+  612:27  error  'setOccupancyFilter' is assigned a value but never used      no-unused-vars
+  614:31  error  'setMissingParcelFilter' is assigned a value but never used  no-unused-vars
+  615:31  error  'setMissingSourceFilter' is assigned a value but never used  no-unused-vars
+  616:27  error  'setStaleDataFilter' is assigned a value but never used      no-unused-vars
+  821:9   error  'countyOptions' is assigned a value but never used           no-unused-vars
+  824:9   error  'occupancyOptionsList' is assigned a value but never used    no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/RehabProjectTracker.jsx
+    4:32   error  'buildRehabProjectFromDeal' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   no-unused-vars
+    7:7    error  'API_BASE_URL' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       no-unused-vars
+  277:177  error  'onOpenDealIntelligence' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      no-unused-vars
+  277:376  error  'onOpenDealIntake' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            no-unused-vars
+  282:10   error  'vendors' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            no-unused-vars
+  283:10   error  'materials' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          no-unused-vars
+  330:14   error  'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       no-unused-vars
+  378:10   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  376 |
+  377 |   useEffect(() => {
+> 378 |     void loadProjects();
+      |          ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  379 |     void loadRelatedData();
+  380 |   }, []);
+  381 |  react-hooks/set-state-in-effect
+  383:9    error  'syncState' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          no-unused-vars
+  593:14   error  'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       no-unused-vars
+  696:9    error  'reorderPhase' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/VendorDatabase.jsx
+    6:7   error  'API_BASE_URL' is assigned a value but never used              no-unused-vars
+   31:7   error  'riskLevelOptions' is assigned a value but never used          no-unused-vars
+  122:10  error  'formatPercent' is defined but never used                      no-unused-vars
+  132:10  error  'formatDate' is defined but never used                         no-unused-vars
+  388:3   error  'onOpenDealIntelligence' is defined but never used             no-unused-vars
+  405:27  error  'setPreferredFilter' is assigned a value but never used        no-unused-vars
+  407:26  error  'setDeliveryFilter' is assigned a value but never used         no-unused-vars
+  408:24  error  'setPickupFilter' is assigned a value but never used           no-unused-vars
+  410:22  error  'setRiskFilter' is assigned a value but never used             no-unused-vars
+  411:26  error  'setMinScoreFilter' is assigned a value but never used         no-unused-vars
+  419:10  error  'importedProductVendor' is assigned a value but never used     no-unused-vars
+  419:33  error  'setImportedProductVendor' is assigned a value but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/aiDecisionEngine.js
+   34:10  error  'safeDisplay' is defined but never used            no-unused-vars
+  127:9   error  'rehabBudget' is assigned a value but never used   no-unused-vars
+  128:9   error  'arv' is assigned a value but never used           no-unused-vars
+  431:9   error  'rehabPerSqft' is assigned a value but never used  no-unused-vars
+  616:9   error  'cashRequired' is assigned a value but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/capitalAllocationEngine.js
+   24:10  error  'formatPercent' is defined but never used         no-unused-vars
+  153:9   error  'dealList' is assigned a value but never used     no-unused-vars
+  295:9   error  'debt' is assigned a value but never used         no-unused-vars
+  296:9   error  'refinance' is assigned a value but never used    no-unused-vars
+  399:9   error  'contractors' is assigned a value but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/commandCenterIntelligence.js
+   25:10   error  'formatPercent' is defined but never used         no-unused-vars
+   31:10   error  'formatSignedCurrency' is defined but never used  no-unused-vars
+  195:9    error  'lenderList' is assigned a value but never used   no-unused-vars
+  315:127  error  'property' is not defined                         no-undef
+  336:9    error  'lenderList' is assigned a value but never used   no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/enterpriseAutomationOrchestrator.js
+  42:9  error  'analysis' is assigned a value but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/enterpriseIntelligenceLayer.js
+  130:9  error  'deal' is assigned a value but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/enterpriseMonitoringEngine.js
+  19:10  error  'normalizeArray' is defined but never used    no-unused-vars
+  47:49  error  'options' is assigned a value but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/enterpriseRecoveryEngine.js
+   1:35  error  'enterpriseEventTypes' is defined but never used  no-unused-vars
+  31:47  error  'options' is assigned a value but never used      no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/enterpriseWorkflowEngine.js
+   79:14  error  'error' is defined but never used                      no-unused-vars
+  118:47  error  'options' is assigned a value but never used           no-unused-vars
+  132:11  error  'appraisalPackets' is assigned a value but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/executiveDecisionDashboard.js
+  126:63  error  'redTeamReview' is defined but never used  no-unused-vars
+  263:70  error  'redTeamReview' is defined but never used  no-unused-vars
+  498:12  error  'error' is defined but never used          no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/executiveDecisionExecutionEngine.js
+  74:43  error  'signals' is defined but never used                         no-unused-vars
+  92:9   error  'baseCapitalEfficiency' is assigned a value but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/executiveIntelligence.js
+   49:47   error  'deal' is assigned a value but never used  no-unused-vars
+  247:127  error  'property' is not defined                  no-undef
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/executivePortfolioPrioritizationEngine.js
+  65:37  error  'deal' is assigned a value but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/executiveRecommendationEngine.js
+  62:9  error  'financingExposure' is assigned a value but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/executiveStrategyOptimizationEngine.js
+   59:35  error  'score' is defined but never used                             no-unused-vars
+   59:42  error  'signals' is defined but never used                           no-unused-vars
+   70:35  error  'signals' is defined but never used                           no-unused-vars
+   89:9   error  'deal' is assigned a value but never used                     no-unused-vars
+   93:9   error  'executiveActionQueue' is assigned a value but never used     no-unused-vars
+   94:9   error  'capitalAllocationEngine' is assigned a value but never used  no-unused-vars
+   98:9   error  'reserveShortfall' is assigned a value but never used         no-unused-vars
+  103:9   error  'liquidityRatio' is assigned a value but never used           no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/financeIntelligence.js
+  215:5  error  Duplicate key 'minimumLoanAmount'  no-dupe-keys
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/financeIntelligence.test.js
+  34:5  error  Duplicate key 'maximumLTC'  no-dupe-keys
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/intelligenceUpgradeEngine.js
+    17:10   error  'buildDecisionReasonText' is defined but never used                                   no-unused-vars
+   728:7    error  The value assigned to 'classification' is not used in subsequent statements           no-useless-assignment
+   729:7    error  The value assigned to 'explanation' is not used in subsequent statements              no-useless-assignment
+   836:7    error  The value assigned to 'classification' is not used in subsequent statements           no-useless-assignment
+   897:9    error  'normalizedArv' is assigned a value but never used                                    no-unused-vars
+   910:7    error  The value assigned to 'overallMarketRating' is not used in subsequent statements      no-useless-assignment
+   916:7    error  The value assigned to 'opportunityRating' is not used in subsequent statements        no-useless-assignment
+   976:7    error  The value assigned to 'recommendationLabel' is not used in subsequent statements      no-useless-assignment
+  1163:7    error  The value assigned to 'decision' is not used in subsequent statements                 no-useless-assignment
+  1520:5    error  Duplicate key 'controllingMao'                                                        no-dupe-keys
+  1550:7    error  The value assigned to 'recommendation' is not used in subsequent statements           no-useless-assignment
+  1551:7    error  The value assigned to 'confidence' is not used in subsequent statements               no-useless-assignment
+  1552:7    error  The value assigned to 'reasons' is not used in subsequent statements                  no-useless-assignment
+  1738:9    error  'holdingCosts' is assigned a value but never used                                     no-unused-vars
+  1934:9    error  'baseCost' is assigned a value but never used                                         no-unused-vars
+  2054:139  error  'riskProfile' is assigned a value but never used                                      no-unused-vars
+  2054:178  error  'executiveMarketSummary' is assigned a value but never used                           no-unused-vars
+  2056:9    error  'purchaseEvidence' is assigned a value but never used                                 no-unused-vars
+  2072:9    error  'hardFailure' is assigned a value but never used                                      no-unused-vars
+  2083:7    error  The value assigned to 'primaryAction' is not used in subsequent statements            no-useless-assignment
+  2084:7    error  The value assigned to 'secondaryAction' is not used in subsequent statements          no-useless-assignment
+  2085:7    error  The value assigned to 'investmentDecision' is not used in subsequent statements       no-useless-assignment
+  2086:7    error  The value assigned to 'strategy' is not used in subsequent statements                 no-useless-assignment
+  2087:7    error  The value assigned to 'aiDecision' is not used in subsequent statements               no-useless-assignment
+  2088:7    error  The value assigned to 'executiveDecision' is not used in subsequent statements        no-useless-assignment
+  2089:7    error  The value assigned to 'baseRecommendation' is not used in subsequent statements       no-useless-assignment
+  2090:7    error  The value assigned to 'worstCaseRecommendation' is not used in subsequent statements  no-useless-assignment
+  2091:7    error  The value assigned to 'downsideRecommendation' is not used in subsequent statements   no-useless-assignment
+  2092:7    error  The value assigned to 'enterpriseRoute' is not used in subsequent statements          no-useless-assignment
+  2093:7    error  The value assigned to 'qualification' is not used in subsequent statements            no-useless-assignment
+  2224:63   error  'flipAnalysis' is assigned a value but never used                                     no-unused-vars
+  2265:33   error  'deal' is assigned a value but never used                                             no-unused-vars
+  2299:30   error  'deal' is assigned a value but never used                                             no-unused-vars
+  2465:9    error  'monthlyInterest' is assigned a value but never used                                  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/intelligenceUpgradeEngine.test.js
+  3:526  error  'buildKnowledgeIntelligence' is defined but never used           no-unused-vars
+  3:554  error  'buildSearchIntelligence' is defined but never used              no-unused-vars
+  3:579  error  'buildReportingIntelligence' is defined but never used           no-unused-vars
+  3:607  error  'buildDocumentAutomationIntelligence' is defined but never used  no-unused-vars
+  3:644  error  'buildAiCommandRouting' is defined but never used                no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/portfolioEnterpriseUpgradeEngine.js
+  35:10  error  'formatCurrency' is defined but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/portfolioIntelligence.js
+   44:10  error  'formatSignedCurrency' is defined but never used                 no-unused-vars
+  244:9   error  'totalMonthlyRent' is assigned a value but never used            no-unused-vars
+  439:30  error  'summary' is assigned a value but never used                     no-unused-vars
+  439:60  error  'scenarios' is assigned a value but never used                   no-unused-vars
+  513:9   error  'normalizedLenders' is assigned a value but never used           no-unused-vars
+  515:9   error  'normalizedDealsData' is assigned a value but never used         no-unused-vars
+  516:9   error  'normalizedAppraisalPackets' is assigned a value but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/redTeamReview.js
+   75:10  error  'getHighestRiskWarning' is defined but never used         no-unused-vars
+  134:11  error  'appraisedValue' is assigned a value but never used       no-unused-vars
+  153:11  error  'valuationScore' is assigned a value but never used       no-unused-vars
+  159:11  error  'scenarioSummaryDscr' is assigned a value but never used  no-unused-vars
+  391:12  error  'error' is defined but never used                         no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/components/refinanceExitOptimizer.js
+   85:10  error  'getDscr' is defined but never used                                              no-unused-vars
+  126:9   error  'deals' is assigned a value but never used                                       no-unused-vars
+  127:9   error  'portfolioIntelligence' is assigned a value but never used                       no-unused-vars
+  128:9   error  'capitalAllocationEngine' is assigned a value but never used                     no-unused-vars
+  178:9   error  'monthlyOperatingExpenses' is assigned a value but never used                    no-unused-vars
+  231:40  error  Unexpected constant nullishness on the left-hand side of a `??` expression       no-constant-binary-expression
+  237:9   error  'appraisalStatus' is assigned a value but never used                             no-unused-vars
+  238:9   error  'insuranceStatus' is assigned a value but never used                             no-unused-vars
+  239:9   error  'titleStatus' is assigned a value but never used                                 no-unused-vars
+  243:9   error  'leaseStatus' is assigned a value but never used                                 no-unused-vars
+  248:7   error  The value assigned to 'refinanceReadiness' is not used in subsequent statements  no-useless-assignment
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/utils/enterpriseUiIntegration.test.js
+  3:166  error  'buildReleaseReadinessViewModel' is defined but never used  no-unused-vars
+
+/Users/brandonsterling/Desktop/Royal Star OS/app/src/utils/liveEnterpriseIntelligence.js
+   4:40   error  'createOperationsService' is defined but never used    no-unused-vars
+  53:40   error  'properties' is assigned a value but never used        no-unused-vars
+  53:91   error  'portfolioEntries' is assigned a value but never used  no-unused-vars
+  53:114  error  'alerts' is assigned a value but never used            no-unused-vars
+
+✖ 223 problems (220 errors, 3 warnings)
+

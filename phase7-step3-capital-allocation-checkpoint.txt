@@ -1,0 +1,12 @@
+Phase 7 Step 3 rollback checkpoint created on 2026-07-30.
+
+Scope:
+- Added an executive capital allocation engine that scores active opportunities for deployment.
+- Produces expected ROI, capital efficiency score, cash required, cash remaining, reserve impact, financing impact, diversification impact, and risk-adjusted return.
+- Emits executive recommendations including Fund Immediately, Reserve Capital, Reallocate Capital, Reduce Offer, and Increase Offer.
+- Feeds outputs into executive intelligence, capital dashboard, portfolio intelligence, deal intelligence, and executive alerts while preserving manual overrides.
+
+Validated commands:
+- npm test
+- npm run build
+- node scripts/verify-system.mjs

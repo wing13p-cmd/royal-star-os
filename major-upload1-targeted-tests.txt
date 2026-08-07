@@ -1,0 +1,39 @@
+✔ buildPersistedDealPayload preserves underwriting fields required to reopen a deal with calculated financing (27.152291ms)
+✔ import from deal flow requires explicit preview and approval steps (1.81775ms)
+✔ approved import refreshes portfolio state and keeps export wired to filtered portfolio (0.24475ms)
+✔ dashboard navigation and command center layout labels remain present (0.218708ms)
+✔ buildPortfolioIntelligence returns safe defaults for empty input (18.172541ms)
+✔ buildPortfolioIntelligence flags negative equity and refinance opportunities for a saved property (11.805834ms)
+✔ buildPortfolioIntelligence uses the unified underwriting engine for deal-driven portfolio opportunities (2.723125ms)
+✔ buildPortfolioIntelligence surfaces portfolio-level metrics and alerts (2.112166ms)
+✔ buildPortfolioIntelligence generates forecast periods, scenario engines, and confidence scoring (1.708167ms)
+✔ buildPortfolioIntelligence includes upgrade-2 enterprise overlay payload (1.559333ms)
+✔ existing deal loads without new metadata (2.885459ms)
+✔ existing portfolio record loads without new metadata (0.225084ms)
+✔ canonical normalization preserves valid zero values (0.13325ms)
+✔ null values do not overwrite known values (2.325875ms)
+✔ approved ARV cannot be overwritten by unapproved data (0.385208ms)
+✔ duplicate detection can mark uncertain matches as review required (0.336791ms)
+✔ canonical validation fails when required identity fields are missing (0.173708ms)
+✔ canonical mapping to deal preserves core deal fields (0.170625ms)
+✔ canonical mapping to portfolio preserves dashboard-relevant fields (0.223834ms)
+✔ 952 Goss Rd remains unchanged before sync (1.265625ms)
+✔ deal-to-portfolio preview returns expected change categories (2.628833ms)
+✔ sync requires explicit approval (0.366ms)
+✔ approved sync creates one portfolio record (1.249375ms)
+✔ synchronized portfolio record contains dashboard and export summary fields (0.946458ms)
+✔ repeated sync does not create duplicates (0.681625ms)
+✔ existing linked portfolio record is safely updated while preserving portfolio-owned fields (0.498458ms)
+✔ manual portfolio entry remains operational after sync (0.335958ms)
+✔ possible duplicate address is blocked for review (0.248958ms)
+✔ rollback restores pre-sync state (0.506833ms)
+✔ sync status endpoint returns linked status (0.3245ms)
+✔ audit events are written for sync actions (0.285833ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 116.027333

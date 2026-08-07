@@ -1,0 +1,518 @@
+```
+RSOS FINAL CONSOLIDATED FIX BATCH — COMPLETE ALL REMAINING VERIFIED ISSUES IN ONE PASS
+
+USER PRIORITY:
+The user is trying to conserve Copilot credits and does not want repeated uploads, repeated partial repairs, repeated testing of already-passed features, or multiple small prompts.
+
+Complete every item below in one repair batch.
+
+Do not stop after individual items.
+Do not ask for separate approvals.
+Do not repeat tests that already passed unless this batch directly changes that feature.
+Do not return an interim report.
+Return only after the entire batch is implemented, tested, and certified.
+
+==================================================
+NON-NEGOTIABLE RULES
+==================================================
+
+1. Preserve the Command Center exactly.
+   - Do not move, resize, reorder, redesign, recolor, or restyle any existing Command Center element.
+   - Preserve the existing black-and-gold Royal Star design.
+   - Preserve all current navigation, spacing, card locations, and page structure.
+
+2. Do not remove working functionality.
+
+3. Do not delete:
+   - production data,
+   - property records,
+   - deals,
+   - backups,
+   - checkpoints,
+   - source backups,
+   - server backups,
+   - user-entered data.
+
+4. Do not create unnecessary new pages, tabs, or duplicate modules.
+
+5. Use the existing backend as the authoritative data source.
+
+6. Create one rollback checkpoint before changing anything.
+
+7. Keep these verified working features intact:
+   - frontend startup,
+   - backend startup,
+   - RSOS ownership,
+   - persistence,
+   - Deal Analyzer,
+   - Deal View,
+   - Flip Analyzer,
+   - BRRRR Analyzer,
+   - Property Database,
+   - Property Edit,
+   - Property Clear,
+   - Favorite toggle,
+   - Property Compare,
+   - Delete confirmation,
+   - sidebar navigation,
+   - Quick Links,
+   - backup,
+   - verify,
+   - tests,
+   - build.
+
+8. Do not waste credits by:
+   - rerunning the same test repeatedly,
+   - rebuilding unchanged modules,
+   - rewriting large working components unnecessarily,
+   - stopping for screenshots after each fix,
+   - producing multiple partial reports.
+
+==================================================
+FIX 1 — COMMAND CENTER KPI TILES
+==================================================
+
+Problem:
+Command Center KPI tiles display data but are not clickable.
+
+Fix every KPI tile in one pass.
+
+Required behavior:
+- Preserve each tile’s exact size, location, text alignment, and styling.
+- Make tiles clickable without shifting layout.
+- Add keyboard support using Enter and Space.
+- Add accessible labels.
+- Use existing modules where possible.
+- Use a compact modal or detail drawer if no existing module is appropriate.
+- Do not create empty or placeholder drill-down pages.
+
+Required drill-downs:
+
+Business Status:
+- Show Enterprise Score and Risk Score separately.
+- Show formulas, weights, source records, missing inputs, and last calculation time.
+
+System Portfolio Health:
+- Show the operational/system calculation behind the 100/100 score.
+
+Capital Efficiency:
+- Show source values, formula, weighting, missing inputs, and reason for current score.
+
+Risk Exposure:
+- Show project-level exposure, financing assumptions, reserve exposure, and contributors.
+
+Ops Readiness:
+- Show completed items, incomplete items, blockers, and score weights.
+
+30-Day Forecast:
+- Show every included record and value.
+- Identify what the metric actually represents.
+- Show inclusion and exclusion reasons.
+- Prove there is no duplicate counting.
+
+ARV Confidence:
+- Show Projected ARV, Calculated ARV, Supported ARV, comp count, evidence count, confidence factors, and missing evidence.
+
+Live Risk Score:
+- Show contributing records, individual risks, weights, and formula.
+
+Risk Level:
+- Show numeric thresholds for Low, Moderate, High, and Critical.
+
+Investment Portfolio Health:
+- Show the calculation behind the 74/100 score.
+- Clearly distinguish it from System Portfolio Health.
+
+Portfolio Risk:
+- Show source records, weights, thresholds, and formula.
+
+Workflow Status:
+- Show workflow health, warnings, blocked workflows, and last successful events.
+
+Recovery Events:
+- Show recovery history, timestamps, module, action, and resolution.
+
+Active Alerts:
+- Open the authoritative unresolved alert list.
+- Count must match the actual unresolved actionable alerts.
+
+Monitoring:
+- Show frontend, backend, API, persistence, and health-check state.
+
+Automation Status:
+- Explain all components and weights.
+- Replace unexplained abbreviations in the drill-down.
+- Show working, partial, missing, blocked, and not-applicable automation capabilities.
+
+Telemetry Health:
+- Show last check, error count, warning count, freshness, and health sources.
+
+Recovery Status:
+- Show latest checkpoint, rollback readiness, and recovery state.
+
+Analytics Ready:
+- Show which data sources are ready and which remain incomplete.
+
+==================================================
+FIX 2 — BACKEND CONNECTED BADGES
+==================================================
+
+Problem:
+Backend Connected badges appear interactive but currently do nothing.
+
+Fix:
+- Make every Backend Connected badge open a compact status modal.
+- Preserve badge styling and placement.
+- Show:
+  - frontend status,
+  - backend status,
+  - RSOS ownership,
+  - backend port,
+  - API health status,
+  - listener count,
+  - response time,
+  - last successful response,
+  - persistence state,
+  - data-directory state,
+  - last verification result,
+  - last backup timestamp.
+- Add Refresh Status.
+- Do not expose secrets or environment values.
+
+==================================================
+FIX 3 — DUPLICATE PROPERTY WORKFLOW
+==================================================
+
+Problem:
+The Duplicate action creates an unsaved form draft, but the workflow is confusing.
+
+Fix:
+- Preserve the safe behavior where duplication does not immediately create a permanent record.
+- Show a persistent badge:
+  UNSAVED DUPLICATE DRAFT
+- Show the source property name.
+- Temporarily rename the copied record:
+  [Original Property Name] — Copy — Unsaved
+- Add explicit buttons:
+  - Save Duplicate
+  - Cancel Duplicate
+- Disable the normal duplicate action while an unsaved duplicate draft is active.
+- Do not count drafts in Property Portfolio totals.
+- Do not display unsaved drafts as permanent portfolio rows.
+- On Save Duplicate:
+  - validate required fields,
+  - require a unique name or unique identifying field,
+  - prevent accidental exact duplicates,
+  - save exactly one new record,
+  - update totals exactly once,
+  - clear draft state,
+  - show confirmation.
+- On Cancel Duplicate:
+  - discard only the duplicate draft,
+  - preserve the source record,
+  - clear the draft state,
+  - restore a clean form.
+
+==================================================
+FIX 4 — MISSING PARCEL NUMBERS
+==================================================
+
+Problem:
+Both visible property records are missing parcel numbers.
+
+Fix:
+- Do not invent parcel numbers.
+- Show “Missing Parcel Number” clearly.
+- Add:
+  - Enter Parcel Number
+  - Open County Property Search
+- Determine the county search destination from the property location when possible.
+- Preserve the missing-data alert until a verified parcel number is saved.
+- Resolve the alert automatically after valid data is entered.
+- Do not block unrelated property edits.
+
+==================================================
+FIX 5 — MISSING MAP LINKS
+==================================================
+
+Problem:
+Both visible property records are missing map links.
+
+Fix:
+- Generate a safe URL-encoded map-search link from the full property address when sufficient address data exists.
+- Do not treat generated map links as verified parcel or geolocation data.
+- Add:
+  - Open Map
+  - Copy Map Link
+  - Regenerate Link
+- If address data is incomplete, show:
+  Insufficient Address Data
+- Clear the missing-map-link status when a valid link exists.
+
+==================================================
+FIX 6 — ALERT ENGINE VALIDATION
+==================================================
+
+Current visible alerts include:
+- Preserve liquidity and protect reserve coverage — 952 Goss Rd
+- Projected profit is negative — 952 Goss Rd
+- Portfolio balance recommendation: Acquire in new market — Portfolio
+- Executive action queue: Increase Cash Reserve — 952 Goss Rd
+- Reserve shortfall — Portfolio
+
+Fix:
+- Validate every alert against current authoritative data.
+- Do not treat missing values as zero.
+- Do not generate a negative-profit alert when the authoritative Flip Analyzer shows positive profit.
+- Use stable alert keys.
+- Deduplicate alerts.
+- Separate:
+  - active,
+  - resolved,
+  - historical,
+  - informational.
+- Active Alert count must include only unresolved actionable alerts.
+- Automatically resolve alerts when the condition clears.
+- Preserve history separately.
+- Every alert must show:
+  - severity,
+  - source record,
+  - source metric,
+  - threshold,
+  - current value,
+  - reason,
+  - required action,
+  - created time,
+  - last evaluated time.
+- Prevent reserve alerts from appearing multiple times for the same underlying condition.
+
+==================================================
+FIX 7 — 30-DAY FORECAST
+==================================================
+
+Problem:
+The forecast displays $555,500 and has not been fully proven.
+
+Fix:
+- Determine the exact business meaning of the metric.
+- Rename it if needed without moving the tile.
+- Prevent double counting between:
+  - deals,
+  - properties,
+  - pipeline records,
+  - ARV,
+  - current value,
+  - equity,
+  - projected profit,
+  - reserves,
+  - liquidity.
+- Create a traceable calculation breakdown.
+- Add tests using the current state:
+  - 2 saved properties,
+  - 1 saved deal,
+  - 952 Goss Rd,
+  - test property 2.
+- If $555,500 is wrong, correct it.
+- If it is correct, document the exact composition.
+
+==================================================
+FIX 8 — SCORE TRACEABILITY
+==================================================
+
+Fix and centralize authoritative calculations for:
+- Capital Efficiency
+- Risk Exposure
+- Live Risk Score
+- Risk Level
+- Investment Portfolio Health
+- Portfolio Risk
+- Automation Status
+
+Requirements:
+- One authoritative function per metric.
+- All modules use the same output.
+- Missing values must remain missing, not zero.
+- Valid zero values must remain valid zeroes.
+- Every metric must expose:
+  - formula,
+  - source records,
+  - weights,
+  - missing inputs,
+  - thresholds,
+  - last calculation time.
+
+==================================================
+FIX 9 — CROSS-MODULE DATA SYNCHRONIZATION
+==================================================
+
+Problem:
+The system still needs final assurance that edits update every connected module.
+
+Fix:
+- Establish one authoritative deal/property data flow.
+- A saved deal edit must update:
+  - Deal Analyzer,
+  - Deal View,
+  - Deal Intelligence,
+  - Flip Analyzer,
+  - BRRRR Analyzer,
+  - Property Database,
+  - Portfolio Dashboard,
+  - Command Center,
+  - Executive Alerts,
+  - Today’s Priorities.
+- Prevent duplicate local and backend records.
+- Prevent stale cached values.
+- Refresh affected views automatically after save.
+- Do not create duplicate persistent records during synchronization.
+
+==================================================
+FIX 10 — MISSING-VALUE HANDLING
+==================================================
+
+Fix all shared data handling so missing values never silently become zero.
+
+Apply to:
+- estimated rent,
+- initial cash invested,
+- monthly carry,
+- cash required,
+- financed amount,
+- selected lender,
+- DSCR,
+- interest,
+- points,
+- fees,
+- taxes,
+- insurance,
+- holding months,
+- refinance costs.
+
+Rules:
+- Missing = “Insufficient Data” or “Not Entered.”
+- Genuine entered zero = 0 or $0.
+- Calculations must distinguish missing from zero.
+- Alerts and scores must not use missing values as zero.
+- Add tests for both missing and true-zero cases.
+
+==================================================
+FIX 11 — TODAY’S PRIORITIES
+==================================================
+
+Problem:
+Today’s Priorities can display conflicting or repetitive actions.
+
+Fix:
+- Derive priorities from the authoritative alert and decision engines.
+- Use this hierarchy:
+  1. Critical capital or safety blocker
+  2. Missing decision-critical data
+  3. Underwriting decision
+  4. Operational next action
+  5. Informational recommendation
+- Remove contradictory priorities.
+- Every priority must show:
+  - property or portfolio,
+  - source metric,
+  - reason,
+  - required action,
+  - completion condition.
+- Remove or update priorities automatically when the condition changes.
+
+==================================================
+FIX 12 — FINAL UI AND STATE CONSISTENCY
+==================================================
+
+Confirm:
+- System Portfolio Health and Investment Portfolio Health are clearly named.
+- Business Status labels remain clear.
+- Active Alert count matches the list.
+- KPI labels match their real calculations.
+- Backend Connected status works everywhere.
+- No stale placeholder values remain in the repaired areas.
+- No drill-down opens an empty panel.
+- No repaired action changes the Command Center layout.
+
+==================================================
+VALIDATION — RUN ONCE AFTER ALL FIXES
+==================================================
+
+Do not repeatedly run the same validation during the batch unless required to diagnose a failure.
+
+After all code changes are complete, run this certification sequence once:
+
+1. npm run verify
+2. npm run test
+3. npm run build
+4. npm run rsos:status
+5. npm run rsos
+
+Confirm:
+- backend ready: true
+- frontend ready: true
+- backend is RSOS-owned
+- probe healthy: true
+- probeError is empty
+- API health returns status ok
+- persistenceReady: true
+- no duplicate backend listener
+- no new runtime errors
+- no new 404 errors
+
+Functional regression checks:
+- Command Center layout unchanged
+- KPI tile drill-down works
+- Backend Connected modal works
+- Duplicate draft can be created and canceled
+- Duplicate draft can be saved once
+- Property totals do not count drafts
+- Property Compare still works
+- Edit still works
+- Clear still works
+- Favorite still works
+- Delete still requires confirmation
+- Deal View still opens
+- Deal Analyzer still loads
+- Flip Analyzer still calculates
+- BRRRR Analyzer still calculates
+- sidebar navigation still works
+- Quick Links still work
+- 952 Goss Rd remains intact
+- test property 2 remains intact
+- alerts are deduplicated
+- Active Alert count matches the list
+- 30-Day Forecast has a traceable breakdown
+
+Create one post-repair backup:
+npm run backup
+
+==================================================
+FINAL REPORT
+==================================================
+
+Return one final report only.
+
+Include:
+1. Files changed
+2. Root cause for each issue
+3. Exact repair for each issue
+4. Tests run
+5. Test results
+6. Runtime health results
+7. Browser interaction results
+8. Any unresolved items
+9. Backup path
+10. Command Center layout preserved: YES or NO
+11. Existing records preserved: YES or NO
+12. SAFE TO KEEP: YES or NO
+
+Do not claim SAFE TO KEEP: YES unless:
+- all required tests pass,
+- runtime probes are healthy,
+- no known blocking issue remains,
+- Command Center did not move,
+- existing data remains intact.
+
+COMPLETE THIS ENTIRE BATCH IN ONE PASS TO CONSERVE USER CREDITS.
+DO NOT RETURN EARLY.
+```

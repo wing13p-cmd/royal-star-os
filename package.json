@@ -1,0 +1,23 @@
+{
+  "name": "royal-star-os",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npm --prefix app run dev",
+    "server": "node server/index.js",
+    "build": "npm --prefix app run build",
+    "test": "node --test ./app/src/**/*.test.js ./scripts/start-rsos.test.mjs ./scripts/phase2-secure-access.test.mjs ./server/**/*.test.js",
+    "rsos": "node scripts/start-rsos.mjs",
+    "rsos:status": "node scripts/start-rsos.mjs --status",
+    "rsos:stop": "node scripts/start-rsos.mjs --stop",
+    "verify": "node scripts/verify-system.mjs",
+    "verify:deployment": "node scripts/verify-deployment.mjs",
+    "backup": "node scripts/backup-data.mjs",
+    "restore": "node scripts/restore-data.mjs",
+    "import:data": "node scripts/import-rsos-data.mjs",
+    "deploy:secure": "node server/secureGateway.js",
+    "export:state": "node scripts/export-release.mjs",
+    "package:release": "node scripts/package-release.mjs"
+  }
+}

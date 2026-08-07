@@ -1,0 +1,11 @@
+Royal Star OS rollback checkpoint
+Name: ai-offer-generator-phase3
+Created: 2026-07-30
+Status: Unified negotiation and offer ladder engine completed and validated
+Notes:
+- Added a richer negotiation ladder with Initial Offer, Second Offer, Target Offer, Maximum Approved Offer, and Walk-Away Price.
+- Each level now carries expected profit, profit margin, cash required, cash remaining, deal score, risk level, margin of safety, and strategy.
+- Added constraint tracking for ARV, Rehab, Financing, Profit target, Buy Box, Risk policy, and Capital limits.
+- Added negotiation guidance for opening position, target position, walk-away point, concessions, inspection, earnest money, and closing timeline.
+- Manual overrides are preserved and the ladder remains consistent with the shared offer engine and downstream analyzers.
+- Validation completed with npm test, npm run build, and node scripts/verify-system.mjs.

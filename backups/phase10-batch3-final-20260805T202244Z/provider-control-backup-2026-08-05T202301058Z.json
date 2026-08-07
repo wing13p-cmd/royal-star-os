@@ -1,0 +1,401 @@
+{
+  "system": "RSOS Provider Control Layer",
+  "createdAt": "2026-08-05T20:23:01.058Z",
+  "providerRegistry": {
+    "advisoryOnly": true,
+    "liveRequestsAllowed": false,
+    "generatedAt": "2026-08-05T20:23:01.056Z",
+    "providers": [
+      {
+        "providerId": "mls",
+        "name": "MLS",
+        "category": "listing-data",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "MLS display attribution required"
+        ],
+        "enabled": false,
+        "priority": 10,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "attom",
+        "name": "ATTOM",
+        "category": "property-data",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "Commercial license agreement required"
+        ],
+        "enabled": false,
+        "priority": 9,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "rentcast",
+        "name": "RentCast",
+        "category": "rental-data",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "API agreement and attribution required"
+        ],
+        "enabled": false,
+        "priority": 9,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "corelogic",
+        "name": "CoreLogic",
+        "category": "property-data",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "Enterprise data license required"
+        ],
+        "enabled": false,
+        "priority": 9,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "google-maps",
+        "name": "Google Maps",
+        "category": "mapping",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "Maps API terms and attribution required"
+        ],
+        "enabled": false,
+        "priority": 8,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "county-assessor",
+        "name": "County Assessor",
+        "category": "public-records",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "County data usage terms required"
+        ],
+        "enabled": false,
+        "priority": 8,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "county-recorder",
+        "name": "County Recorder",
+        "category": "public-records",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "Recorder office usage terms required"
+        ],
+        "enabled": false,
+        "priority": 8,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "permit-records",
+        "name": "Permit Records",
+        "category": "permits",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "Permit data usage policy required"
+        ],
+        "enabled": false,
+        "priority": 8,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "census",
+        "name": "Census",
+        "category": "demographics",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "Open data citation required"
+        ],
+        "enabled": false,
+        "priority": 7,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "fema",
+        "name": "FEMA",
+        "category": "risk-data",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "FEMA map attribution required"
+        ],
+        "enabled": false,
+        "priority": 7,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "school-data",
+        "name": "School Data",
+        "category": "demographics",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "District/source attribution required"
+        ],
+        "enabled": false,
+        "priority": 7,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "crime-data",
+        "name": "Crime Data",
+        "category": "risk-data",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "Provider usage policy required"
+        ],
+        "enabled": false,
+        "priority": 7,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "mortgage-rates",
+        "name": "Mortgage Rates",
+        "category": "finance",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "Rate provider terms required"
+        ],
+        "enabled": false,
+        "priority": 7,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "property-tax",
+        "name": "Property Tax",
+        "category": "tax-data",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "Tax data source attribution required"
+        ],
+        "enabled": false,
+        "priority": 7,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "auction-data",
+        "name": "Auction Data",
+        "category": "distressed-data",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "Auction feed license required"
+        ],
+        "enabled": false,
+        "priority": 7,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      },
+      {
+        "providerId": "foreclosure-data",
+        "name": "Foreclosure Data",
+        "category": "distressed-data",
+        "connectionStatus": "DISCONNECTED",
+        "credentialStatus": "EMPTY",
+        "healthStatus": "UNKNOWN",
+        "lastSync": "UNKNOWN",
+        "rateLimits": {
+          "windowSeconds": "UNKNOWN",
+          "maxRequestsPerWindow": "UNKNOWN",
+          "remainingRequests": "UNKNOWN",
+          "resetAt": "UNKNOWN"
+        },
+        "licenseRequirements": [
+          "Foreclosure feed license required"
+        ],
+        "enabled": false,
+        "priority": 7,
+        "advisoryOnly": true,
+        "liveRequestsAllowed": false
+      }
+    ]
+  },
+  "nonsecretProviderConfiguration": "REDACTED",
+  "syncHistory": [],
+  "sourceSnapshots": [],
+  "reviewQueue": [],
+  "conflictResolutions": [],
+  "approvedCanonicalValues": {},
+  "duplicateDecisions": [],
+  "dataQualityRecords": [],
+  "cacheMetadata": [],
+  "auditRecords": [],
+  "providerDocumentation": [
+    "provider registry",
+    "adapter contract",
+    "credential configuration",
+    "provider activation",
+    "provider deactivation",
+    "sync operations",
+    "scheduled jobs",
+    "review-first workflow",
+    "data-quality scoring",
+    "duplicate review",
+    "conflict resolution",
+    "merge governance",
+    "rate limits",
+    "caching",
+    "provider outage",
+    "backup",
+    "restore",
+    "disaster recovery",
+    "manual-mode operation",
+    "licensing and media-rights controls",
+    "security limitations",
+    "adding a future provider safely"
+  ],
+  "manifest": {
+    "checksum": "08db1e0b9ab34a80fc75a074b15be8bd764af3fc7b72c07634531d9edbfabfb5",
+    "excludedSecrets": "REDACTED"
+  }
+}

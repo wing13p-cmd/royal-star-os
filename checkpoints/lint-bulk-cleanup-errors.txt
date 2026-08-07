@@ -1,0 +1,272 @@
+
+## src/App.jsx
+6:10 no-unused-vars 'version' is defined but never used.
+29:10 no-unused-vars 'systemStatus' is assigned a value but never used.
+
+## src/components/AppraiserPacketBuilder.jsx
+6:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+42:7 no-unused-vars 'compQualityOptions' is assigned a value but never used.
+150:10 no-unused-vars 'formatPercent' is defined but never used.
+155:10 no-unused-vars 'formatNumber' is defined but never used.
+431:10 no-unused-vars 'computeCompMetrics' is defined but never used.
+472:180 no-unused-vars 'onOpenDealIntelligence' is defined but never used.
+477:10 no-unused-vars 'lenders' is assigned a value but never used.
+534:16 no-unused-vars 'error' is defined but never used.
+685:9 no-unused-vars 'handleArrayField' is assigned a value but never used.
+689:9 no-unused-vars 'removeArrayItem' is assigned a value but never used.
+773:14 no-unused-vars 'error' is defined but never used.
+789:14 no-unused-vars 'error' is defined but never used.
+882:9 no-unused-vars 'updateCompForPacket' is assigned a value but never used.
+
+## src/components/BrrrrAnalyzer.jsx
+45:10 no-unused-vars 'getMonthlyPayment' is defined but never used.
+
+## src/components/ContractorHub.jsx
+6:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+158:9 no-unused-vars 'hasMissingW9' is assigned a value but never used.
+
+## src/components/Dashboard.jsx
+103:75 no-unused-vars 'onOpenFlipAnalyzer' is defined but never used.
+103:95 no-unused-vars 'onOpenBrrrrAnalyzer' is defined but never used.
+103:300 no-unused-vars 'onOpenVendorDatabase' is defined but never used.
+103:322 no-unused-vars 'onOpenMaterialMatrix' is defined but never used.
+308:9 no-unused-vars 'releaseReadinessSummary' is assigned a value but never used.
+
+## src/components/DealAnalyzer.jsx
+9:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+98:10 no-unused-vars 'createStorageDeal' is defined but never used.
+
+## src/components/DealIntelligence.jsx
+7:48 no-unused-vars 'scenarioSafeDisplay' is defined but never used.
+12:10 no-unused-vars 'buildArvIntelligence' is defined but never used.
+12:32 no-unused-vars 'buildBuyBoxIntelligence' is defined but never used.
+12:81 no-unused-vars 'buildAppraisalIntelligence' is defined but never used.
+93:9 no-unused-vars 'financingCosts' is assigned a value but never used.
+94:9 no-unused-vars 'closingCosts' is assigned a value but never used.
+95:9 no-unused-vars 'taxes' is assigned a value but never used.
+96:9 no-unused-vars 'insurance' is assigned a value but never used.
+104:9 no-unused-vars 'strategy' is assigned a value but never used.
+108:9 no-unused-vars 'yearBuilt' is assigned a value but never used.
+122:9 no-unused-vars 'estimatedSellingCosts' is assigned a value but never used.
+216:9 no-unused-vars 'upgradedOfferSummary' is assigned a value but never used.
+658:17 no-unused-vars 'viewModel' is assigned a value but never used.
+746:25 react-hooks/preserve-manual-memoization Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.
+
+  744 |   }, [analysis, deals, lenders, selectedLenderIds]);
+  745 |
+> 746 |   const redTeamReview = useMemo(() => {
+      |                         ^^^^^^^^^^^^^^^
+> 747 |     const baseDeal = deals[0] || {};
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 748 |     const topDeal = analysis[0] || {};
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 749 |     return buildRedTeamReview(baseDeal, topDeal, scenarioAnalysis || {});
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 750 |   }, [analysis, deals, scenarioAnalysis]);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Could not preserve existing memoization
+  751 |
+  752 |   const summary = useMemo(() => {
+  753 |     const totalDeals = analysis.length;
+
+## src/components/Dealintake.jsx
+9:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+125:5 no-unreachable Unreachable code.
+125:24 no-undef 'hydratedValues' is not defined.
+
+## src/components/LenderDashboard.jsx
+5:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+150:10 no-unused-vars 'createId' is defined but never used.
+175:10 no-unused-vars 'formatNumber' is defined but never used.
+180:10 no-unused-vars 'formatDate' is defined but never used.
+539:173 no-unused-vars 'onOpenDealIntelligence' is defined but never used.
+617:16 no-unused-vars 'error' is defined but never used.
+852:14 no-unused-vars 'error' is defined but never used.
+868:14 no-unused-vars 'error' is defined but never used.
+
+## src/components/MaterialMatrix.jsx
+6:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+131:172 no-unused-vars 'onOpenDealIntelligence' is defined but never used.
+134:10 no-unused-vars 'vendors' is assigned a value but never used.
+266:9 no-unused-vars 'selectedMaterial' is assigned a value but never used.
+
+## src/components/NeighborhoodDatabase.jsx
+5:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+112:10 no-unused-vars 'formatNumber' is defined but never used.
+434:10 no-unused-vars 'isStale' is defined but never used.
+
+## src/components/PortfolioDashboard.jsx
+9:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+
+## src/components/ProductVault.jsx
+6:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+76:10 no-unused-vars 'formatPercent' is defined but never used.
+397:14 no-unused-vars 'error' is defined but never used.
+
+## src/components/PropertyDatabase.jsx
+4:10 no-unused-vars 'buildModuleSyncState' is defined but never used.
+7:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+208:10 no-unused-vars 'formatNumber' is defined but never used.
+213:10 no-unused-vars 'formatDate' is defined but never used.
+593:3 no-unused-vars 'onOpenDealIntelligence' is defined but never used.
+609:24 no-unused-vars 'setCountyFilter' is assigned a value but never used.
+612:27 no-unused-vars 'setOccupancyFilter' is assigned a value but never used.
+614:31 no-unused-vars 'setMissingParcelFilter' is assigned a value but never used.
+615:31 no-unused-vars 'setMissingSourceFilter' is assigned a value but never used.
+616:27 no-unused-vars 'setStaleDataFilter' is assigned a value but never used.
+821:9 no-unused-vars 'countyOptions' is assigned a value but never used.
+824:9 no-unused-vars 'occupancyOptionsList' is assigned a value but never used.
+
+## src/components/RehabProjectTracker.jsx
+4:32 no-unused-vars 'buildRehabProjectFromDeal' is defined but never used.
+7:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+277:177 no-unused-vars 'onOpenDealIntelligence' is defined but never used.
+277:376 no-unused-vars 'onOpenDealIntake' is defined but never used.
+282:10 no-unused-vars 'vendors' is assigned a value but never used.
+283:10 no-unused-vars 'materials' is assigned a value but never used.
+330:14 no-unused-vars 'error' is defined but never used.
+386:9 no-unused-vars 'syncState' is assigned a value but never used.
+596:14 no-unused-vars 'error' is defined but never used.
+699:9 no-unused-vars 'reorderPhase' is assigned a value but never used.
+
+## src/components/VendorDatabase.jsx
+6:7 no-unused-vars 'API_BASE_URL' is assigned a value but never used.
+31:7 no-unused-vars 'riskLevelOptions' is assigned a value but never used.
+122:10 no-unused-vars 'formatPercent' is defined but never used.
+132:10 no-unused-vars 'formatDate' is defined but never used.
+388:3 no-unused-vars 'onOpenDealIntelligence' is defined but never used.
+405:27 no-unused-vars 'setPreferredFilter' is assigned a value but never used.
+407:26 no-unused-vars 'setDeliveryFilter' is assigned a value but never used.
+408:24 no-unused-vars 'setPickupFilter' is assigned a value but never used.
+410:22 no-unused-vars 'setRiskFilter' is assigned a value but never used.
+411:26 no-unused-vars 'setMinScoreFilter' is assigned a value but never used.
+419:10 no-unused-vars 'importedProductVendor' is assigned a value but never used.
+419:33 no-unused-vars 'setImportedProductVendor' is assigned a value but never used.
+
+## src/components/aiDecisionEngine.js
+34:10 no-unused-vars 'safeDisplay' is defined but never used.
+127:9 no-unused-vars 'rehabBudget' is assigned a value but never used.
+128:9 no-unused-vars 'arv' is assigned a value but never used.
+431:9 no-unused-vars 'rehabPerSqft' is assigned a value but never used.
+616:9 no-unused-vars 'cashRequired' is assigned a value but never used.
+
+## src/components/capitalAllocationEngine.js
+24:10 no-unused-vars 'formatPercent' is defined but never used.
+153:9 no-unused-vars 'dealList' is assigned a value but never used.
+295:9 no-unused-vars 'debt' is assigned a value but never used.
+296:9 no-unused-vars 'refinance' is assigned a value but never used.
+399:9 no-unused-vars 'contractors' is assigned a value but never used.
+
+## src/components/commandCenterIntelligence.js
+25:10 no-unused-vars 'formatPercent' is defined but never used.
+31:10 no-unused-vars 'formatSignedCurrency' is defined but never used.
+195:9 no-unused-vars 'lenderList' is assigned a value but never used.
+336:9 no-unused-vars 'lenderList' is assigned a value but never used.
+
+## src/components/enterpriseAutomationOrchestrator.js
+42:9 no-unused-vars 'analysis' is assigned a value but never used.
+
+## src/components/enterpriseIntelligenceLayer.js
+130:9 no-unused-vars 'deal' is assigned a value but never used.
+
+## src/components/enterpriseMonitoringEngine.js
+19:10 no-unused-vars 'normalizeArray' is defined but never used.
+47:49 no-unused-vars 'options' is assigned a value but never used.
+
+## src/components/enterpriseRecoveryEngine.js
+1:35 no-unused-vars 'enterpriseEventTypes' is defined but never used.
+31:47 no-unused-vars 'options' is assigned a value but never used.
+
+## src/components/enterpriseWorkflowEngine.js
+79:14 no-unused-vars 'error' is defined but never used.
+118:47 no-unused-vars 'options' is assigned a value but never used.
+132:11 no-unused-vars 'appraisalPackets' is assigned a value but never used.
+
+## src/components/executiveDecisionDashboard.js
+126:63 no-unused-vars 'redTeamReview' is defined but never used.
+263:70 no-unused-vars 'redTeamReview' is defined but never used.
+498:12 no-unused-vars 'error' is defined but never used.
+
+## src/components/executiveDecisionExecutionEngine.js
+74:43 no-unused-vars 'signals' is defined but never used.
+92:9 no-unused-vars 'baseCapitalEfficiency' is assigned a value but never used.
+
+## src/components/executiveIntelligence.js
+49:47 no-unused-vars 'deal' is assigned a value but never used.
+
+## src/components/executivePortfolioPrioritizationEngine.js
+65:37 no-unused-vars 'deal' is assigned a value but never used.
+
+## src/components/executiveRecommendationEngine.js
+62:9 no-unused-vars 'financingExposure' is assigned a value but never used.
+
+## src/components/executiveStrategyOptimizationEngine.js
+59:35 no-unused-vars 'score' is defined but never used.
+59:42 no-unused-vars 'signals' is defined but never used.
+70:35 no-unused-vars 'signals' is defined but never used.
+89:9 no-unused-vars 'deal' is assigned a value but never used.
+93:9 no-unused-vars 'executiveActionQueue' is assigned a value but never used.
+94:9 no-unused-vars 'capitalAllocationEngine' is assigned a value but never used.
+98:9 no-unused-vars 'reserveShortfall' is assigned a value but never used.
+103:9 no-unused-vars 'liquidityRatio' is assigned a value but never used.
+
+## src/components/intelligenceUpgradeEngine.js
+17:10 no-unused-vars 'buildDecisionReasonText' is defined but never used.
+900:9 no-unused-vars 'normalizedArv' is assigned a value but never used.
+1751:9 no-unused-vars 'holdingCosts' is assigned a value but never used.
+1947:9 no-unused-vars 'baseCost' is assigned a value but never used.
+2067:139 no-unused-vars 'riskProfile' is assigned a value but never used.
+2067:178 no-unused-vars 'executiveMarketSummary' is assigned a value but never used.
+2069:9 no-unused-vars 'purchaseEvidence' is assigned a value but never used.
+2085:9 no-unused-vars 'hardFailure' is assigned a value but never used.
+2237:63 no-unused-vars 'flipAnalysis' is assigned a value but never used.
+2278:33 no-unused-vars 'deal' is assigned a value but never used.
+2312:30 no-unused-vars 'deal' is assigned a value but never used.
+2478:9 no-unused-vars 'monthlyInterest' is assigned a value but never used.
+
+## src/components/intelligenceUpgradeEngine.test.js
+3:526 no-unused-vars 'buildKnowledgeIntelligence' is defined but never used.
+3:554 no-unused-vars 'buildSearchIntelligence' is defined but never used.
+3:579 no-unused-vars 'buildReportingIntelligence' is defined but never used.
+3:607 no-unused-vars 'buildDocumentAutomationIntelligence' is defined but never used.
+3:644 no-unused-vars 'buildAiCommandRouting' is defined but never used.
+
+## src/components/portfolioEnterpriseUpgradeEngine.js
+35:10 no-unused-vars 'formatCurrency' is defined but never used.
+
+## src/components/portfolioIntelligence.js
+44:10 no-unused-vars 'formatSignedCurrency' is defined but never used.
+244:9 no-unused-vars 'totalMonthlyRent' is assigned a value but never used.
+439:30 no-unused-vars 'summary' is assigned a value but never used.
+439:60 no-unused-vars 'scenarios' is assigned a value but never used.
+513:9 no-unused-vars 'normalizedLenders' is assigned a value but never used.
+515:9 no-unused-vars 'normalizedDealsData' is assigned a value but never used.
+516:9 no-unused-vars 'normalizedAppraisalPackets' is assigned a value but never used.
+
+## src/components/redTeamReview.js
+75:10 no-unused-vars 'getHighestRiskWarning' is defined but never used.
+134:11 no-unused-vars 'appraisedValue' is assigned a value but never used.
+153:11 no-unused-vars 'valuationScore' is assigned a value but never used.
+159:11 no-unused-vars 'scenarioSummaryDscr' is assigned a value but never used.
+391:12 no-unused-vars 'error' is defined but never used.
+
+## src/components/refinanceExitOptimizer.js
+85:10 no-unused-vars 'getDscr' is defined but never used.
+126:9 no-unused-vars 'deals' is assigned a value but never used.
+127:9 no-unused-vars 'portfolioIntelligence' is assigned a value but never used.
+128:9 no-unused-vars 'capitalAllocationEngine' is assigned a value but never used.
+178:9 no-unused-vars 'monthlyOperatingExpenses' is assigned a value but never used.
+240:9 no-unused-vars 'appraisalStatus' is assigned a value but never used.
+241:9 no-unused-vars 'insuranceStatus' is assigned a value but never used.
+242:9 no-unused-vars 'titleStatus' is assigned a value but never used.
+246:9 no-unused-vars 'leaseStatus' is assigned a value but never used.
+
+## src/utils/enterpriseUiIntegration.test.js
+3:166 no-unused-vars 'buildReleaseReadinessViewModel' is defined but never used.
+
+## src/utils/liveEnterpriseIntelligence.js
+4:40 no-unused-vars 'createOperationsService' is defined but never used.
+53:40 no-unused-vars 'properties' is assigned a value but never used.
+53:91 no-unused-vars 'portfolioEntries' is assigned a value but never used.
+53:114 no-unused-vars 'alerts' is assigned a value but never used.

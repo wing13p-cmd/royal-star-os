@@ -1,0 +1,52 @@
+{
+  "name": "Royal Star Operating System",
+  "short_name": "RSOS",
+  "description": "Royal Star Operating System enterprise operations platform.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#0b0b0b",
+  "background_color": "#0b0b0b",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Command Center",
+      "url": "/?view=dashboard",
+      "description": "Open the RSOS Command Center"
+    },
+    {
+      "name": "Add Deal",
+      "url": "/?view=dealIntake",
+      "description": "Open Deal Intake"
+    },
+    {
+      "name": "Property Database",
+      "url": "/?view=propertyDatabase",
+      "description": "Open Property Database"
+    }
+  ]
+}

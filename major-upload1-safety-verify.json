@@ -1,0 +1,15 @@
+{
+  "routeChecks": {
+    "syncSegmentBranch": true,
+    "syncEligibleHandler": true,
+    "syncPreviewHandler": true,
+    "syncExecuteHandler": true
+  },
+  "gossPreserved": true,
+  "liveProviderActivated": false,
+  "manualModeOperational": true,
+  "reviewFirstEnforced": true,
+  "unreviewedIsolated": true,
+  "commandCenterSignaturePresent": true,
+  "credentialsExposed": false
+}

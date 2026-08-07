@@ -1,0 +1,390 @@
+{
+  "system": "Royal Star OS",
+  "version": "1.0.0-rc1",
+  "createdAt": "2026-08-05T23:45:22.374Z",
+  "data": {
+    "deals": [
+      {
+        "propertyAddress": "952 Goss Rd",
+        "city": "Cincinnati",
+        "state": "OH",
+        "zipCode": "45229",
+        "propertyType": "Single Family",
+        "bedrooms": 4,
+        "bathrooms": 2.5,
+        "squareFeet": 1562,
+        "yearBuilt": 1929,
+        "askingPrice": 135000,
+        "purchasePrice": 135000,
+        "rehabBudget": 60000,
+        "estimatedArv": 300000,
+        "estimatedRent": "",
+        "taxes": "",
+        "insurance": "",
+        "financingCosts": 0,
+        "rawFinancingCostInput": 0,
+        "calculatedFinancingCosts": 0,
+        "effectiveFinancingCosts": 0,
+        "financingCostSource": "calculated",
+        "financials": {
+          "rawFinancingCostInput": 0,
+          "calculatedFinancingCosts": 0,
+          "effectiveFinancingCosts": 0,
+          "financingCostSource": "calculated"
+        },
+        "closingCosts": 3500,
+        "holdingMonths": "",
+        "annualInterestRate": "",
+        "actualLoanAmount": "",
+        "lenderLoanAmount": "",
+        "acquisitionLoan": "",
+        "fundedRehab": "",
+        "cashToClose": "",
+        "earnestMoney": "",
+        "totalInitialCashInvested": "",
+        "constructionHoldback": "",
+        "originationFee": "",
+        "brokerFee": "",
+        "underwritingFee": "",
+        "servicingFee": "",
+        "lenderLegalFee": "",
+        "monitoringFee": "",
+        "otherLenderFees": "",
+        "loanTermMonths": "",
+        "amortizationTermMonths": "",
+        "paymentType": "",
+        "leadSource": "",
+        "strategy": "Flip",
+        "notes": "first rsos production verication test",
+        "overallRisk": 13,
+        "riskLevel": "Low",
+        "recommendation": "Buy",
+        "warningCount": 1,
+        "confidenceScore": 72,
+        "status": "active",
+        "source": "web",
+        "id": "deal-1785965313522-641e68",
+        "createdAt": "2026-08-05T21:28:33.522Z",
+        "updatedAt": "2026-08-05T21:38:07.433Z",
+        "financingCost": 0,
+        "totalFinancingCosts": 0,
+        "calculatedFinancingCost": 0,
+        "effectiveFinancingCost": 0,
+        "projectedProfit": 101260
+      }
+    ],
+    "properties": [],
+    "products": [],
+    "contractors": [],
+    "comps": [
+      {
+        "id": "comp-1785895231201-df8005",
+        "subjectProperty": "",
+        "compAddress": "123 Test Ave",
+        "city": "Austin",
+        "state": "TX",
+        "zipCode": "78701",
+        "salePrice": 330000,
+        "saleDate": "2024-06-15",
+        "listPrice": 0,
+        "propertyType": "Single Family",
+        "bedrooms": 3,
+        "bathrooms": 2,
+        "squareFeet": 1800,
+        "yearBuilt": 0,
+        "lotSize": "",
+        "distanceMiles": 0,
+        "condition": "Average",
+        "garage": "",
+        "basement": "",
+        "source": "Manual Entry",
+        "sourceLink": "",
+        "notes": "",
+        "included": true,
+        "provider": "manual",
+        "providerImported": false,
+        "manuallyEntered": false,
+        "verified": false,
+        "inclusionStatus": "pending",
+        "exclusionReason": "",
+        "warningFlags": [],
+        "createdAt": "2026-08-05T02:00:31.201Z",
+        "updatedAt": "2026-08-05T02:00:38.684Z"
+      }
+    ],
+    "neighborhoods": [],
+    "dealIntelligence": [
+      {
+        "id": "deal-1",
+        "analysisName": "Deal Intelligence Review 1",
+        "analysisStatus": "Ready",
+        "propertyId": "deal-1",
+        "propertyName": "Malformed",
+        "address": "Malformed",
+        "city": "",
+        "state": "",
+        "zipCode": "",
+        "propertyType": "Single Family",
+        "strategy": "Hold",
+        "bedrooms": 0,
+        "bathrooms": 0,
+        "squareFeet": 0,
+        "yearBuilt": 0,
+        "askingPrice": 100000,
+        "purchasePrice": 100000,
+        "rehabBudget": 20000,
+        "projectedARV": 180000,
+        "supportedARV": 180000,
+        "recommendedArv": null,
+        "approvedArv": null,
+        "arvConfidence": "LOW",
+        "arvConfidenceScore": 65,
+        "valuationReviewStatus": "REVIEW_REQUIRED",
+        "appraisalReviewStatus": "REVIEW_REQUIRED",
+        "lowBaseHighRange": {
+          "low": null,
+          "base": null,
+          "high": null
+        },
+        "dealScore": 73,
+        "grade": "B",
+        "recommendation": "Hold",
+        "recommendationReason": "Generated from normalized underwriting inputs.",
+        "requiredNextActions": [
+          "Verify comp support",
+          "Confirm rehab assumptions"
+        ],
+        "warnings": [],
+        "projectedProfit": 59856,
+        "projectedROI": 0.4988,
+        "projectedRent": 1800,
+        "estimatedCashRequired": 20000,
+        "cashRequired": 20000,
+        "buyBoxResult": "REVIEW REQUIRED",
+        "buyBoxReason": "Base deal data is complete enough for review.",
+        "overallRisk": 25,
+        "recommendedOffer": 158000,
+        "maximumAllowableOffer": 158000,
+        "walkAwayPrice": 161160,
+        "offerConfidenceScore": 25,
+        "offerConfidenceLabel": "LOW",
+        "offerStatus": "PRELIMINARY_REVIEW_REQUIRED",
+        "valuationSource": "RECOMMENDED_ARV_PRELIMINARY",
+        "underwritingSummary": "ARV $180,000 · Rehab $20,000 · Rent $1,800",
+        "offerGuidance": "Offer range $158,000 to $158,000",
+        "majorRiskFlags": [
+          "INSUFFICIENT_COMPS",
+          "SUBJECT_DATA_GAPS",
+          "High projected profit with weak ARV support.",
+          "Review required before automation approval."
+        ],
+        "requiredFollowUpItems": [
+          "INSUFFICIENT_COMPS",
+          "SUBJECT_DATA_GAPS",
+          "High projected profit with weak ARV support.",
+          "Review required before automation approval."
+        ],
+        "investmentDecision": {
+          "recommendation": "REVIEW_REQUIRED",
+          "confidence": 6,
+          "confidenceLabel": "Low",
+          "primaryFactors": [
+            "Using recommended ARV pending approval",
+            "REVIEW REQUIRED"
+          ],
+          "dealScore": 6,
+          "overallRisk": 65,
+          "buyBoxResult": "REVIEW REQUIRED",
+          "arvConfidence": "LOW",
+          "estimatedProfit": 58000,
+          "roi": 0.47540983606557374,
+          "monthlyCashFlow": 0,
+          "cashRequired": 122000,
+          "qualificationStatus": "Review Required",
+          "recommendedNextActions": [
+            "INSUFFICIENT_COMPS",
+            "SUBJECT_DATA_GAPS",
+            "High projected profit with weak ARV support.",
+            "Review required before automation approval."
+          ]
+        },
+        "reviewRequired": true,
+        "contradictoryRecommendations": [
+          "High projected profit with weak ARV support."
+        ],
+        "appraisalPacketSupport": {
+          "subjectPropertyFacts": {
+            "address": "Malformed",
+            "city": null,
+            "state": null,
+            "zipCode": null,
+            "propertyType": null,
+            "bedrooms": null,
+            "bathrooms": null,
+            "squareFeet": null,
+            "yearBuilt": null
+          },
+          "approvedArv": null,
+          "recommendedArv": null,
+          "compSet": [],
+          "lowBaseHighRange": {
+            "low": null,
+            "base": null,
+            "high": null
+          },
+          "confidenceScore": 0,
+          "valuationWarnings": [
+            "INSUFFICIENT_COMPS",
+            "SUBJECT_DATA_GAPS"
+          ],
+          "appraisalReviewStatus": "REVIEW_REQUIRED",
+          "sourceLinks": [],
+          "dataAsOfDates": []
+        },
+        "valuationGovernance": {
+          "recommendedArv": null,
+          "reviewedArv": null,
+          "approvedArv": null,
+          "protectedArv": null,
+          "previousApprovedArv": null,
+          "approvalTimestamp": null,
+          "approvalActor": null,
+          "approvalEvidenceSummary": null,
+          "compSetVersion": null,
+          "valuationVersion": "upload2-v1",
+          "reviewRequired": true,
+          "dataAsOf": "2026-08-05T23:30:21.896Z"
+        },
+        "exitStrategy": {
+          "recommendedStrategy": "Flip",
+          "rankedStrategies": [
+            {
+              "strategy": "Flip",
+              "score": 0.86
+            },
+            {
+              "strategy": "BRRRR",
+              "score": 0.74
+            },
+            {
+              "strategy": "Rental",
+              "score": 0.68
+            }
+          ],
+          "strategyScores": [
+            {
+              "strategy": "Flip",
+              "score": 0.86
+            },
+            {
+              "strategy": "BRRRR",
+              "score": 0.74
+            },
+            {
+              "strategy": "Rental",
+              "score": 0.68
+            }
+          ],
+          "summary": "Strategy ranking generated from projected return and cash-flow support."
+        },
+        "riskProfile": {
+          "overallRiskScore": 30,
+          "overallRiskLabel": "Moderate",
+          "breakdown": [
+            {
+              "category": "Rehab",
+              "score": 30,
+              "explanation": "Rehab scope and contingency level determine execution risk."
+            },
+            {
+              "category": "Market",
+              "score": 26,
+              "explanation": "Market support is implied by the current ARV assumptions."
+            },
+            {
+              "category": "Financing",
+              "score": 20,
+              "explanation": "Financing structure matters for total capital and carry."
+            }
+          ],
+          "recommendedNextActions": [
+            "Confirm final underwriting assumptions"
+          ]
+        },
+        "actualLoanAmount": 0,
+        "monthlyCarry": 0,
+        "fourMonthInterest": 0,
+        "initialCashInvested": 0,
+        "constructionHoldback": 0,
+        "totalInitialCashInvested": 0,
+        "createdAt": "2026-08-05T23:30:21.900Z",
+        "updatedAt": "2026-08-05T23:30:21.900Z"
+      }
+    ],
+    "portfolio": [
+      {
+        "id": "portfolio-1785967791622-ff13fd",
+        "entityType": "property",
+        "schemaVersion": 1,
+        "propertyAddress": "952 goss rd",
+        "address": "952 goss rd",
+        "city": "cincinnati",
+        "state": "oh",
+        "zipCode": "45229",
+        "propertyType": "Single Family",
+        "purchasePrice": 135000,
+        "askingPrice": 135000,
+        "rehabBudget": 60000,
+        "estimatedArv": 275000,
+        "financingCosts": 0,
+        "rawFinancingCostInput": 0,
+        "calculatedFinancingCosts": 0,
+        "effectiveFinancingCosts": 0,
+        "financingCostSource": "manual",
+        "status": "Active",
+        "strategy": "Hold",
+        "notes": "",
+        "createdAt": "2026-08-05T22:09:51.622Z",
+        "updatedAt": "2026-08-05T22:09:51.622Z"
+      },
+      {
+        "id": "portfolio-1785968446833-f391d2",
+        "propertyName": "test property 2",
+        "propertyAddress": "100 main st",
+        "city": "cincinnati",
+        "state": "oh",
+        "zipCode": "45211",
+        "propertyType": "Single Family",
+        "acquisitionDate": "",
+        "purchasePrice": 150000,
+        "rehabBudget": 30000,
+        "currentValue": 250000,
+        "monthlyRent": 2200,
+        "occupancyRate": "",
+        "operatingExpenses": 500,
+        "annualTaxes": 2800,
+        "annualInsurance": 1000,
+        "loanBalance": 160000,
+        "interestRate": 7,
+        "monthlyDebtService": "",
+        "status": "Active",
+        "strategy": "Hold",
+        "favorite": false,
+        "notes": "",
+        "createdAt": "2026-08-05T22:20:46.833Z",
+        "updatedAt": "2026-08-05T22:20:46.833Z"
+      }
+    ],
+    "vendors": [],
+    "materials": [],
+    "lenders": [],
+    "appraisalPackets": [],
+    "rehabProjects": [],
+    "enterpriseAudit": [],
+    "enterpriseReports": [],
+    "enterpriseDocuments": [],
+    "enterpriseKnowledge": [],
+    "workflowTransitions": [],
+    "diagnosticsHistory": []
+  }
+}

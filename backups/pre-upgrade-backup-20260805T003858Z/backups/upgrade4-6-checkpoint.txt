@@ -1,0 +1,14 @@
+Upgrade 4/6 Rollback Checkpoint
+Created: 2026-07-30
+Status: COMPLETE
+
+Verification:
+- npm test: PASS (48 passed, 0 failed)
+- npm run build: PASS
+- node scripts/verify-system.mjs: PASS
+
+Notes:
+- Shared Portfolio Intelligence Layer now powers the portfolio dashboard and command-center summary outputs.
+- Portfolio summaries, priorities, alerts, capital position, and top opportunity values are derived from the shared underwriting-backed portfolio service.
+- Existing UI layout, styling, navigation, and shell structure were preserved.
+- This checkpoint can be used as a rollback reference for the completed Upgrade 4/6 state.

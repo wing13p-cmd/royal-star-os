@@ -1,0 +1,12 @@
+app/src/components/FlipAnalyzer.jsx
+app/src/components/BrrrrAnalyzer.jsx
+app/src/components/intelligenceUpgradeEngine.js
+app/src/components/underwritingInputNormalizer.js
+app/src/components/scenarioAnalysis.js
+app/src/components/DealIntelligence.jsx
+app/src/components/portfolioIntelligence.js
+app/src/components/intelligenceUpgradeEngine.test.js
+app/src/components/scenarioAnalysis.test.js
+app/src/components/portfolioIntelligence.test.js
+app/src/components/financeIntelligence.test.js
+app/src/components/refinanceExitOptimizer.test.js

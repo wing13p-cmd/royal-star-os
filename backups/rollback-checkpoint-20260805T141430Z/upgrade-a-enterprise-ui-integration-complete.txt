@@ -1,0 +1,9 @@
+Upgrade A rollback checkpoint created on 2026-07-30 for the enterprise UI integration completion pass.
+
+Validated state:
+- Shared enterprise UI integration helpers wired into the existing Dashboard, Deal Intelligence, and Portfolio Dashboard views.
+- Live backend health and live deal/portfolio intelligence are consumed through the existing UI surfaces without introducing new top-level navigation.
+- Regression tests passed: 113/113.
+- Production build passed.
+- System verification passed.
+- Live backend endpoints verified for /api/health, /api/deal-intelligence, and /api/portfolio.

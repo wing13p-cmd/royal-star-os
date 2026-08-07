@@ -1,0 +1,971 @@
+import { useEffect, useMemo, useState } from "react";
+import logo from "../assets/royal-star-logo.png";
+import { buildCapitalAllocationEngine } from "./capitalAllocationEngine.js";
+import { buildCommandCenterIntelligence } from "./commandCenterIntelligence.js";
+import { buildPortfolioIntelligence } from "./portfolioIntelligence.js";
+import { buildModuleSyncState } from "./moduleSync.js";
+
+const navigation = [
+  ["🏠", "COMMAND CENTER"],
+  ["🔎", "DEAL ANALYZER"],
+  ["📈", "FLIP ANALYZER"],
+  ["💳", "BRRRR ANALYZER"],
+  ["▣", "PRODUCT VAULT"],
+  ["👥", "CONTRACTOR HUB"],
+  ["🏘️", "COMP DATABASE"],
+  ["📍", "NEIGHBORHOOD DB"],
+  ["👥", "PORTFOLIO DASHBOARD"],
+  ["🏦", "LENDER DASHBOARD"],
+  ["📄", "APPRAISER PACKET BUILDER"],
+  ["▥", "REHAB PROJECT TRACKER"],
+  ["🗂️", "PROPERTY DATABASE"],
+  ["🗃️", "VENDOR DATABASE"],
+  ["▪", "MATERIAL MATRIX"],
+];
+
+const topMetrics = [
+  ["🏠", "ACTIVE DEALS", "View All Deals"],
+  ["$", "TOTAL CASH DEPLOYED", "View Summary"],
+  ["📈", "PIPELINE VALUE", "View Pipeline"],
+  ["📄", "PROJECTS IN REHAB", "View Projects"],
+  ["🏦", "LENDERS & FUNDING", "View Lenders"],
+];
+
+const firstRow = [
+  {
+    icon: "🔎",
+    title: "DEAL ANALYZER",
+    body: "Analyze deals, run calculations, and evaluate investment scenarios.",
+    action: "OPEN TOOL",
+  },
+  {
+    icon: "▣",
+    title: "PRODUCT VAULT",
+    body: "Access approved products, vendors, SKU tracking, and pricing history.",
+    action: "OPEN VAULT",
+  },
+  {
+    icon: "🤝",
+    title: "CONTRACTOR HUB",
+    body: "Manage contractors, performance, insurance, and project assignments.",
+    action: "OPEN HUB",
+  },
+  {
+    icon: "🏘️",
+    title: "COMP DATABASE",
+    body: "View and manage comps, sales data, and market analysis.",
+    action: "OPEN DATABASE",
+  },
+  {
+    icon: "👥",
+    title: "PORTFOLIO DASHBOARD",
+    body: "Track assets, equity, performance, ROI, and cash flow.",
+    action: "VIEW DASHBOARD",
+  },
+];
+
+const secondRow = [
+  {
+    icon: "🏦",
+    title: "LENDER DASHBOARD",
+    body: "Track loans, balances, term sheets, and communication.",
+    action: "OPEN DASHBOARD",
+  },
+  {
+    icon: "📄",
+    title: "APPRAISER PACKET BUILDER",
+    body: "Build professional appraisal packets in minutes.",
+    action: "BUILD PACKET",
+  },
+  {
+    icon: "📍",
+    title: "NEIGHBORHOOD DATABASE",
+    body: "Explore neighborhoods, demographics, and investment data.",
+    action: "OPEN DATABASE",
+  },
+  {
+    icon: "▥",
+    title: "REHAB PROJECT TRACKER",
+    body: "Track budgets, timelines, progress, and project photos.",
+    action: "OPEN TRACKER",
+  },
+  {
+    icon: "🎓",
+    title: "KNOWLEDGE BASE",
+    body: "Access templates, checklists, guides, and training.",
+    action: "OPEN LIBRARY",
+  },
+];
+
+const activity = [
+  ["📄", "123 Main St - Analysis Updated", "Today"],
+  ["🏠", "456 Oak Ave - Rehab Budget", "Today"],
+  ["📊", "New Comp Added - 789 Pine", "Yesterday"],
+  ["🏦", "Lender Packet Sent - Sunshine", "Yesterday"],
+  ["🧰", "Vendor Price Update - Flooring", "2 Days Ago"],
+];
+
+export default function Dashboard({ onOpenDealIntake, onOpenDealAnalyzer, onOpenFlipAnalyzer, onOpenBrrrrAnalyzer, onOpenProductVault, onOpenContractorHub, onOpenDealIntelligence, onOpenCompDatabase, onOpenNeighborhoodDatabase, onOpenPortfolioDashboard, onOpenPropertyDatabase, onOpenVendorDatabase, onOpenMaterialMatrix, onOpenLenderDashboard, onOpenAppraiserPacketBuilder, onOpenRehabProjectTracker }) {
+  const [commandCenterState, setCommandCenterState] = useState(null);
+  const [searchText, setSearchText] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+
+  useEffect(() => {
+    const loadSourceData = async () => {
+      try {
+        const [dealsRes, intelligenceRes, propertiesRes, rehabRes, contractorsRes, lendersRes, portfolioRes] = await Promise.all([
+          fetch("http://127.0.0.1:3001/api/deals").catch(() => ({ ok: false })),
+          fetch("http://127.0.0.1:3001/api/deal-intelligence").catch(() => ({ ok: false })),
+          fetch("http://127.0.0.1:3001/api/properties").catch(() => ({ ok: false })),
+          fetch("http://127.0.0.1:3001/api/rehab-projects").catch(() => ({ ok: false })),
+          fetch("http://127.0.0.1:3001/api/contractors").catch(() => ({ ok: false })),
+          fetch("http://127.0.0.1:3001/api/lenders").catch(() => ({ ok: false })),
+          fetch("http://127.0.0.1:3001/api/portfolio").catch(() => ({ ok: false })),
+        ]);
+
+        const readJson = async (response) => {
+          if (!response || !response.ok) return [];
+          try {
+            return await response.json();
+          } catch {
+            return [];
+          }
+        };
+
+        const [deals, dealIntelligence, properties, rehabProjects, contractors, lenders, portfolioData] = await Promise.all([
+          readJson(dealsRes),
+          readJson(intelligenceRes),
+          readJson(propertiesRes),
+          readJson(rehabRes),
+          readJson(contractorsRes),
+          readJson(lendersRes),
+          readJson(portfolioRes),
+        ]);
+
+        const portfolioIntelligence = buildPortfolioIntelligence(properties, deals, rehabProjects, lenders, contractors, portfolioData, [], []);
+        const syncState = buildModuleSyncState({
+          deals,
+          properties,
+          portfolioEntries: portfolioData,
+          rehabProjects,
+          contractors,
+          lenders,
+          appraisalPackets: [],
+        });
+        const intelligence = buildCommandCenterIntelligence({
+          deals,
+          dealIntelligence,
+          properties,
+          portfolioData,
+          rehabProjects,
+          contractors,
+          lenders,
+          comps: [],
+          neighborhoods: [],
+          appraisalPackets: [],
+          portfolioIntelligence,
+          syncState,
+        });
+        setCommandCenterState(intelligence);
+      } catch {
+        setCommandCenterState(buildCommandCenterIntelligence({ deals: [], dealIntelligence: [], properties: [], portfolioData: [], rehabProjects: [], contractors: [], lenders: [], comps: [], neighborhoods: [], appraisalPackets: [], portfolioIntelligence: buildPortfolioIntelligence([], [], [], [], [], [], [], []) }));
+      }
+    };
+
+    loadSourceData();
+  }, []);
+
+  const intelligence = useMemo(() => commandCenterState || buildCommandCenterIntelligence({ deals: [], dealIntelligence: [], properties: [], portfolioData: [], rehabProjects: [], contractors: [], lenders: [], comps: [], neighborhoods: [], appraisalPackets: [], portfolioIntelligence: buildPortfolioIntelligence([], [], [], [], [], [], [], []) }), [commandCenterState]);
+
+  const capitalAllocationEngine = useMemo(() => buildCapitalAllocationEngine({
+    properties: intelligence.dataSources.properties,
+    deals: intelligence.dataSources.deals,
+    dealIntelligence: intelligence.dataSources.dealIntelligence,
+    rehabProjects: intelligence.dataSources.rehabProjects,
+    lenders: intelligence.dataSources.lenders,
+    contractors: intelligence.dataSources.contractors,
+    portfolioIntelligence: intelligence.dataSources.portfolioIntelligence,
+  }), [intelligence]);
+
+  const executivePriorities = useMemo(() => {
+    const priorities = [...(intelligence.priorities || [])];
+    if (capitalAllocationEngine?.plan?.[0]) {
+      priorities.unshift({
+        priority: "CAPITAL",
+        action: `${capitalAllocationEngine.plan[0].option} · ${capitalAllocationEngine.plan[0].capitalRequired}`,
+      });
+    }
+    return priorities;
+  }, [capitalAllocationEngine, intelligence.priorities]);
+
+  useEffect(() => {
+    const results = buildCommandCenterIntelligence({
+      deals: intelligence.dataSources.deals,
+      dealIntelligence: intelligence.dataSources.dealIntelligence,
+      properties: intelligence.dataSources.properties,
+      portfolioData: intelligence.dataSources.portfolioData,
+      rehabProjects: intelligence.dataSources.rehabProjects,
+      contractors: intelligence.dataSources.contractors,
+      lenders: intelligence.dataSources.lenders,
+      comps: intelligence.dataSources.comps,
+      neighborhoods: intelligence.dataSources.neighborhoods,
+      appraisalPackets: intelligence.dataSources.appraisalPackets,
+      portfolioIntelligence: intelligence.dataSources.portfolioIntelligence,
+    }).searchResults;
+    setSearchResults(results);
+  }, [intelligence]);
+
+  const handleSearch = (event) => {
+    const term = event.target.value || '';
+    setSearchText(term);
+    const results = buildCommandCenterIntelligence({
+      deals: intelligence.dataSources.deals,
+      dealIntelligence: intelligence.dataSources.dealIntelligence,
+      properties: intelligence.dataSources.properties,
+      portfolioData: intelligence.dataSources.portfolioData,
+      rehabProjects: intelligence.dataSources.rehabProjects,
+      contractors: intelligence.dataSources.contractors,
+      lenders: intelligence.dataSources.lenders,
+      comps: intelligence.dataSources.comps,
+      neighborhoods: intelligence.dataSources.neighborhoods,
+      appraisalPackets: intelligence.dataSources.appraisalPackets,
+      portfolioIntelligence: intelligence.dataSources.portfolioIntelligence,
+    }).searchResults;
+    setSearchResults(results);
+  };
+
+  return (
+    <div style={styles.page}>
+      <aside style={styles.sidebar}>
+        <div style={styles.logoArea}>
+          <img src={logo} alt="Royal Star Properties" style={styles.logo} />
+        </div>
+
+        <nav style={styles.nav}>
+          {navigation.map(([icon, label]) => {
+            const isDealAnalyzer = label === "DEAL ANALYZER";
+            const isAppraiserPacketBuilder = label === "APPRAISER PACKET BUILDER";
+            const isRehabProjectTracker = label === "REHAB PROJECT TRACKER";
+
+            return (
+              <button
+                key={label}
+                type="button"
+                style={styles.navButton}
+                onClick={isDealAnalyzer ? onOpenDealAnalyzer : isAppraiserPacketBuilder ? onOpenAppraiserPacketBuilder : isRehabProjectTracker ? onOpenRehabProjectTracker : label === "FLIP ANALYZER" ? onOpenFlipAnalyzer : label === "BRRRR ANALYZER" ? onOpenBrrrrAnalyzer : label === "PRODUCT VAULT" ? onOpenProductVault : label === "CONTRACTOR HUB" ? onOpenContractorHub : label === "COMP DATABASE" ? onOpenCompDatabase : label === "NEIGHBORHOOD DB" ? onOpenNeighborhoodDatabase : label === "PORTFOLIO DASHBOARD" ? onOpenPortfolioDashboard : label === "PROPERTY DATABASE" ? onOpenPropertyDatabase : label === "VENDOR DATABASE" ? onOpenVendorDatabase : label === "MATERIAL MATRIX" ? onOpenMaterialMatrix : label === "LENDER DASHBOARD" ? onOpenLenderDashboard : undefined}
+              >
+                <span style={styles.navIcon}>{icon}</span>
+                <span>{label}</span>
+                <span style={styles.navTab} />
+              </button>
+            );
+          })}
+
+          <button type="button" style={styles.logout}>
+            <span style={styles.navIcon}>↪</span>
+            <span>LOG OUT</span>
+          </button>
+        </nav>
+
+        <div style={styles.smallMark}>RS★</div>
+      </aside>
+
+      <main style={styles.main}>
+        <section style={styles.topArea}>
+          <div />
+
+          <div style={styles.heading}>
+            <h1 style={styles.company}>ROYAL STAR PROPERTIES, LLC</h1>
+            <p style={styles.subtitle}>
+              ROYAL STAR OPERATING SYSTEM (RSOS) ENTERPRISE
+            </p>
+          </div>
+
+          <div style={styles.admin}>
+            <div>👤 BRANDON STERLING</div>
+            <span>System Administrator</span>
+          </div>
+        </section>
+
+        <section style={styles.metrics}>
+          {topMetrics.map(([icon, title, subtitle]) => (
+            <div key={title} style={styles.metric}>
+              <div style={styles.metricTitle}>
+                <span>{icon}</span>
+                <strong>{title}</strong>
+              </div>
+              <div style={styles.metricSubtitle}>{subtitle}</div>
+            </div>
+          ))}
+        </section>
+
+        <section style={styles.intelligenceStrip}>
+          <div style={styles.intelligenceCard}><div style={styles.intelligenceLabel}>BUSINESS STATUS</div><div style={styles.intelligenceValue}>{intelligence.businessStatus}</div></div>
+          <div style={styles.intelligenceCard}><div style={styles.intelligenceLabel}>PORTFOLIO HEALTH</div><div style={styles.intelligenceValue}>{intelligence.portfolioHealth}</div></div>
+          <div style={styles.intelligenceCard}><div style={styles.intelligenceLabel}>CAPITAL STATUS</div><div style={styles.intelligenceValue}>{capitalAllocationEngine?.capitalPosition?.capitalStatus || intelligence.capitalStatus}</div></div>
+          <div style={styles.intelligenceCard}><div style={styles.intelligenceLabel}>TOP OPPORTUNITY</div><div style={styles.intelligenceValue}>{intelligence.topOpportunity.propertyName}</div></div>
+        </section>
+
+        <section style={styles.intelligenceGrid}>
+          <div style={styles.intelligencePanel}>
+            <h3 style={styles.lowerTitle}>EXECUTIVE ALERTS</h3>
+            {intelligence.alerts.length ? intelligence.alerts.map((alert, index) => (
+              <div key={`${alert.alert}-${index}`} style={styles.alertRow}>
+                <span style={styles.alertBadge}>{alert.severity}</span>
+                <span style={styles.alertText}>{alert.alert} · {alert.relatedRecord}</span>
+              </div>
+            )) : <div style={styles.emptyAlert}>Executive intelligence unavailable.</div>}
+          </div>
+          <div style={styles.intelligencePanel}>
+            <h3 style={styles.lowerTitle}>TODAY'S PRIORITIES</h3>
+            {executivePriorities.length ? executivePriorities.map((priority, index) => (
+              <div key={`${priority.priority}-${index}`} style={styles.alertRow}>
+                <span style={styles.priorityBadge}>{priority.priority}</span>
+                <span style={styles.alertText}>{priority.action}</span>
+              </div>
+            )) : <div style={styles.emptyAlert}>No priorities at this time.</div>}
+          </div>
+        </section>
+
+        <section style={styles.moduleRow}>
+          {firstRow.map((item) => (
+            <ModuleCard
+              key={item.title}
+              item={item}
+              onClick={
+                item.title === "DEAL ANALYZER"
+                  ? onOpenDealAnalyzer
+                  : item.title === "PRODUCT VAULT"
+                    ? onOpenProductVault
+                    : item.title === "CONTRACTOR HUB"
+                      ? onOpenContractorHub
+                      : item.title === "COMP DATABASE"
+                        ? onOpenCompDatabase
+                        : item.title === "PORTFOLIO DASHBOARD"
+                          ? onOpenPortfolioDashboard
+                          : item.title === "NEIGHBORHOOD DATABASE"
+                            ? onOpenNeighborhoodDatabase
+                            : item.title === "LENDER DASHBOARD"
+                              ? onOpenLenderDashboard
+                              : undefined
+              }
+            />
+          ))}
+        </section>
+
+        <section style={styles.moduleRow}>
+          {secondRow.map((item) => (
+            <ModuleCard key={item.title} item={item} onClick={item.title === "NEIGHBORHOOD DATABASE" ? onOpenNeighborhoodDatabase : item.title === "PORTFOLIO DASHBOARD" ? onOpenPortfolioDashboard : item.title === "LENDER DASHBOARD" ? onOpenLenderDashboard : item.title === "APPRAISER PACKET BUILDER" ? onOpenAppraiserPacketBuilder : item.title === "REHAB PROJECT TRACKER" ? onOpenRehabProjectTracker : undefined} />
+          ))}
+        </section>
+
+        <section style={styles.lowerGrid}>
+          <div style={styles.lowerPanel}>
+            <h2 style={styles.lowerTitle}>RECENT ACTIVITY</h2>
+
+            <div style={styles.activityList}>
+              {intelligence.recentActivity.length ? intelligence.recentActivity.map((item, index) => (
+                <div key={`${item.event}-${index}`} style={styles.activityRow}>
+                  <span style={styles.activityIcon}>●</span>
+                  <span style={styles.activityDescription}>{item.event} · {item.relatedRecord}</span>
+                  <span style={styles.activityDate}>{item.status}</span>
+                </div>
+              )) : activity.map(([icon, description, date]) => (
+                <div key={description} style={styles.activityRow}>
+                  <span style={styles.activityIcon}>{icon}</span>
+                  <span style={styles.activityDescription}>{description}</span>
+                  <span style={styles.activityDate}>{date}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={styles.totalActivity}>18 TOTAL</div>
+            <button type="button" style={styles.lowerAction}>
+              VIEW ALL ACTIVITY&nbsp;&nbsp;➜
+            </button>
+          </div>
+
+          <div style={styles.lowerPanel}>
+            <h2 style={styles.lowerTitle}>PIPELINE OVERVIEW</h2>
+
+            <div style={styles.pipeline}>
+              <PipelineRow label="Active Deals" value={String(intelligence.dealDecisionSummary?.counts?.buy || 0)} />
+              <PipelineRow label="Capital Status" value={capitalAllocationEngine?.capitalPosition?.capitalStatus || intelligence.capitalPosition.status} />
+              <PipelineRow label="Top Risk" value={intelligence.topRisk.risk} />
+              <PipelineRow label="Top Opportunity" value={capitalAllocationEngine?.highestPriorityUse?.option || intelligence.topOpportunity.recommendation} />
+            </div>
+
+            <button type="button" style={styles.lowerAction}>
+              VIEW FULL PIPELINE&nbsp;&nbsp;➜
+            </button>
+          </div>
+
+          <div style={styles.lowerPanel}>
+            <h2 style={styles.lowerTitle}>QUICK LINKS</h2>
+
+            <div style={styles.quickColumns}>
+              <div>
+                <QuickLink text="Add New Deal" onClick={onOpenDealIntake} />
+                <QuickLink text="Run New Analysis" onClick={onOpenDealIntelligence} />
+                <QuickLink text="Open Property Database" onClick={onOpenPropertyDatabase} />
+                <QuickLink text="Open Contractor Hub" onClick={onOpenContractorHub} />
+                <QuickLink text="Open Lender Dashboard" onClick={onOpenLenderDashboard} />
+              </div>
+
+              <div>
+                <QuickLink text="Open Rehab Tracker" onClick={onOpenRehabProjectTracker} />
+                <QuickLink text="Open Portfolio Dashboard" onClick={onOpenPortfolioDashboard} />
+                <QuickLink text="Open Deal Intelligence" onClick={onOpenDealIntelligence} />
+                <QuickLink text="Open Comp Database" onClick={onOpenCompDatabase} />
+                <QuickLink text="Open Appraiser Packet Builder" onClick={onOpenAppraiserPacketBuilder} />
+              </div>
+            </div>
+
+            <button type="button" style={styles.lowerAction}>
+              VIEW ALL LINKS&nbsp;&nbsp;➜
+            </button>
+          </div>
+        </section>
+
+        <section style={styles.searchSection}>
+          <input style={styles.searchInput} value={searchText} onChange={handleSearch} placeholder="Search executive records" />
+          {searchResults.length ? <div style={styles.searchResults}>{searchResults.map((result, index) => <button key={`${result.label}-${index}`} type="button" style={styles.searchResult} onClick={() => {
+            if (result.module === 'Deal Analyzer') onOpenDealAnalyzer();
+            else if (result.module === 'Property Database') onOpenPropertyDatabase();
+            else if (result.module === 'Contractor Hub') onOpenContractorHub();
+            else if (result.module === 'Lender Dashboard') onOpenLenderDashboard();
+            else if (result.module === 'Portfolio Dashboard') onOpenPortfolioDashboard();
+            else if (result.module === 'Deal Intelligence') onOpenDealIntelligence();
+            else if (result.module === 'Rehab Project Tracker') onOpenRehabProjectTracker();
+            else if (result.module === 'Comp Database') onOpenCompDatabase();
+            else if (result.module === 'Appraiser Packet Builder') onOpenAppraiserPacketBuilder();
+          }}>{result.label} · {result.module}</button>)}</div> : null}
+        </section>
+
+        <footer style={styles.footer}>
+          <div style={styles.footerText}>
+            <div>BUILT ON SYSTEMS. DRIVEN BY DATA. DESIGNED FOR WEALTH.</div>
+            <div>
+              ROYAL STAR PROPERTIES, LLC&nbsp;&nbsp;★&nbsp;&nbsp;BUILDING LEGACY.
+              CREATING FREEDOM.
+            </div>
+          </div>
+
+          <div style={styles.footerMark}>RS★</div>
+        </footer>
+      </main>
+    </div>
+  );
+}
+
+function ModuleCard({ item, onClick }) {
+  return (
+    <article style={styles.module}>
+      <div style={styles.moduleContent}>
+        <h2 style={styles.moduleTitle}>
+          <span style={styles.moduleIcon}>{item.icon}</span>
+          {item.title}
+        </h2>
+
+        <p style={styles.moduleBody}>{item.body}</p>
+      </div>
+
+      <button type="button" style={styles.moduleAction} onClick={onClick}>
+        {item.action}
+      </button>
+    </article>
+  );
+}
+
+function PipelineRow({ label, value }) {
+  return (
+    <div style={styles.pipelineRow}>
+      <span>
+        <span style={styles.pipelineDot}>●</span>
+        {label}
+      </span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function QuickLink({ text, onClick }) {
+  return (
+    <button type="button" style={styles.quickLink} onClick={onClick}>
+      🔗 {text}
+    </button>
+  );
+}
+
+const GOLD = "#f2c500";
+const BLACK = "#050505";
+const BORDER = "#c89f00";
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    width: "100%",
+    display: "flex",
+    overflow: "hidden",
+    backgroundColor: BLACK,
+    color: GOLD,
+    fontFamily: "Arial, Helvetica, sans-serif",
+    fontWeight: 700,
+  },
+
+  sidebar: {
+    flex: "0 0 178px",
+    minHeight: "100vh",
+    padding: "18px 0 10px",
+    boxSizing: "border-box",
+    backgroundColor: BLACK,
+    display: "flex",
+    flexDirection: "column",
+    position: "relative",
+  },
+
+  logoArea: {
+    height: "114px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0 15px 10px",
+    boxSizing: "border-box",
+  },
+
+  logo: {
+    display: "block",
+    width: "135px",
+    height: "104px",
+    objectFit: "contain",
+    backgroundColor: "#ffffff",
+  },
+
+  nav: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "1px",
+    paddingRight: "14px",
+  },
+
+  navButton: {
+    position: "relative",
+    width: "100%",
+    minHeight: "36px",
+    padding: "7px 10px",
+    border: "1px solid #846c00",
+    background: "linear-gradient(90deg, #f7d339 0%, #eab90c 100%)",
+    color: "#17120a",
+    textAlign: "left",
+    fontSize: "10px",
+    fontWeight: 500,
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    cursor: "pointer",
+  },
+
+  navIcon: {
+    width: "18px",
+    textAlign: "center",
+    fontSize: "12px",
+  },
+
+  navTab: {
+    position: "absolute",
+    right: "-13px",
+    top: "8px",
+    width: "13px",
+    height: "20px",
+    backgroundColor: GOLD,
+    border: "1px solid #8d7100",
+    boxSizing: "border-box",
+  },
+
+  logout: {
+    width: "100%",
+    minHeight: "34px",
+    padding: "7px 10px",
+    border: "1px solid #846c00",
+    background: "linear-gradient(90deg, #f7d339 0%, #eab90c 100%)",
+    color: "#17120a",
+    textAlign: "left",
+    fontSize: "10px",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+  },
+
+  smallMark: {
+    marginTop: "8px",
+    paddingLeft: "12px",
+    fontFamily: "Georgia, serif",
+    fontSize: "25px",
+    color: GOLD,
+  },
+
+  main: {
+    flex: 1,
+    minWidth: 0,
+    padding: "20px 17px 10px 8px",
+    boxSizing: "border-box",
+    backgroundColor: BLACK,
+  },
+
+  topArea: {
+    minHeight: "120px",
+    display: "grid",
+    gridTemplateColumns: "1fr 2fr 1fr",
+    alignItems: "start",
+  },
+
+  heading: {
+    textAlign: "center",
+    paddingTop: "13px",
+  },
+
+  company: {
+    margin: 0,
+    color: GOLD,
+    fontSize: "15px",
+    fontWeight: 800,
+  },
+
+  subtitle: {
+    margin: "10px 0 0",
+    fontSize: "9px",
+    color: GOLD,
+  },
+
+  admin: {
+    paddingTop: "8px",
+    textAlign: "right",
+    color: "#ffffff",
+    fontSize: "8px",
+    lineHeight: 1.4,
+  },
+
+  metrics: {
+    minHeight: "75px",
+    display: "grid",
+    gridTemplateColumns: "repeat(5, 1fr)",
+    alignItems: "center",
+    columnGap: "6px",
+  },
+
+  metric: {
+    textAlign: "center",
+    padding: "5px",
+  },
+
+  metricTitle: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "6px",
+    fontSize: "10px",
+    color: GOLD,
+  },
+
+  metricSubtitle: {
+    marginTop: "3px",
+    color: "#ffffff",
+    fontSize: "9px",
+  },
+
+  intelligenceStrip: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gap: "6px",
+    margin: "8px 0 10px",
+  },
+
+  intelligenceCard: {
+    border: `1px solid ${BORDER}`,
+    backgroundColor: "#111",
+    padding: "8px 10px",
+    minHeight: "52px",
+  },
+
+  intelligenceLabel: {
+    color: GOLD,
+    fontSize: "8px",
+    textTransform: "uppercase",
+    marginBottom: "4px",
+  },
+
+  intelligenceValue: {
+    color: "#ffffff",
+    fontSize: "9px",
+    lineHeight: 1.35,
+  },
+
+  intelligenceGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "8px",
+    marginBottom: "10px",
+  },
+
+  intelligencePanel: {
+    border: `1px solid ${BORDER}`,
+    backgroundColor: "#111",
+    padding: "8px 10px",
+    minHeight: "90px",
+  },
+
+  alertRow: {
+    display: "flex",
+    gap: "6px",
+    alignItems: "center",
+    marginBottom: "4px",
+    color: GOLD,
+    fontSize: "8px",
+  },
+
+  alertBadge: {
+    border: `1px solid ${BORDER}`,
+    padding: "2px 5px",
+    color: "#fff",
+    backgroundColor: "#2a1d00",
+    whiteSpace: "nowrap",
+  },
+
+  priorityBadge: {
+    border: `1px solid ${BORDER}`,
+    padding: "2px 5px",
+    color: "#fff",
+    backgroundColor: "#2f2b00",
+    whiteSpace: "nowrap",
+  },
+
+  alertText: {
+    color: "#ffffff",
+    fontSize: "8px",
+  },
+
+  emptyAlert: {
+    color: "#ffffff",
+    fontSize: "8px",
+  },
+
+  searchSection: {
+    margin: "10px 0 0",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+  },
+
+  searchInput: {
+    backgroundColor: "#111",
+    border: `1px solid ${BORDER}`,
+    color: GOLD,
+    padding: "7px 8px",
+    fontSize: "9px",
+  },
+
+  searchResults: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+
+  searchResult: {
+    backgroundColor: "transparent",
+    border: `1px solid ${BORDER}`,
+    color: GOLD,
+    textAlign: "left",
+    padding: "6px 8px",
+    cursor: "pointer",
+    fontSize: "8px",
+  },
+
+  moduleRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(5, 1fr)",
+  },
+
+  module: {
+    minWidth: 0,
+    minHeight: "150px",
+    borderLeft: `1px solid ${BORDER}`,
+    borderRight: `1px solid ${BORDER}`,
+    display: "flex",
+    flexDirection: "column",
+    backgroundColor: BLACK,
+  },
+
+  moduleContent: {
+    flex: 1,
+    padding: "12px 10px 8px",
+    textAlign: "center",
+  },
+
+  moduleTitle: {
+    minHeight: "30px",
+    margin: "0 0 10px",
+    color: GOLD,
+    fontSize: "10px",
+    fontWeight: 800,
+    lineHeight: 1.18,
+  },
+
+  moduleIcon: {
+    marginRight: "5px",
+  },
+
+  moduleBody: {
+    maxWidth: "165px",
+    margin: "0 auto",
+    color: GOLD,
+    fontSize: "9px",
+    fontWeight: 700,
+    lineHeight: 1.35,
+  },
+
+  moduleAction: {
+    height: "25px",
+    width: "100%",
+    padding: 0,
+    border: `1px solid ${BORDER}`,
+    background: "linear-gradient(#f9d62d, #e4ae00)",
+    color: "#322600",
+    fontSize: "8px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+
+  lowerGrid: {
+    display: "grid",
+    gridTemplateColumns: "1.18fr 1fr 1.3fr",
+  },
+
+  lowerPanel: {
+    minHeight: "164px",
+    position: "relative",
+    padding: "8px 12px 31px",
+    borderLeft: `1px solid ${BORDER}`,
+    borderRight: `1px solid ${BORDER}`,
+    boxSizing: "border-box",
+    backgroundColor: BLACK,
+  },
+
+  lowerTitle: {
+    margin: "0 0 8px",
+    textAlign: "center",
+    color: GOLD,
+    fontSize: "10px",
+  },
+
+  activityList: {
+    paddingRight: "4px",
+  },
+
+  activityRow: {
+    display: "grid",
+    gridTemplateColumns: "20px 1fr 70px",
+    alignItems: "center",
+    minHeight: "18px",
+    color: GOLD,
+    fontSize: "8px",
+  },
+
+  activityIcon: {
+    fontSize: "11px",
+  },
+
+  activityDescription: {
+    paddingRight: "8px",
+  },
+
+  activityDate: {
+    textAlign: "right",
+  },
+
+  totalActivity: {
+    position: "absolute",
+    right: "18px",
+    bottom: "40px",
+    color: GOLD,
+    fontSize: "9px",
+    textAlign: "center",
+  },
+
+  pipeline: {
+    width: "75%",
+    margin: "12px auto 0",
+  },
+
+  pipelineRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    padding: "3px 0",
+    color: GOLD,
+    fontSize: "9px",
+  },
+
+  pipelineDot: {
+    marginRight: "5px",
+    fontSize: "8px",
+  },
+
+  quickColumns: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    columnGap: "17px",
+    padding: "5px 8px 0",
+  },
+
+  quickLink: {
+    width: "100%",
+    padding: "7px 0",
+    border: 0,
+    backgroundColor: "transparent",
+    color: GOLD,
+    textAlign: "left",
+    fontSize: "8px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+
+  lowerAction: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "26px",
+    border: `1px solid ${BORDER}`,
+    background: "linear-gradient(#f9d62d, #e4ae00)",
+    color: "#6c5300",
+    fontSize: "8px",
+    fontWeight: 800,
+    cursor: "pointer",
+  },
+
+  footer: {
+    minHeight: "82px",
+    position: "relative",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    padding: "14px 15px 8px",
+    boxSizing: "border-box",
+  },
+
+  footerText: {
+    textAlign: "center",
+    color: GOLD,
+    fontSize: "8px",
+    lineHeight: 1.45,
+  },
+
+  footerMark: {
+    position: "absolute",
+    right: "43%",
+    bottom: "8px",
+    transform: "translateX(50%)",
+    fontFamily: "Georgia, serif",
+    color: GOLD,
+    fontSize: "25px",
+  },
+};

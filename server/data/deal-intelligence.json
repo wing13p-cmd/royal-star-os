@@ -1,0 +1,206 @@
+[
+  {
+    "id": "deal-1785965313522-641e68",
+    "analysisName": "Deal Intelligence Review 1",
+    "analysisStatus": "Ready",
+    "propertyId": "deal-1785965313522-641e68",
+    "propertyName": "952 Goss Rd",
+    "address": "952 Goss Rd",
+    "city": "Cincinnati",
+    "state": "OH",
+    "zipCode": "45229",
+    "propertyType": "Single Family",
+    "strategy": "Flip",
+    "bedrooms": 4,
+    "bathrooms": 2.5,
+    "squareFeet": 1562,
+    "yearBuilt": 1929,
+    "askingPrice": 135000,
+    "purchasePrice": 135000,
+    "rehabBudget": 60000,
+    "projectedARV": 301100,
+    "supportedARV": 301100,
+    "recommendedArv": null,
+    "approvedArv": null,
+    "arvConfidence": "LOW",
+    "arvConfidenceScore": 65,
+    "valuationReviewStatus": "REVIEW_REQUIRED",
+    "appraisalReviewStatus": "REVIEW_REQUIRED",
+    "lowBaseHighRange": {
+      "low": null,
+      "base": null,
+      "high": null
+    },
+    "dealScore": 60,
+    "grade": "C",
+    "recommendation": "Hold",
+    "recommendationReason": "Generated from normalized underwriting inputs.",
+    "requiredNextActions": [
+      "Verify comp support",
+      "Confirm rehab assumptions"
+    ],
+    "warnings": [
+      "Rental income is not yet supported"
+    ],
+    "projectedProfit": 101260,
+    "projectedROI": 0.3955264483627204,
+    "projectedRent": 0,
+    "estimatedCashRequired": 60000,
+    "cashRequired": 60000,
+    "buyBoxResult": "REVIEW REQUIRED",
+    "buyBoxReason": "Base deal data is complete enough for review.",
+    "overallRisk": 25,
+    "recommendedOffer": 231600,
+    "maximumAllowableOffer": 231600,
+    "walkAwayPrice": 236232,
+    "offerConfidenceScore": 25,
+    "offerConfidenceLabel": "LOW",
+    "offerStatus": "PRELIMINARY_REVIEW_REQUIRED",
+    "valuationSource": "RECOMMENDED_ARV_PRELIMINARY",
+    "underwritingSummary": "ARV $301,100 · Rehab $60,000 · Rent Insufficient Data",
+    "offerGuidance": "Offer range $231,600 to $231,600",
+    "majorRiskFlags": [
+      "INSUFFICIENT_COMPS",
+      "High projected profit with weak ARV support.",
+      "Review required before automation approval."
+    ],
+    "requiredFollowUpItems": [
+      "INSUFFICIENT_COMPS",
+      "High projected profit with weak ARV support.",
+      "Review required before automation approval."
+    ],
+    "investmentDecision": {
+      "recommendation": "REVIEW_REQUIRED",
+      "confidence": 10,
+      "confidenceLabel": "Low",
+      "primaryFactors": [
+        "Using recommended ARV pending approval",
+        "REVIEW REQUIRED"
+      ],
+      "dealScore": 10,
+      "overallRisk": 65,
+      "buyBoxResult": "REVIEW REQUIRED",
+      "arvConfidence": "LOW",
+      "estimatedProfit": 96600,
+      "roi": 0.47237163814180927,
+      "monthlyCashFlow": 0,
+      "cashRequired": 204500,
+      "qualificationStatus": "Review Required",
+      "recommendedNextActions": [
+        "INSUFFICIENT_COMPS",
+        "High projected profit with weak ARV support.",
+        "Review required before automation approval."
+      ]
+    },
+    "reviewRequired": true,
+    "contradictoryRecommendations": [
+      "High projected profit with weak ARV support."
+    ],
+    "appraisalPacketSupport": {
+      "subjectPropertyFacts": {
+        "address": "952 Goss Rd",
+        "city": "Cincinnati",
+        "state": "OH",
+        "zipCode": "45229",
+        "propertyType": "Single Family",
+        "bedrooms": 4,
+        "bathrooms": 2.5,
+        "squareFeet": 1562,
+        "yearBuilt": 1929
+      },
+      "approvedArv": null,
+      "recommendedArv": null,
+      "compSet": [],
+      "lowBaseHighRange": {
+        "low": null,
+        "base": null,
+        "high": null
+      },
+      "confidenceScore": 0,
+      "valuationWarnings": [
+        "INSUFFICIENT_COMPS"
+      ],
+      "appraisalReviewStatus": "REVIEW_REQUIRED",
+      "sourceLinks": [],
+      "dataAsOfDates": []
+    },
+    "valuationGovernance": {
+      "recommendedArv": null,
+      "reviewedArv": null,
+      "approvedArv": null,
+      "protectedArv": null,
+      "previousApprovedArv": null,
+      "approvalTimestamp": null,
+      "approvalActor": null,
+      "approvalEvidenceSummary": null,
+      "compSetVersion": null,
+      "valuationVersion": "upload2-v1",
+      "reviewRequired": true,
+      "dataAsOf": "2026-08-06T23:33:42.448Z"
+    },
+    "exitStrategy": {
+      "recommendedStrategy": "Flip",
+      "rankedStrategies": [
+        {
+          "strategy": "Flip",
+          "score": 0.42
+        },
+        {
+          "strategy": "BRRRR",
+          "score": 0.2
+        },
+        {
+          "strategy": "Rental",
+          "score": 0.18
+        }
+      ],
+      "strategyScores": [
+        {
+          "strategy": "Flip",
+          "score": 0.42
+        },
+        {
+          "strategy": "BRRRR",
+          "score": 0.2
+        },
+        {
+          "strategy": "Rental",
+          "score": 0.18
+        }
+      ],
+      "summary": "Strategy ranking generated from projected return and cash-flow support."
+    },
+    "riskProfile": {
+      "overallRiskScore": 45,
+      "overallRiskLabel": "Moderate",
+      "breakdown": [
+        {
+          "category": "Rehab",
+          "score": 30,
+          "explanation": "Rehab scope and contingency level determine execution risk."
+        },
+        {
+          "category": "Market",
+          "score": 26,
+          "explanation": "Market support is implied by the current ARV assumptions."
+        },
+        {
+          "category": "Financing",
+          "score": 20,
+          "explanation": "Financing structure matters for total capital and carry."
+        }
+      ],
+      "recommendedNextActions": [
+        "Rental income is not yet supported"
+      ]
+    },
+    "actualLoanAmount": 0,
+    "monthlyCarry": 0,
+    "fourMonthInterest": 0,
+    "initialCashInvested": 0,
+    "constructionHoldback": 0,
+    "totalInitialCashInvested": 0,
+    "createdAt": "2026-08-05T21:28:33.522Z",
+    "updatedAt": "2026-08-06T22:37:17.360Z"
+  }
+]

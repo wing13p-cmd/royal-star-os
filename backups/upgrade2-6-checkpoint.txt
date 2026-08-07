@@ -1,0 +1,13 @@
+Upgrade 2/6 rollback checkpoint
+Created: 2026-07-30T00:00:00Z
+Status: Unified Underwriting Engine migration completed
+
+Verification:
+- npm test: 46 passed, 0 failed
+- npm run build: succeeded
+- node scripts/verify-system.mjs: PASS
+
+Notes:
+- Unified underwriting outputs now drive Deal Intelligence, Flip Analyzer, BRRRR Analyzer, Scenario Analysis, Deal Analyzer, Dashboard executive intelligence, and Today's Priorities.
+- Command Center layout, styling, navigation, and UI structure were preserved.
+- Remaining legacy underwriting math was removed from the active consumer paths.
