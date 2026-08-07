@@ -1,5 +1,0 @@
-
-> royal-star-os@1.0.0 verify
-> node scripts/verify-system.mjs
-
-PASS

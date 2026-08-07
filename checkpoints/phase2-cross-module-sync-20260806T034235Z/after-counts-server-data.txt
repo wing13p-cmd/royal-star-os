@@ -1,4 +1,0 @@
-deals:1
-properties:2
-portfolio:2
-rehabProjects:0

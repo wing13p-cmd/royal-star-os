@@ -1,0 +1,7 @@
+
+# Local RSOS backups/checkpoints
+backup
+backups/
+checkpoints/
+*.backup.*
+*.bak.*

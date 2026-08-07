@@ -1,5 +1,0 @@
-Rollback checkpoint created: 2026-08-05T01:18:59.936Z
-System: Royal Star OS
-Status: Production hardening baseline preserved
-Backup: backups/royal-star-os-backup-2026-08-05T011859936Z.json
-Notes: Authentication, runtime config, monitoring, and packaging changes were introduced from this verified baseline.

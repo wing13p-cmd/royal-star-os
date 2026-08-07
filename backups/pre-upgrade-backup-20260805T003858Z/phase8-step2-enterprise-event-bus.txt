@@ -1,1 +1,0 @@
-Phase 8 Step 2 rollback checkpoint created on 2026-07-30 for the Enterprise Event Bus integration.

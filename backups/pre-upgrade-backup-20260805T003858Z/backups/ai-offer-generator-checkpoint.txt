@@ -1,9 +1,0 @@
-AI Offer Generator rollback checkpoint
-Created: 2026-07-30
-Phase: AI Offer Generator & Acquisition Decision Engine
-Status: Shared offer intelligence extended and verified against the unified underwriting core.
-Notes:
-- Preserved existing Command Center UI and navigation.
-- Reused the Unified Underwriting Engine as the authoritative source.
-- Added shared offer ladder, decisioning, approval workflow, and re-underwriting support.
-- Verified via automated tests, production build, and system verification.

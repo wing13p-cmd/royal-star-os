@@ -1,9 +1,0 @@
-Royal Star OS rollback checkpoint
-Name: ai-offer-generator-phase2
-Created: 2026-07-30
-Status: Unified offer engine completed and validated
-Notes:
-- Shared offer intelligence now drives flip and BRRRR offer decisions through the same engine.
-- Supported flip deals resolve to OFFER when buy-box and profit thresholds are met.
-- Weak deals preserve negative-profit outcomes and remain HOLD FOR MORE INFORMATION.
-- Validation completed with npm test, npm run build, and node scripts/verify-system.mjs.
