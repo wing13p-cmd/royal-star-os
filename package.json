@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm --prefix app run dev",
+    "start": "node server/index.js",
     "server": "node server/index.js",
     "build": "npm --prefix app run build",
     "test": "node --test ./app/src/**/*.test.js ./scripts/start-rsos.test.mjs ./scripts/phase2-secure-access.test.mjs ./scripts/verify-deployment.test.mjs ./scripts/release-hardening.test.mjs ./scripts/secure-gateway.test.mjs ./scripts/phase10-production-hardening.test.mjs ./scripts/railway-persistence.test.mjs ./server/**/*.test.js",

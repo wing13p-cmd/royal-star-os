@@ -182,7 +182,13 @@ export default function AuthGate({ children }) {
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setErrorMessage("Invalid credentials.");
+        if (response.status >= 500) {
+          setErrorMessage("Server error. Please try again in a moment.");
+        } else if (response.status === 429) {
+          setErrorMessage("Too many attempts. Please wait before trying again.");
+        } else {
+          setErrorMessage("Invalid credentials.");
+        }
         return;
       }
 

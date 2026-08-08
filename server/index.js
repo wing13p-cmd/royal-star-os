@@ -179,10 +179,15 @@ async function acquireSingleWriterLock() {
 }
 
 async function validateStartupEnvironment() {
-  if (productionMode && !publicOrigin.startsWith("https://")) {
-    throw new Error("Missing required production configuration: RSOS_PUBLIC_ORIGIN must be an https:// URL");
+  // RSOS_PUBLIC_ORIGIN is required for the secureGateway CORS setup but optional
+  // when the backend itself serves the frontend (same-origin, no CORS needed).
+  if (productionMode && publicOrigin && !publicOrigin.startsWith("https://")) {
+    throw new Error("RSOS_PUBLIC_ORIGIN must be an https:// URL when set");
   }
-  if (productionMode && bindHost !== "127.0.0.1" && process.env.RSOS_ALLOW_PUBLIC_BIND !== "true") {
+  if (productionMode && !publicOrigin) {
+    safeConsoleLog("warn", "no_public_origin", { message: "RSOS_PUBLIC_ORIGIN is not set. CORS headers will not include a public origin. Set it if using a reverse proxy or secureGateway." });
+  }
+  if (productionMode && bindHost !== "127.0.0.1" && bindHost !== "0.0.0.0" && process.env.RSOS_ALLOW_PUBLIC_BIND !== "true") {
     throw new Error("Unsafe production bind host. Set RSOS_BIND_HOST=127.0.0.1 or explicitly acknowledge risk with RSOS_ALLOW_PUBLIC_BIND=true");
   }
   if (productionMode && !process.env.RSOS_DATA_DIR) {
@@ -3489,6 +3494,54 @@ const server = http.createServer(async (req, res) => {
     if (segments[0] === "api" && segments[1] === "material-matrix") {
       await handleCollection(req, res, "material matrix entry", readMaterialsFile, writeMaterialsFile, (payload) => ({ ...payload }), () => [], "material");
       return;
+    }
+
+    // In production, serve the pre-built frontend for any non-API route (SPA).
+    if (productionMode) {
+      const frontendDist = process.env.RSOS_FRONTEND_DIST
+        ? path.resolve(process.env.RSOS_FRONTEND_DIST)
+        : path.join(projectRootDir, "app", "dist");
+      const mimeTypes = {
+        ".html": "text/html; charset=utf-8",
+        ".js": "application/javascript; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
+        ".json": "application/json; charset=utf-8",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".svg": "image/svg+xml",
+        ".ico": "image/x-icon",
+        ".webmanifest": "application/manifest+json",
+        ".woff": "font/woff",
+        ".woff2": "font/woff2",
+        ".txt": "text/plain; charset=utf-8",
+      };
+      const resourcePath = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+      const resolved = path.join(frontendDist, path.normalize(resourcePath));
+      const distRoot = path.resolve(frontendDist);
+      const withinDist = resolved.startsWith(distRoot + path.sep) || resolved === distRoot;
+      if (withinDist) {
+        try {
+          await fs.access(resolved);
+          const ext = path.extname(resolved).toLowerCase();
+          const contentType = mimeTypes[ext] || "application/octet-stream";
+          const data = await fs.readFile(resolved);
+          res.writeHead(200, { "Content-Type": contentType });
+          res.end(data);
+          return;
+        } catch {
+          // File not found — fall through to SPA index.html
+        }
+        try {
+          const indexPath = path.join(frontendDist, "index.html");
+          const data = await fs.readFile(indexPath);
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+          res.end(data);
+          return;
+        } catch {
+          // Frontend not built; fall through to 404
+        }
+      }
     }
 
     sendJson(res, 404, { error: "Not found" });
