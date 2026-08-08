@@ -174,6 +174,21 @@ async function acquireSingleWriterLock() {
         // fall through to explicit startup block below
       }
     }
+    // In containerised/production deployments, PIDs are reused so the stale-PID
+    // check is unreliable. Force-overwrite the lock rather than crashing the server.
+    if (productionMode) {
+      safeConsoleLog("warn", "writer_lock_force_overwrite", {
+        message: "Stale or contested writer lock detected. Force-overwriting for production single-instance deployment.",
+      });
+      await fs.rm(lockFilePath, { force: true }).catch(() => {});
+      try {
+        writerLockHandle = await fs.open(lockFilePath, "wx");
+        await writerLockHandle.writeFile(String(process.pid), "utf8");
+      } catch {
+        // Proceed without lock — Railway guarantees single instance
+      }
+      return;
+    }
     throw new Error(`RSOS startup blocked: active writer lock detected at ${path.basename(lockFilePath)}. Ensure only one writer instance is running.`);
   }
 }
