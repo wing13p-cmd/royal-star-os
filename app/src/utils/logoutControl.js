@@ -102,6 +102,11 @@ export async function executeLogout(options = {}) {
     }
 
     clearStoredSessionIds(storage);
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      // Replace history state so the Back button returns to the login screen, not an authenticated view.
+      window.history.replaceState({ rsos_authenticated: false }, '', window.location.href);
+      window.dispatchEvent(new Event('rsos-logged-out'));
+    }
     return { ok: true, reason: 'LOGGED_OUT' };
   } catch {
     return { ok: false, reason: 'LOGOUT_FAILED' };

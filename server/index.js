@@ -37,6 +37,11 @@ import {
   logoutSession,
   getAuthSummary,
   redactAuthError,
+  beginMfaEnrollment,
+  confirmMfaEnrollment,
+  disableMfa,
+  getMfaStatus,
+  verifyMfaLoginChallenge,
 } from "./authService.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -179,6 +184,10 @@ async function validateStartupEnvironment() {
   }
   if (productionMode && bindHost !== "127.0.0.1" && process.env.RSOS_ALLOW_PUBLIC_BIND !== "true") {
     throw new Error("Unsafe production bind host. Set RSOS_BIND_HOST=127.0.0.1 or explicitly acknowledge risk with RSOS_ALLOW_PUBLIC_BIND=true");
+  }
+  if (productionMode && !process.env.RSOS_DATA_DIR) {
+    // Warn but do not block — local dev may omit this intentionally.
+    safeConsoleLog("warn", "ephemeral_data_dir", { message: "RSOS_DATA_DIR is not set in production. Data will be stored in the container filesystem and lost on redeploy. Set RSOS_DATA_DIR to a persistent volume path." });
   }
 
   await ensureDirectoryWritable(dataDir, "data directory");
@@ -1805,6 +1814,10 @@ function isOperatorAuthorized(req) {
   return Boolean(operatorToken && (operatorToken === bearerToken || operatorToken === headerToken));
 }
 
+function getSessionIdFromRequest(req = {}) {
+  return String(req.headers["x-session-id"] || req.headers["x-rsos-session-id"] || "").trim();
+}
+
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(payload));
@@ -2131,12 +2144,22 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === "/ready" || pathname === "/api/ready") {
       const authSummary = await getAuthSummary().catch(() => ({}));
-      sendJson(res, 200, {
-        status: "ready",
-        ready: true,
+      let persistenceReady = false;
+      try {
+        await fs.access(dataDir, fsConstants.R_OK | fsConstants.W_OK);
+        persistenceReady = true;
+      } catch {
+        persistenceReady = false;
+      }
+      const authReady = Boolean(authSummary.adminUsername);
+      const ready = persistenceReady && authReady;
+      sendJson(res, ready ? 200 : 503, {
+        status: ready ? "ready" : "not_ready",
+        ready,
         timestamp: new Date().toISOString(),
         service: "rsos-backend",
-        auth: authSummary,
+        persistence: { ready: persistenceReady },
+        auth: { ready: authReady, mfaEnabled: Boolean(authSummary.mfaEnabled), ttlMs: authSummary.ttlMs },
       });
       return;
     }
@@ -2259,13 +2282,57 @@ const server = http.createServer(async (req, res) => {
         sendStructuredError(res, 401, "Invalid credentials", "auth_error", req.requestContext?.requestId || "");
         return;
       }
+
+      if (authResult.mfaRequired) {
+        safeConsoleLog("info", "login_mfa_challenge_issued", { username: redactSensitiveValue(username) });
+        sendJson(res, 200, {
+          ok: true,
+          mfaRequired: true,
+          challengeId: authResult.challengeId,
+          expiresInSeconds: authResult.expiresInSeconds || 300,
+        });
+        return;
+      }
+
       safeConsoleLog("info", "login_succeeded", { username: redactSensitiveValue(username) });
       sendJson(res, 200, { ok: true, session: authResult.session });
       return;
     }
 
+    if (pathname === "/api/auth/mfa/verify") {
+      if (req.method !== "POST") {
+        sendJson(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      let payload = {};
+      try {
+        payload = await readJsonBody(req);
+      } catch (error) {
+        if (error instanceof HttpRequestBodyError) {
+          sendStructuredError(res, error.statusCode, error.message, error.errorType, req.requestContext?.requestId || "");
+          return;
+        }
+        throw error;
+      }
+
+      const challengeId = typeof payload?.challengeId === "string" ? payload.challengeId : "";
+      const code = typeof payload?.code === "string" ? payload.code : "";
+      const ipAddress = req.socket?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
+      const verifyResult = await verifyMfaLoginChallenge({ challengeId, code, ipAddress }, process.env);
+
+      if (!verifyResult.ok) {
+        sendStructuredError(res, 401, "Invalid credentials", "auth_error", req.requestContext?.requestId || "");
+        return;
+      }
+
+      safeConsoleLog("info", "login_mfa_verified", { recoveryCodeUsed: Boolean(verifyResult.recoveryCodeUsed) });
+      sendJson(res, 200, { ok: true, session: verifyResult.session });
+      return;
+    }
+
     if (pathname === "/api/auth/me") {
-      const sessionId = req.headers["x-session-id"] || req.headers["x-rsos-session-id"] || "";
+      const sessionId = getSessionIdFromRequest(req);
       const ipAddress = req.socket?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
       const session = await verifySession(sessionId, ipAddress);
       if (!session) {
@@ -2277,9 +2344,124 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (pathname === "/api/auth/logout") {
-      const sessionId = req.headers["x-session-id"] || req.headers["x-rsos-session-id"] || "";
+      const sessionId = getSessionIdFromRequest(req);
       await logoutSession(sessionId);
       sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    if (pathname === "/api/auth/mfa/status") {
+      if (req.method !== "GET") {
+        sendJson(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      const sessionId = getSessionIdFromRequest(req);
+      const ipAddress = req.socket?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
+      const status = await getMfaStatus(sessionId, ipAddress);
+      if (!status.ok) {
+        sendStructuredError(res, 401, "Session expired", "auth_error", req.requestContext?.requestId || "");
+        return;
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        enabled: status.enabled,
+        enrolled: status.enrolled,
+        recoveryCodesRemaining: status.recoveryCodesRemaining,
+      });
+      return;
+    }
+
+    if (pathname === "/api/auth/mfa/enroll") {
+      if (req.method !== "POST") {
+        sendJson(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      const sessionId = getSessionIdFromRequest(req);
+      const ipAddress = req.socket?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
+      const result = await beginMfaEnrollment(sessionId, ipAddress);
+      if (!result.ok) {
+        sendStructuredError(res, 401, "Session expired", "auth_error", req.requestContext?.requestId || "");
+        return;
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        enabled: result.enabled,
+        secret: result.secret,
+        otpauthUrl: result.otpauthUrl,
+      });
+      return;
+    }
+
+    if (pathname === "/api/auth/mfa/confirm") {
+      if (req.method !== "POST") {
+        sendJson(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      let payload = {};
+      try {
+        payload = await readJsonBody(req);
+      } catch (error) {
+        if (error instanceof HttpRequestBodyError) {
+          sendStructuredError(res, error.statusCode, error.message, error.errorType, req.requestContext?.requestId || "");
+          return;
+        }
+        throw error;
+      }
+
+      const sessionId = getSessionIdFromRequest(req);
+      const ipAddress = req.socket?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
+      const code = typeof payload?.code === "string" ? payload.code : "";
+      const result = await confirmMfaEnrollment(sessionId, ipAddress, code);
+
+      if (!result.ok) {
+        sendStructuredError(res, 401, "Invalid credentials", "auth_error", req.requestContext?.requestId || "");
+        return;
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        enabled: true,
+        recoveryCodes: result.recoveryCodes,
+      });
+      return;
+    }
+
+    if (pathname === "/api/auth/mfa/disable") {
+      if (req.method !== "POST") {
+        sendJson(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      let payload = {};
+      try {
+        payload = await readJsonBody(req);
+      } catch (error) {
+        if (error instanceof HttpRequestBodyError) {
+          sendStructuredError(res, error.statusCode, error.message, error.errorType, req.requestContext?.requestId || "");
+          return;
+        }
+        throw error;
+      }
+
+      const sessionId = getSessionIdFromRequest(req);
+      const ipAddress = req.socket?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
+      const password = typeof payload?.password === "string" ? payload.password : "";
+      const code = typeof payload?.code === "string"
+        ? payload.code
+        : (typeof payload?.codeOrRecoveryCode === "string" ? payload.codeOrRecoveryCode : "");
+      const result = await disableMfa(sessionId, ipAddress, password, code);
+
+      if (!result.ok) {
+        sendStructuredError(res, 401, "Invalid credentials", "auth_error", req.requestContext?.requestId || "");
+        return;
+      }
+
+      sendJson(res, 200, { ok: true, disabled: true });
       return;
     }
 

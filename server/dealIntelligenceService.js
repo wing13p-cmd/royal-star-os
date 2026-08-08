@@ -7,7 +7,10 @@ import { deriveUnifiedUnderwritingIntelligence } from './valuationOfferBuyBoxSer
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dataDir = path.join(__dirname, 'data');
+// Respect RSOS_DATA_DIR so intelligence state persists on Railway volumes.
+const dataDir = process.env.RSOS_DATA_DIR
+  ? path.resolve(process.env.RSOS_DATA_DIR)
+  : path.join(__dirname, 'data');
 const dealsFile = path.join(dataDir, 'deals.json');
 const compsFile = path.join(dataDir, 'comps.json');
 const neighborhoodsFile = path.join(dataDir, 'neighborhoods.json');

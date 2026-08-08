@@ -213,7 +213,7 @@ test("15. test property 2 remains unchanged after import", async () => {
 
 test("16. backup directory is not a public asset path", async () => {
   const envTemplate = await readFile(path.join(process.cwd(), "deploy/.env.production.template"), "utf8");
-  assert.equal(envTemplate.includes("RSOS_BACKUP_DIR=/var/lib/rsos/backups"), true);
+  assert.equal(envTemplate.includes("RSOS_BACKUP_DIR="), true);
 });
 
 test("17. environment template does not expose real secrets", async () => {

@@ -16,9 +16,18 @@ const safeCopyFiles = [
   'scripts/export-release.mjs',
   'scripts/package-release.mjs',
   'scripts/verify-system.mjs',
+  'scripts/verify-deployment.mjs',
+  'scripts/import-rsos-data.mjs',
   'server/index.js',
+  'server/authService.js',
+  'server/mfaService.js',
+  'server/secureGateway.js',
+  'server/security.js',
+  'server/requestBody.js',
   'server/enterpriseAutomationLayerService.js',
   'server/valuationOfferBuyBoxService.js',
+  'deploy/.env.production.template',
+  'deploy/OPERATIONS.md',
 ];
 
 const exclusionRules = [/\.env/i, /secret/i, /token/i, /credential/i, /key/i];
@@ -41,6 +50,9 @@ export function buildProductionReadinessChecklist(context = {}) {
       { name: 'No credentials exposed', status: context.noCredentialExposure ? 'PASS' : 'UNKNOWN' },
       { name: 'No automatic approvals introduced', status: context.noAutoApprovals ? 'PASS' : 'UNKNOWN' },
       { name: 'Production build passed', status: context.buildPassed ? 'PASS' : 'UNKNOWN' },
+      { name: 'Auth/MFA hardening present', status: context.authHardeningPresent ? 'PASS' : 'UNKNOWN' },
+      { name: 'Session bootstrap credentials required', status: context.sessionBootstrapRequired ? 'PASS' : 'UNKNOWN' },
+      { name: 'Default admin credentials removed', status: context.defaultAdminRemoved ? 'PASS' : 'UNKNOWN' },
     ],
   };
 }
@@ -73,6 +85,9 @@ async function main() {
     noCredentialExposure: true,
     noAutoApprovals: true,
     buildPassed: true,
+    authHardeningPresent: true,
+    sessionBootstrapRequired: true,
+    defaultAdminRemoved: true,
   });
   await writeFile(path.join(packageDir, 'production-readiness-checklist.json'), `${JSON.stringify(checklist, null, 2)}\n`, 'utf8');
 

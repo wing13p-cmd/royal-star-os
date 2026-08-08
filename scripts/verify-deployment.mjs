@@ -5,9 +5,7 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
-const distDir = process.env.RSOS_FRONTEND_DIST ? path.resolve(process.env.RSOS_FRONTEND_DIST) : path.join(rootDir, "app", "dist");
-const manifestPath = path.join(distDir, "manifest.webmanifest");
-const swPath = path.join(distDir, "sw.js");
+const defaultDistDir = process.env.RSOS_FRONTEND_DIST ? path.resolve(process.env.RSOS_FRONTEND_DIST) : path.join(rootDir, "app", "dist");
 
 function assertTrue(condition, message) {
   if (!condition) throw new Error(message);
@@ -27,7 +25,11 @@ async function collectFiles(dirPath) {
   return files;
 }
 
-async function main() {
+export async function verifyDeployment(options = {}) {
+  const distDir = options.distDir ? path.resolve(options.distDir) : defaultDistDir;
+  const manifestPath = path.join(distDir, "manifest.webmanifest");
+  const swPath = path.join(distDir, "sw.js");
+
   await access(distDir);
   await access(manifestPath);
   await access(swPath);
@@ -62,6 +64,17 @@ async function main() {
   for (const iconPath of requiredIcons) {
     await access(path.join(distDir, iconPath));
   }
+
+  return {
+    ok: true,
+    distDir,
+    fileCount: allFiles.length,
+    textFileCount: textFiles.length,
+  };
+}
+
+async function main() {
+  await verifyDeployment();
 
   console.log("PASS");
 }

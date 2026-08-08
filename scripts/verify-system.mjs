@@ -14,6 +14,8 @@ const requiredFiles = [
   path.join(appDir, 'package.json'),
   path.join(appDir, 'src', 'App.jsx'),
   path.join(serverDir, 'index.js'),
+  path.join(serverDir, 'authService.js'),
+  path.join(serverDir, 'mfaService.js'),
   path.join(serverDir, 'enterpriseAutomationLayerService.js'),
   path.join(serverDir, 'valuationOfferBuyBoxService.js'),
 ];
@@ -24,6 +26,7 @@ const requiredDataFiles = [
   'comps.json',
   'neighborhoods.json',
   'lenders.json',
+  'auth-state.json',
   'enterprise-audit.json',
   'enterprise-reports.json',
   'enterprise-documents.json',

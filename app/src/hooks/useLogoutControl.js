@@ -1,26 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { executeLogout, resolveLogoutAvailability } from '../utils/logoutControl.js';
+import { executeLogout, getStoredSessionId } from '../utils/logoutControl.js';
 
 export function useLogoutControl(onLoggedOut) {
-  const [logoutEnabled, setLogoutEnabled] = useState(false);
-  const [logoutReason, setLogoutReason] = useState('AUTH_NOT_ACTIVE');
+  // Derive availability from localStorage directly — avoids disabling logout on transient API errors.
+  const [logoutEnabled, setLogoutEnabled] = useState(() => Boolean(getStoredSessionId()));
   const [logoutMessage, setLogoutMessage] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const loadAvailability = async () => {
-      const availability = await resolveLogoutAvailability();
-      if (cancelled) return;
-      setLogoutEnabled(Boolean(availability.enabled));
-      setLogoutReason(availability.reason || 'AUTH_NOT_ACTIVE');
-    };
-
-    loadAvailability();
-
+    // Re-evaluate whenever the component mounts or focus returns (e.g. after tab switch).
+    const update = () => setLogoutEnabled(Boolean(getStoredSessionId()));
+    update();
+    window.addEventListener('storage', update);
+    window.addEventListener('rsos-logged-out', update);
     return () => {
-      cancelled = true;
+      window.removeEventListener('storage', update);
+      window.removeEventListener('rsos-logged-out', update);
     };
   }, []);
 
@@ -34,6 +29,7 @@ export function useLogoutControl(onLoggedOut) {
     setLoggingOut(false);
 
     if (result.ok) {
+      setLogoutEnabled(false);
       setLogoutMessage('Logged out successfully.');
       if (typeof onLoggedOut === 'function') {
         onLoggedOut();
@@ -44,15 +40,14 @@ export function useLogoutControl(onLoggedOut) {
     setLogoutMessage('Unable to log out right now.');
   }, [loggingOut, logoutEnabled, onLoggedOut]);
 
-  const title = useMemo(() => {
-    if (logoutEnabled) return 'Log out of the active session';
-    if (logoutReason === 'AUTH_UNAVAILABLE') return 'Authentication service unavailable in this runtime';
-    return 'Authentication is not active in this runtime';
-  }, [logoutEnabled, logoutReason]);
+  const title = useMemo(
+    () => (logoutEnabled ? 'Log out of the active session' : 'Authentication is not active in this runtime'),
+    [logoutEnabled],
+  );
 
   return {
     logoutEnabled,
-    logoutReason,
+    logoutReason: logoutEnabled ? 'AUTH_ACTIVE' : 'AUTH_NOT_ACTIVE',
     logoutMessage,
     loggingOut,
     handleLogout,

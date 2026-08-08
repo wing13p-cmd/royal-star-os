@@ -33,9 +33,14 @@ test('buildProductionReadinessChecklist includes required checks', () => {
     noCredentialExposure: true,
     noAutoApprovals: true,
     buildPassed: true,
+    authHardeningPresent: true,
+    sessionBootstrapRequired: true,
+    defaultAdminRemoved: true,
   });
 
   assert.equal(Array.isArray(checklist.checks), true);
   assert.ok(checklist.checks.some((check) => check.name === 'No credentials exposed' && check.status === 'PASS'));
   assert.ok(checklist.checks.some((check) => check.name === 'Production build passed'));
+  assert.ok(checklist.checks.some((check) => check.name === 'Auth/MFA hardening present' && check.status === 'PASS'));
+  assert.ok(checklist.checks.some((check) => check.name === 'Default admin credentials removed' && check.status === 'PASS'));
 });

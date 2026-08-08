@@ -1,0 +1,22 @@
+phase9-final-baseline
+created: 2026-08-08
+phase: Phase 9/9 Step 8/8 (FINAL BASELINE)
+status: COMPLETE
+summary: Phase 9 production hardening complete. All 8 steps delivered across two sessions.
+steps:
+  1: Production config hardening — admin-token authorization, CORS, monitoring endpoint, export/packaging scripts
+  2: Deployment verification gate hardening — verifyDeployment testable export, dedicated deployment tests
+  3: Release hardening test integration — release-hardening.test.mjs wired into full test suite
+  4: Package-release auth/security hardening — authService.js, mfaService.js, secureGateway.js, deploy files added to safeCopyFiles; auth/MFA readiness checks added to production readiness checklist
+  5: System verification auth hardening — verify-system.mjs now requires authService.js, mfaService.js, auth-state.json
+  6: Production env template completion — RSOS_ADMIN_USERNAME/RSOS_ADMIN_PASSWORD placeholder guidance added
+  7: Secure gateway hardening test suite — 13 tests covering TLS, HSTS, CSP, path traversal, loopback proxy, HTTP-to-HTTPS redirect
+  8: Phase 9 final baseline certification
+validation:
+  phaseSpecificTests: PASS (17 phase tests)
+  authRegression: PASS (23/23)
+  fullTestSuite: PASS (486/486)
+  productionBuild: PASS
+  systemVerification: PASS
+  deploymentVerification: PASS
+  commandCenter: UNCHANGED

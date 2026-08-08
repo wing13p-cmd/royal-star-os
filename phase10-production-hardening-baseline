@@ -1,0 +1,41 @@
+phase10-production-hardening-baseline
+created: 2026-08-08
+phase: Phase 10 — Production Readiness & Deployment Hardening
+status: COMPLETE
+implemented:
+  - Atomic auth-state writes (writeAuthState now uses temp file + rename to prevent corruption on abrupt restart)
+  - Production RSOS_DATA_DIR warning logged at startup when var is missing in production mode (data will be ephemeral)
+  - Hardened /api/ready endpoint: returns 503 when persistence or auth not ready; separates persistence.ready and auth.ready; does not expose secrets
+  - Phase 10 production hardening test suite (30 tests) added to scripts/phase10-production-hardening.test.mjs and wired into full test suite
+  - Comprehensive env var classification documented (see RAILWAY VARIABLES section below)
+  - Confirmed: atomic backup writes (backup-data.mjs already used rename), writer lock, probe write, structured logging with redaction, all previously in place
+validation:
+  phase10Tests: PASS (30/30)
+  authRegression: PASS (23/23)
+  fullTestSuite: PASS (516/516)
+  productionBuild: PASS
+  systemVerification: PASS
+  deploymentVerification: PASS
+  commandCenter: UNCHANGED
+railway_variables_required:
+  - PORT (Railway-provided automatically)
+  - RSOS_PUBLIC_ORIGIN (your Railway https URL)
+  - RSOS_DATA_DIR (path to Railway persistent volume mount)
+  - RSOS_ADMIN_USERNAME (admin email, first boot only)
+  - RSOS_ADMIN_PASSWORD (strong password, first boot only)
+railway_variables_recommended:
+  - RSOS_BACKUP_DIR (path inside or adjacent to volume for backups)
+  - RSOS_OPERATOR_TOKEN (for /api/operator/health access)
+  - RSOS_BACKUP_RETENTION_DAYS (backup pruning policy)
+  - NODE_ENV=production
+railway_variables_development_only:
+  - RSOS_FRONTEND_HOST
+  - RSOS_FRONTEND_PORT
+  - RSOS_DEV_API_PROXY_TARGET
+railway_variables_optional:
+  - RSOS_BIND_HOST (defaults to 127.0.0.1, safe)
+  - RSOS_ALLOW_PUBLIC_BIND (only if using external reverse proxy on same host)
+  - RSOS_ALLOWED_ORIGINS (comma-separated if multiple origins)
+  - RSOS_REQUIRE_ABSOLUTE_API_BASE
+railway_volume_required: YES
+railway_volume_mount_path: mount at e.g. /data/rsos and set RSOS_DATA_DIR=/data/rsos

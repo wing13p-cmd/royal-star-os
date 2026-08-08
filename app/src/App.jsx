@@ -17,7 +17,7 @@ import {
 
 const Dashboard = lazy(() => import("./components/Dashboard"));
 const DealAnalyzer = lazy(() => import("./components/DealAnalyzer"));
-const DealIntake = lazy(() => import("./components/DealIntake"));
+const DealIntake = lazy(() => import("./components/DealIntake.jsx"));
 const DealIntelligence = lazy(() => import("./components/DealIntelligence"));
 const FlipAnalyzer = lazy(() => import("./components/FlipAnalyzer"));
 const BrrrrAnalyzer = lazy(() => import("./components/BrrrrAnalyzer"));
