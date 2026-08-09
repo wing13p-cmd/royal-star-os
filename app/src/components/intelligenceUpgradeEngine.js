@@ -2513,7 +2513,8 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
   const sellerConcessions = normalizedInputs.sellerConcessions ?? 0;
   const fixedSaleCosts = normalizedInputs.fixedSaleCosts ?? 0;
   const sellingCosts = arvAnalysis.supportedBaseArv > 0 ? (arvAnalysis.supportedBaseArv * sellingCostPercent) + sellerConcessions + fixedSaleCosts : 0;
-  const holdingCosts = totalInterest + (normalizedInputs.annualTaxes ? normalizedInputs.annualTaxes * Math.max(1, normalizedInputs.holdingMonths ?? normalizedDeal.holdingMonths ?? 0) / 12 : 0) + (normalizedInputs.annualInsurance ? normalizedInputs.annualInsurance * Math.max(1, normalizedInputs.holdingMonths ?? normalizedDeal.holdingMonths ?? 0) / 12 : 0);
+  const holdingMonths = Math.max(0, normalizedInputs.holdingMonths ?? normalizedDeal.holdingMonths ?? 0);
+const holdingCosts = totalInterest + (annualPropertyTaxesValue ? annualPropertyTaxesValue * holdingMonths / 12 : 0) + (annualInsuranceValue ? annualInsuranceValue * holdingMonths / 12 : 0);
   const otherProjectCosts = safeNumber(normalizedDeal.otherProjectCosts || 0) || 0;
   const baseProjectCost = purchasePrice + rehabBudget + acquisitionClosingCosts + otherProjectCosts;
   const totalProjectCost = baseProjectCost;
