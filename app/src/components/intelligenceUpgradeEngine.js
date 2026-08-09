@@ -2502,7 +2502,16 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
   const financingCosts = manualFinancingCosts > 0 ? manualFinancingCosts : financingCostBreakdown.reduce((sum, value) => sum + (value || 0), 0);
   const cashToClose = normalizedInputs.cashToClose ?? normalizedDeal.cashToClose ?? 0;
   const earnestMoney = normalizedInputs.earnestMoney ?? normalizedDeal.earnestMoney ?? 0;
-  const initialCashInvested = Math.max(0, (cashToClose ?? 0) + (earnestMoney ?? 0));
+  const explicitInitialCashInvested = toOptionalNumber(
+    normalizedInputs.initialCashInvested ??
+    normalizedInputs.totalInitialCashInvested ??
+    normalizedDeal.initialCashInvested ??
+    normalizedDeal.totalInitialCashInvested
+  );
+  const initialCashInvested = Math.max(
+    0,
+    explicitInitialCashInvested ?? ((cashToClose ?? 0) + (earnestMoney ?? 0))
+  );
   const constructionHoldback = normalizedInputs.constructionHoldback ?? 0;
   const totalFinancingCost = financingCosts + (normalizedInputs.financingCostsIncludeClosingCosts ? acquisitionClosingCosts : 0);
   const financedRehabDraws = normalizedInputs.fundedRehabDraws ?? normalizedInputs.rehabFundingAmount ?? normalizedInputs.fundedRehab ?? normalizedDeal.fundedRehab ?? 0;
@@ -2513,8 +2522,23 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
   const sellerConcessions = normalizedInputs.sellerConcessions ?? 0;
   const fixedSaleCosts = normalizedInputs.fixedSaleCosts ?? 0;
   const sellingCosts = arvAnalysis.supportedBaseArv > 0 ? (arvAnalysis.supportedBaseArv * sellingCostPercent) + sellerConcessions + fixedSaleCosts : 0;
-  const holdingMonths = Math.max(0, normalizedInputs.holdingMonths ?? normalizedDeal.holdingMonths ?? 0);
-const holdingCosts = totalInterest + (annualPropertyTaxesValue ? annualPropertyTaxesValue * holdingMonths / 12 : 0) + (annualInsuranceValue ? annualInsuranceValue * holdingMonths / 12 : 0);
+  const holdingMonths = Math.max(
+    0,
+    toOptionalNumber(
+      normalizedInputs.holdingMonths ??
+      normalizedDeal.holdingMonths
+    ) ?? 0
+  );
+  const proratedPropertyTaxes =
+    annualPropertyTaxesValue != null
+      ? annualPropertyTaxesValue * holdingMonths / 12
+      : 0;
+  const proratedInsurance =
+    annualInsuranceValue != null
+      ? annualInsuranceValue * holdingMonths / 12
+      : 0;
+  const holdingCosts =
+    totalInterest + proratedPropertyTaxes + proratedInsurance;
   const otherProjectCosts = safeNumber(normalizedDeal.otherProjectCosts || 0) || 0;
   const baseProjectCost = purchasePrice + rehabBudget + acquisitionClosingCosts + otherProjectCosts;
   const totalProjectCost = baseProjectCost;
