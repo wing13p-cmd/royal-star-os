@@ -2295,7 +2295,7 @@ const server = http.createServer(async (req, res) => {
       }
       const username = typeof payload?.username === "string" ? payload.username : "";
       const password = typeof payload?.password === "string" ? payload.password : "";
-      const ipAddress = req.socket?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
+      const ipAddress = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || String(req.headers["x-real-ip"] || "").trim() || req.socket?.remoteAddress || "unknown";
       const authResult = await authenticateUser({ username, password, ipAddress }, process.env);
       if (!authResult.ok) {
         safeConsoleLog("warn", "login_failed", { reason: authResult.reason, username: redactSensitiveValue(username) });
@@ -2338,7 +2338,7 @@ const server = http.createServer(async (req, res) => {
 
       const challengeId = typeof payload?.challengeId === "string" ? payload.challengeId : "";
       const code = typeof payload?.code === "string" ? payload.code : "";
-      const ipAddress = req.socket?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
+      const ipAddress = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || String(req.headers["x-real-ip"] || "").trim() || req.socket?.remoteAddress || "unknown";
       const verifyResult = await verifyMfaLoginChallenge({ challengeId, code, ipAddress }, process.env);
 
       if (!verifyResult.ok) {
@@ -2353,7 +2353,7 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === "/api/auth/me") {
       const sessionId = getSessionIdFromRequest(req);
-      const ipAddress = req.socket?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
+      const ipAddress = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || String(req.headers["x-real-ip"] || "").trim() || req.socket?.remoteAddress || "unknown";
       const session = await verifySession(sessionId, ipAddress);
       if (!session) {
         sendStructuredError(res, 401, "Session expired", "auth_error", req.requestContext?.requestId || "");
@@ -2377,7 +2377,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       const sessionId = getSessionIdFromRequest(req);
-      const ipAddress = req.socket?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
+      const ipAddress = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || String(req.headers["x-real-ip"] || "").trim() || req.socket?.remoteAddress || "unknown";
       const status = await getMfaStatus(sessionId, ipAddress);
       if (!status.ok) {
         sendStructuredError(res, 401, "Session expired", "auth_error", req.requestContext?.requestId || "");
@@ -2400,7 +2400,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       const sessionId = getSessionIdFromRequest(req);
-      const ipAddress = req.socket?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
+      const ipAddress = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || String(req.headers["x-real-ip"] || "").trim() || req.socket?.remoteAddress || "unknown";
       const result = await beginMfaEnrollment(sessionId, ipAddress);
       if (!result.ok) {
         sendStructuredError(res, 401, "Session expired", "auth_error", req.requestContext?.requestId || "");
@@ -2434,7 +2434,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       const sessionId = getSessionIdFromRequest(req);
-      const ipAddress = req.socket?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
+      const ipAddress = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || String(req.headers["x-real-ip"] || "").trim() || req.socket?.remoteAddress || "unknown";
       const code = typeof payload?.code === "string" ? payload.code : "";
       const result = await confirmMfaEnrollment(sessionId, ipAddress, code);
 
@@ -2469,7 +2469,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       const sessionId = getSessionIdFromRequest(req);
-      const ipAddress = req.socket?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
+      const ipAddress = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || String(req.headers["x-real-ip"] || "").trim() || req.socket?.remoteAddress || "unknown";
       const password = typeof payload?.password === "string" ? payload.password : "";
       const code = typeof payload?.code === "string"
         ? payload.code
