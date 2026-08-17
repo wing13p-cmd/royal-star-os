@@ -54,6 +54,8 @@ export function getProviderReviewCandidateKey(comp = {}) {
 }
 
 export function normalizeCompRecord(comp = {}) {
+  const inclusionStatus = text(comp.inclusionStatus).toLowerCase();
+  const reviewBlocked = ["pending", "excluded", "rejected"].includes(inclusionStatus) || comp.verified === false;
   return {
     ...comp,
     id: text(comp.id || comp.compId),
@@ -69,7 +71,7 @@ export function normalizeCompRecord(comp = {}) {
     subjectDealId: getCompSubjectDealId(comp),
     dealId: text(comp.dealId || comp.subjectDealId || comp.linkedDealId || comp.subjectPropertyId),
     propertyId: text(comp.propertyId || comp.linkedPropertyId || comp.subjectPropertyId),
-    included: comp.included !== false,
+    included: comp.included !== false && !reviewBlocked,
   };
 }
 

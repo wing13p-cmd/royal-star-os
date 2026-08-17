@@ -73,6 +73,15 @@ test("excluded comp remains stored but does not affect included valuation statis
   assert.equal(filterCompsForSubject([included, excluded], subject).length, 2);
 });
 
+test("pending review comp cannot affect included statistics even when persisted included is true", () => {
+  const pending = { ...buildCompCreatePayload(fixture, subject), id: "comp-pending", included: true, verified: false, inclusionStatus: "pending" };
+  const stats = buildCompStatistics([pending], subject);
+  assert.equal(stats.total, 1);
+  assert.equal(stats.included, 0);
+  assert.equal(stats.baseArv, 0);
+  assert.equal(normalizeCompRecord(pending).included, false);
+});
+
 test("three persisted strong comps flow into existing Appraisal Intelligence", () => {
   const comps = [278000, 280000, 282000].map((salePrice, index) => ({
     ...buildCompCreatePayload({ ...fixture, salePrice, compAddress: `${100 + index} Test Comp Ave`, distanceMiles: 0.2 + index * 0.1 }, subject),

@@ -5,7 +5,10 @@ function formatCurrency(value) {
 
 function buildCompValuationUiModel({ comps = [], subjectDeal = null } = {}) {
   const allComps = comps || [];
-  const includedComps = allComps.filter((comp) => comp.included !== false);
+  const includedComps = allComps.filter((comp) => {
+    const status = String(comp.inclusionStatus || "").trim().toLowerCase();
+    return comp.included !== false && comp.verified !== false && !["pending", "excluded", "rejected"].includes(status);
+  });
   const approvedComps = allComps.filter((comp) => !["excluded", "rejected"].includes(comp.inclusionStatus) && (comp.inclusionStatus === "approved" || comp.verified));
   const reviewQueue = allComps.filter((comp) => !["excluded", "rejected"].includes(comp.inclusionStatus) && (comp.inclusionStatus === "pending" || comp.verified === false || (comp.warningFlags || []).length > 0));
   const pendingImports = allComps.filter((comp) => {

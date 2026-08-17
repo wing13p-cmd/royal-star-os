@@ -87,7 +87,7 @@ export function evaluateAppraisalComp(subjectRecord = {}, compRecord = {}, optio
   if (bathroomDelta !== null && bathroomDelta > 1) { score -= 8; reasons.push("Bathroom count differs materially."); }
   if (compRecord.verified === false) { score -= 8; reasons.push("Sale is not verified."); }
   if (!compLinkMatches(subject, compRecord)) { score = 0; reasons.push("Comp is linked to a different property."); }
-  if (compRecord.included === false || ["excluded", "rejected"].includes(text(compRecord.inclusionStatus).toLowerCase())) {
+  if (compRecord.included === false || compRecord.verified === false || ["pending", "excluded", "rejected"].includes(text(compRecord.inclusionStatus).toLowerCase())) {
     score = 0;
     reasons.push("Comp was excluded from valuation review.");
   }

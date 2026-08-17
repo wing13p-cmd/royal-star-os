@@ -40,3 +40,14 @@ test("approved provider comp can remain excluded from ARV without appearing reje
   assert.equal(model.rejectedComps.length, 0);
   assert.equal(model.baseArv, 0);
 });
+
+test("pending review comp cannot produce advisory valuation when included is stale true", () => {
+  const result = buildCompValuationUiModel({
+    subjectDeal: { squareFeet: 1400 },
+    comps: [{ salePrice: 280000, squareFeet: 1400, included: true, verified: false, inclusionStatus: "pending" }],
+  });
+  assert.equal(result.baseArv, 0);
+  assert.equal(result.likelyArv, 0);
+  assert.equal(result.methods.length, 0);
+  assert.equal(result.pendingImports.length, 1);
+});
