@@ -1806,6 +1806,7 @@ export default function CompDatabase({
             <div style={styles.reviewEvidence}>
               <div style={styles.fieldLabel}>PHOTO / MEDIA REFERENCE</div>
               <div style={styles.providerMeta}>{selectedProviderMedia ? (selectedProviderMedia.label || selectedProviderMedia.url || selectedProviderMedia.sourceUrl || selectedProviderMedia.referenceUrl) : "No provider-permitted media reference available."}</div>
+              {!selectedProviderMedia && selectedProviderCandidate.mediaAvailability?.reason ? <div style={styles.reviewWarning}>{selectedProviderCandidate.mediaAvailability.reason}</div> : null}
             </div>
             <div style={styles.reviewEvidence}>
               <div style={styles.fieldLabel}>COMP VERIFICATION / EVIDENCE ENGINE</div>

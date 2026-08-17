@@ -159,6 +159,21 @@ test("rentcast adapter normalizes mocked sold-comps into review-ready records", 
   assert.equal(results[0].verified, false);
   assert.equal(results[0].inclusionStatus, "pending");
   assert.equal(results[0].status, "closed");
+  assert.deepEqual(results[0].media, []);
+  assert.equal(results[0].mediaAvailability.status, "NOT_PROVIDED");
+  assert.match(results[0].mediaAvailability.reason, /RentCast property records do not include photo fields/);
+});
+
+test("provider media references are normalized without granting storage or export rights", () => {
+  const record = buildNormalizedCompRecord({
+    provider: "licensed-test-provider",
+    photos: ["https://example.test/front.jpg", { photoUrl: "https://example.test/kitchen.jpg", caption: "Kitchen" }],
+  });
+  assert.equal(record.media.length, 2);
+  assert.equal(record.media[0].rightsMode, "REMOTE_REFERENCE_ONLY");
+  assert.equal(record.media[0].localStorageAllowed, false);
+  assert.equal(record.media[1].label, "Kitchen");
+  assert.equal(record.mediaAvailability.status, "AVAILABLE");
 });
 
 test("Goss-style candidates progress through tiers, deduplicate, and preserve review governance", async () => {

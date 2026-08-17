@@ -33,6 +33,7 @@ const MaterialMatrix = lazy(() => import("./components/MaterialMatrix"));
 const LenderDashboard = lazy(() => import("./components/LenderDashboard"));
 const AppraiserPacketBuilder = lazy(() => import("./components/AppraiserPacketBuilder"));
 const RehabProjectTracker = lazy(() => import("./components/RehabProjectTracker"));
+const IntelligenceWorkspace = lazy(() => import("./components/IntelligenceWorkspace"));
 
 export default function App() {
   const [currentView, setCurrentView] = useState("dashboard");
@@ -305,8 +306,8 @@ export default function App() {
       return <OfferGenerator onBackToDealAnalyzer={() => navigateToView("dealAnalyzer")} currentView={currentView} onNavigate={navigateToView} />;
     }
 
-    if (currentView === "knowledgeBase") {
-      return <DealIntelligence onBack={handleBackToDashboard} currentView={currentView} onNavigate={navigateToView} />;
+    if (["knowledgeBase", "enterpriseSearch", "forecastingCenter", "reportingCenter", "documentAutomation", "aiCommandCenter"].includes(currentView)) {
+      return <IntelligenceWorkspace onBack={handleBackToDashboard} currentView={currentView} onNavigate={navigateToView} />;
     }
 
     if (currentView === "flipAnalyzer") {

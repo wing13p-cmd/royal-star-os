@@ -3361,6 +3361,7 @@ const server = http.createServer(async (req, res) => {
             saleHistory: Array.isArray(record.saleHistory) ? record.saleHistory : [],
             taxHistory: Array.isArray(record.taxHistory) ? record.taxHistory : [],
             media: Array.isArray(record.media) ? record.media : [],
+            mediaAvailability: record.mediaAvailability || null,
             mediaRightsStatus: record.mediaRightsStatus || "REMOTE_REFERENCE_ONLY",
             attributionRequired: record.attributionRequired !== false,
             parcelNumber: record.parcelNumber || "",

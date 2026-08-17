@@ -26,6 +26,36 @@ function normalizeText(value) {
   return value === undefined || value === null ? "" : String(value).trim();
 }
 
+function normalizeProviderMedia(rawRecord = {}, provider = "manual") {
+  const candidates = [
+    ...(Array.isArray(rawRecord.media) ? rawRecord.media : []),
+    ...(Array.isArray(rawRecord.photos) ? rawRecord.photos : []),
+    ...(Array.isArray(rawRecord.images) ? rawRecord.images : []),
+  ];
+  const singleReferences = [rawRecord.photoUrl, rawRecord.imageUrl, rawRecord.thumbnailUrl].filter(Boolean);
+  return [...candidates, ...singleReferences].reduce((items, value, index) => {
+    const source = typeof value === "string" ? { url: value } : (value && typeof value === "object" ? value : {});
+    const url = normalizeText(source.url || source.imageUrl || source.photoUrl || source.sourceUrl || source.referenceUrl);
+    if (!url || items.some((item) => item.url === url)) return items;
+    items.push({
+      id: normalizeText(source.id) || `${provider}-media-${index + 1}`,
+      label: normalizeText(source.label || source.caption) || `Provider photo ${index + 1}`,
+      url,
+      thumbnailUrl: normalizeText(source.thumbnailUrl || source.thumbnail) || url,
+      sourceType: "provider",
+      source: normalizeText(source.source) || provider,
+      isPrimary: Boolean(source.isPrimary || index === 0),
+      rightsMode: normalizeText(source.rightsMode) || "REMOTE_REFERENCE_ONLY",
+      localStorageAllowed: false,
+      thumbnailCachingAllowed: false,
+      attributionRequired: source.attributionRequired !== false,
+      requiresReview: true,
+      includeInAppraiserPacket: false,
+    });
+    return items;
+  }, []);
+}
+
 function normalizePropertyType(value = "") {
   const normalized = normalizeText(value).toLowerCase().replace(/[^a-z0-9]/g, "");
   if (["singlefamily", "singlefamilyresidential", "sfh", "sfr", "detached"].includes(normalized)) return "singlefamily";
@@ -190,12 +220,14 @@ function buildNormalizedCompRecord(rawRecord = {}, subjectProperty = {}, provide
   const subjectBathrooms = normalizeNumber(subjectProperty.bathrooms ?? 0);
   const subjectYearBuilt = normalizeNumber(subjectProperty.yearBuilt ?? 0);
 
+  const normalizedProvider = normalizeText(rawRecord.provider || provider);
+  const media = normalizeProviderMedia(rawRecord, normalizedProvider || provider);
   return {
     id: rawRecord.id || createId("comp"),
     compId: rawRecord.compId || createId("comp"),
     subjectPropertyId: rawRecord.subjectPropertyId || subjectProperty.id || "",
     providerRecordId: rawRecord.providerRecordId || "",
-    provider: normalizeText(rawRecord.provider || provider),
+    provider: normalizedProvider,
     sourceType: rawRecord.sourceType || (rawRecord.providerImported ? "provider" : rawRecord.manuallyEntered ? "manual" : "manual"),
     address: normalizeText(rawRecord.address || rawRecord.compAddress || rawRecord.propertyAddress),
     normalizedAddress: normalizeAddress(rawRecord.address || rawRecord.compAddress || rawRecord.propertyAddress),
@@ -234,6 +266,18 @@ function buildNormalizedCompRecord(rawRecord = {}, subjectProperty = {}, provide
     inclusionStatus: rawRecord.inclusionStatus || "pending",
     exclusionReason: rawRecord.exclusionReason || "",
     warningFlags: Array.isArray(rawRecord.warningFlags) ? rawRecord.warningFlags : [],
+    media,
+    mediaAvailability: rawRecord.mediaAvailability || {
+      status: media.length ? "AVAILABLE" : "NOT_PROVIDED",
+      provider: normalizedProvider,
+      reason: media.length
+        ? "Provider returned remote media references."
+        : normalizedProvider === "rentcast"
+          ? "RentCast property records do not include photo fields; a licensed listing-media source or manual upload is required."
+          : "The provider response did not include media references.",
+    },
+    mediaRightsStatus: normalizeText(rawRecord.mediaRightsStatus || "REMOTE_REFERENCE_ONLY"),
+    attributionRequired: rawRecord.attributionRequired !== false,
     sourceURL: normalizeText(rawRecord.sourceURL || rawRecord.sourceLink || ""),
     providerUpdatedAt: normalizeText(rawRecord.providerUpdatedAt || ""),
     importedAt: normalizeText(rawRecord.importedAt || new Date().toISOString()),
@@ -960,6 +1004,7 @@ export {
   GenericAuthorizedProviderAdapter,
   buildCompProviderConfig,
   buildNormalizedCompRecord,
+  normalizeProviderMedia,
   scoreCompQuality,
   SOLD_COMP_SEARCH_TIERS,
 };
@@ -974,6 +1019,7 @@ export default {
   GenericAuthorizedProviderAdapter,
   buildCompProviderConfig,
   buildNormalizedCompRecord,
+  normalizeProviderMedia,
   scoreCompQuality,
   SOLD_COMP_SEARCH_TIERS,
 };
