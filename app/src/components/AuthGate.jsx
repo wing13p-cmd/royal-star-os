@@ -1,34 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { buildApiUrl } from "../utils/apiClient.js";
-
-const SESSION_STORAGE_KEYS = ["rsosSessionId", "rsosAuthSessionId", "sessionId"];
-
-function getStoredSessionId() {
-  if (typeof window === "undefined") return "";
-  for (const key of SESSION_STORAGE_KEYS) {
-    const value = window.localStorage.getItem(key);
-    if (value) return String(value);
-  }
-  return "";
-}
-
-function storeSessionId(sessionId = "") {
-  if (typeof window === "undefined") return;
-  for (const key of SESSION_STORAGE_KEYS) {
-    if (sessionId) {
-      window.localStorage.setItem(key, sessionId);
-    } else {
-      window.localStorage.removeItem(key);
-    }
-  }
-}
+import { buildSessionHeaders, getStoredSessionId, storeSessionId } from "../utils/sessionAuth.js";
 
 function authHeaders(sessionId = "") {
-  return {
-    "x-rsos-session-id": sessionId,
-    "x-session-id": sessionId,
-    "Content-Type": "application/json",
-  };
+  return buildSessionHeaders(sessionId, { "Content-Type": "application/json" });
 }
 
 export default function AuthGate({ children }) {

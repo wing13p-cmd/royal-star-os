@@ -497,6 +497,38 @@ export function buildMaximumAllowableOfferEngine(input, flip, brrrr, rental, who
 }
 
 export function buildRoyalStarBuyBoxEngine(input, policy = DEFAULT_BUY_BOX_POLICY) {
+  void policy;
+  const centralized = evaluateRoyalStarBuyBox({
+    city: getEvidenceValue(input.propertyIdentity, "city", ""),
+    state: getEvidenceValue(input.propertyIdentity, "state", ""),
+    zipCode: getEvidenceValue(input.propertyIdentity, "zipCode", ""),
+    propertyType: getEvidenceValue(input.propertyIdentity, "propertyType", ""),
+    units: getEvidenceValue(input.propertyIdentity, "units", null),
+    squareFeet: getEvidenceValue(input.propertyIdentity, "squareFeet", null),
+    yearBuilt: getEvidenceValue(input.propertyIdentity, "yearBuilt", null),
+    rehabBudget: getEvidenceValue(input.rehab, "currentRehabBudget", null),
+    estimatedArv: getEvidenceValue(input.valuation, "activeArv", null),
+    purchasePrice: getEvidenceValue(input.acquisition, "proposedPurchasePrice", null),
+    strategy: getEvidenceValue(input.strategy, "strategy", getEvidenceValue(input.operations, "strategy", "")),
+  });
+  return {
+    policyVersion: "royal-star-central-buy-box-v1",
+    decision: centralized.status === "PASS" ? "Pass" : centralized.status === "REVIEW" ? "Conditional Pass" : "Fail",
+    status: centralized.status,
+    result: centralized.result,
+    score: centralized.score,
+    reasons: centralized.reasons,
+    passedRules: centralized.passedRules,
+    reviewRules: centralized.reviewRules,
+    failedRules: centralized.failedRules,
+    marketClassification: centralized.marketClassification,
+    rules: [
+      ...centralized.passedRules.map((explanation) => ({ rule: explanation, result: "Pass", explanation, severity: "Info", exceptionEligibility: false, approvalRequirement: "None" })),
+      ...centralized.reviewRules.map((explanation) => ({ rule: explanation, result: "Review", explanation, severity: "Warning", exceptionEligibility: true, approvalRequirement: "System Administrator" })),
+      ...centralized.failedRules.map((explanation) => ({ rule: explanation, result: "Fail", explanation, severity: "Critical", exceptionEligibility: false, approvalRequirement: "System Administrator" })),
+    ],
+  };
+  /* Legacy policy implementation retained below for compatibility reference; the centralized return is authoritative. */
   const market = `${safeString(getEvidenceValue(input.propertyIdentity, "city", ""))}, ${safeString(getEvidenceValue(input.propertyIdentity, "state", ""))}`;
   const zip = safeString(getEvidenceValue(input.propertyIdentity, "zipCode", ""));
   const propertyType = safeString(getEvidenceValue(input.propertyIdentity, "propertyType", ""));
@@ -796,3 +828,4 @@ export function buildAcquisitionIntelligenceEngine(payload = {}) {
 }
 
 export { DEFAULT_BUY_BOX_POLICY, ACQUISITION_DECISION_STATUSES };
+import { evaluateRoyalStarBuyBox } from "./royalStarBuyBoxEngine.js";

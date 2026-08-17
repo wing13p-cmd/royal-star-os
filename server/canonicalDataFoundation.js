@@ -69,7 +69,7 @@ function pickValue(record = {}, candidates = [], fallback = null) {
 }
 
 function createBaseCanonical(record = {}, sourceModule = "UNKNOWN") {
-  const entityId = safeTrimmedString(pickValue(record, ["id", "dealId", "portfolioId"]), null);
+  const entityId = safeTrimmedString(pickValue(record, ["dealId", "id", "propertyId", "portfolioId"]), null);
   return {
     id: entityId,
     dealId: safeTrimmedString(pickValue(record, ["dealId", "linkedDealId", "sourceDealId"]), null),
@@ -96,6 +96,12 @@ function createBaseCanonical(record = {}, sourceModule = "UNKNOWN") {
     financingCosts: safeNumber(pickValue(record, ["financingCosts"]), null),
     closingCosts: safeNumber(pickValue(record, ["closingCosts"]), null),
     holdingMonths: safeNumber(pickValue(record, ["holdingMonths"]), null),
+    holdingCosts: safeNumber(pickValue(record, ["totalHoldingCosts", "holdingCosts", "holdingCost"]), null),
+    earnestMoney: safeNumber(pickValue(record, ["earnestMoney"]), null),
+    initialCashInvested: safeNumber(pickValue(record, ["initialCashInvested", "totalInitialCashInvested", "cashInvested"]), null),
+    cashToClose: safeNumber(pickValue(record, ["cashToClose", "cashToCloseAmount"]), null),
+    fundedRehab: safeNumber(pickValue(record, ["fundedRehab", "rehabFunding", "rehabLoan"]), null),
+    constructionHoldback: safeNumber(pickValue(record, ["constructionHoldback", "holdbackAmount"]), null),
     leadSource: safeTrimmedString(pickValue(record, ["leadSource"]), null),
     exitStrategy: safeTrimmedString(pickValue(record, ["exitStrategy"]), null),
     strategy: safeTrimmedString(pickValue(record, ["strategy"]), null),
@@ -111,10 +117,21 @@ function createBaseCanonical(record = {}, sourceModule = "UNKNOWN") {
 
     currentValue: safeNumber(pickValue(record, ["currentValue"]), null),
     monthlyRent: safeNumber(pickValue(record, ["monthlyRent"]), null),
+    hoa: safeNumber(pickValue(record, ["hoa", "monthlyHoa"]), null),
+    vacancyPercentage: safeNumber(pickValue(record, ["vacancyPercentage", "vacancyPercent"]), null),
+    maintenancePercentage: safeNumber(pickValue(record, ["maintenancePercentage", "maintenancePercent"]), null),
+    capitalExpendituresPercentage: safeNumber(pickValue(record, ["capitalExpendituresPercentage", "capexPercent"]), null),
+    propertyManagementPercentage: safeNumber(pickValue(record, ["propertyManagementPercentage", "propertyManagementPercent"]), null),
+    monthlyUtilitiesPaidByOwner: safeNumber(pickValue(record, ["monthlyUtilitiesPaidByOwner", "monthlyUtilities"]), null),
+    otherMonthlyExpenses: safeNumber(pickValue(record, ["otherMonthlyExpenses"]), null),
+    refinanceLtvPercentage: safeNumber(pickValue(record, ["refinanceLtvPercentage", "refinanceLtvPercent"]), null),
+    refinanceInterestRate: safeNumber(pickValue(record, ["refinanceInterestRate"]), null),
+    refinanceLoanTermYears: safeNumber(pickValue(record, ["refinanceLoanTermYears"]), null),
+    refinanceClosingCosts: safeNumber(pickValue(record, ["refinanceClosingCosts"]), null),
     operatingExpenses: safeNumber(pickValue(record, ["operatingExpenses", "monthlyOperatingExpenses"]), null),
     occupancyRate: safeNumber(pickValue(record, ["occupancyRate"]), null),
     acquisitionDate: normalizeDateString(pickValue(record, ["acquisitionDate", "closingDate"])),
-    annualTaxes: safeNumber(pickValue(record, ["annualTaxes", "taxes"]), null),
+    annualTaxes: safeNumber(pickValue(record, ["annualPropertyTaxes", "annualTaxes", "taxes"]), null),
     annualInsurance: safeNumber(pickValue(record, ["annualInsurance", "insurance"]), null),
     favorite: safeBoolean(pickValue(record, ["favorite"], false), false),
 
@@ -175,6 +192,12 @@ export function canonicalToDeal(record = {}) {
     financingCosts: canonical.financingCosts,
     closingCosts: canonical.closingCosts,
     holdingMonths: canonical.holdingMonths,
+    holdingCosts: canonical.holdingCosts,
+    earnestMoney: canonical.earnestMoney,
+    initialCashInvested: canonical.initialCashInvested,
+    cashToClose: canonical.cashToClose,
+    fundedRehab: canonical.fundedRehab,
+    constructionHoldback: canonical.constructionHoldback,
     leadSource: canonical.leadSource,
     exitStrategy: canonical.exitStrategy,
     strategy: canonical.strategy,
@@ -184,6 +207,18 @@ export function canonicalToDeal(record = {}) {
     actualLoanAmount: canonical.loanAmount,
     loanMaturityDate: canonical.loanMaturityDate,
     lenderId: canonical.lenderId,
+    monthlyRent: canonical.monthlyRent,
+    monthlyHoa: canonical.hoa,
+    vacancyPercent: canonical.vacancyPercentage,
+    maintenancePercent: canonical.maintenancePercentage,
+    capexPercent: canonical.capitalExpendituresPercentage,
+    propertyManagementPercent: canonical.propertyManagementPercentage,
+    monthlyUtilities: canonical.monthlyUtilitiesPaidByOwner,
+    otherMonthlyExpenses: canonical.otherMonthlyExpenses,
+    refinanceLtvPercent: canonical.refinanceLtvPercentage,
+    refinanceInterestRate: canonical.refinanceInterestRate,
+    refinanceLoanTermYears: canonical.refinanceLoanTermYears,
+    refinanceClosingCosts: canonical.refinanceClosingCosts,
     portfolioId: canonical.portfolioId,
     syncStatus: canonical.syncStatus,
     syncVersion: canonical.syncVersion,
@@ -244,9 +279,12 @@ export function validateCanonicalRecord(record = {}) {
 
   const numericFields = [
     "askingPrice", "purchasePrice", "rehabBudget", "arv", "estimatedRent", "taxes", "insurance",
-    "financingCosts", "closingCosts", "holdingMonths", "loanBalance", "loanAmount", "interestRate",
+    "financingCosts", "closingCosts", "holdingMonths", "holdingCosts", "earnestMoney", "initialCashInvested",
+    "cashToClose", "fundedRehab", "constructionHoldback", "loanBalance", "loanAmount", "interestRate",
     "monthlyDebtService", "currentValue", "monthlyRent", "operatingExpenses", "occupancyRate",
-    "annualTaxes", "annualInsurance",
+    "annualTaxes", "annualInsurance", "hoa", "vacancyPercentage", "maintenancePercentage",
+    "capitalExpendituresPercentage", "propertyManagementPercentage", "monthlyUtilitiesPaidByOwner",
+    "otherMonthlyExpenses", "refinanceLtvPercentage", "refinanceInterestRate", "refinanceLoanTermYears", "refinanceClosingCosts",
   ];
 
   numericFields.forEach((field) => {

@@ -56,6 +56,14 @@ test('buildAiDecisionEngine recommends proceed for a strong supported deal', () 
   assert.ok(result.aiCommandRouting.route.length > 0);
 });
 
+test('pure Flip decision is not rejected solely by rental DSCR or cash flow', () => {
+  const deal = { propertyAddress: '123 Main', purchasePrice: 135000, rehabBudget: 60000, estimatedArv: 285000, estimatedRent: 1800, strategy: 'Flip' };
+  const analysis = { dealScore: 90, financingScore: 85, overallRisk: 18, buyBoxResult: 'PASS', arvConfidence: 'High', supportedBaseArv: 283000, estimatedFlipProfit: 40000, roi: 0.15, dscr: 0, monthlyCashFlow: -1000, cashRequired: 30000, warnings: [], financingWarnings: [] };
+  const result = buildAiDecisionEngine({ deal, analysis, deals: [deal], rehabProjects: [], contractors: [], lenders: [], portfolioIntelligence: { summary: {} } });
+  assert.notEqual(result.dealDecision.recommendedAction, 'PAUSE');
+  assert.equal(result.dealDecision.reasonsNotToProceed.some((reason) => /cash.flow|DSCR/i.test(reason)), false);
+});
+
 test('buildAiDecisionEngine requests more data for an incomplete deal', () => {
   const deal = {
     id: 'deal-2',

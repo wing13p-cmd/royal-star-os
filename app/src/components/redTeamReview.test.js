@@ -125,3 +125,45 @@ test("buildRedTeamReview uses structured challenge sections and a decision-break
   assert.ok(result.challenges.some((entry) => entry.title === "Valuation Challenge"));
   assert.ok(result.decisionBreakingAssumption.includes("ARV"));
 });
+
+test("pure Flip red-team review excludes rental and DSCR from controlling challenges", () => {
+  const result = buildRedTeamReview(
+    { purchasePrice: 135000, rehabBudget: 60000, estimatedArv: 285000, strategy: "Flip" },
+    {
+      dealScore: 69, estimatedFlipProfit: 53000, roi: 0.265, dscr: 0.2, monthlyCashFlow: -900,
+      warnings: ["Low DSCR", "No comps"], financingWarnings: ["Low DSCR", "LTC Exceeded"],
+      financingWarningDetails: [{ message: "LTC Exceeded", source: "ROYAL_STAR_INTERNAL" }],
+      financingTruth: { lenderRecordStatus: "NOT LINKED", currentFinancingStatus: "ACTIVE / ENTERED" },
+      recommendedExit: "Flip", buyBoxResult: "PASS", arvConfidence: "Low",
+    },
+    { summary: { scenarioSurvivalResult: "Marginal", failingScenarioCount: 1 }, scenarios: [] },
+  );
+  assert.equal(result.challenges.some((entry) => entry.title === "Rental Challenge"), false);
+  assert.equal(result.challenges.flatMap((entry) => entry.warnings || []).some((warning) => /dscr/i.test(warning)), false);
+  assert.equal(result.requiredCorrectiveActions.some((action) => /rent|lender approval/i.test(action)), false);
+});
+
+test("BRRRR red-team review retains rental and DSCR control", () => {
+  const result = buildRedTeamReview(
+    { purchasePrice: 135000, rehabBudget: 60000, estimatedArv: 285000, estimatedRent: 900, strategy: "BRRRR" },
+    { dealScore: 55, dscr: 0.7, monthlyCashFlow: -500, warnings: ["Low DSCR"], financingWarnings: ["Low DSCR"], recommendedExit: "BRRRR", buyBoxResult: "PASS", arvConfidence: "Moderate" },
+    { summary: { scenarioSurvivalResult: "Fails", failingScenarioCount: 2 }, scenarios: [] },
+  );
+  assert.equal(result.challenges.some((entry) => entry.title === "Rental Challenge"), true);
+  assert.equal(result.challenges.flatMap((entry) => entry.supportingWarnings || []).some((warning) => /dscr/i.test(warning)), true);
+});
+
+test("missing supported ARV is rendered as not established and produces known actions", () => {
+  const result = buildRedTeamReview(
+    { purchasePrice: 135000, rehabBudget: 60000, estimatedArv: 285000, strategy: "Flip" },
+    { dealScore: 69, estimatedFlipProfit: 53000, roi: 0.265, supportedBaseArv: null, compCount: 0, financingWarnings: ["LTC Exceeded"], financingWarningDetails: [{ message: "LTC Exceeded", source: "ROYAL_STAR_INTERNAL" }], financingTruth: { currentFinancingStatus: "ACTIVE / ENTERED", lenderRecordStatus: "NOT LINKED" }, recommendedExit: "Flip", buyBoxResult: "PASS", arvConfidence: "Low" },
+    { summary: { scenarioSurvivalResult: "Marginal" }, scenarios: [] },
+  );
+  const valuation = result.challenges.find((entry) => entry.title === "Valuation Challenge");
+  const financing = result.challenges.find((entry) => entry.title === "Financing Challenge");
+  const market = result.challenges.find((entry) => entry.title === "Market Challenge");
+  assert.match(valuation.baseAssumption, /Supported ARV Not Established/);
+  assert.equal(valuation.baseAssumption.includes("$0"), false);
+  assert.ok(financing.requiredActions.some((action) => /internal financing thresholds/i.test(action)));
+  assert.ok(market.requiredActions.some((action) => /appraisal/i.test(action)));
+});

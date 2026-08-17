@@ -1,3 +1,5 @@
+import { normalizeWarningRecords } from "./dealIntelligenceTruthEngine.js";
+
 export function safeNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -24,6 +26,12 @@ function normalizeScenarioData(scenarioData) {
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function optionalNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function hasMeaningfulData(deal, analysis, scenarioData) {
@@ -125,21 +133,25 @@ export function buildRedTeamReview(dealInput = {}, analysisInput = {}, scenarioI
     const purchasePrice = safeNumber(deal.purchasePrice ?? deal.askingPrice);
     const rehabBudget = safeNumber(deal.rehabBudget);
     const arv = safeNumber(deal.estimatedArv ?? deal.arv ?? deal.projectedARV ?? deal.currentValue);
-    const supportedArv = safeNumber(analysis.supportedBaseArv ?? deal.supportedBaseArv ?? 0);
+    const supportedArv = optionalNumber(analysis.supportedBaseArv ?? deal.supportedBaseArv);
     const estimatedRent = safeNumber(deal.estimatedRent ?? deal.marketRent ?? deal.projectedRent);
     const vacancyRate = safeNumber(deal.vacancyRate ?? deal.vacancy ?? 0);
     const financingCosts = safeNumber(deal.financingCosts);
     const closingCosts = safeNumber(deal.closingCosts);
     const taxes = safeNumber(deal.taxes);
     const insurance = safeNumber(deal.insurance);
-    const cashOnHand = safeNumber(deal.cashOnHand);
+    const liquidityKnown = [deal.availableLiquidity, deal.cashOnHand, deal.liquidity].some((value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)));
+    const cashOnHand = safeNumber(deal.availableLiquidity ?? deal.cashOnHand ?? deal.liquidity);
+    const rentalDecisionCritical = analysis.strategyMetrics?.decisionCritical === true || /brrrr|rental|hold/i.test(String(deal.strategy || deal.exitStrategy || ""));
     const monthlyCashFlow = safeNumber(analysis.monthlyCashFlow ?? 0);
     const dscr = safeNumber(analysis.dscr ?? 0);
     const cashRequired = safeNumber(analysis.cashRequired ?? 0);
     const dealScore = safeNumber(analysis.dealScore ?? 0);
     const overallRisk = safeNumber(analysis.overallRisk ?? 0);
-    const warnings = asArray(analysis.warnings || []);
-    const financingWarnings = asArray(analysis.financingWarnings || []);
+    const warnings = asArray(analysis.warnings || []).filter((warning) => rentalDecisionCritical || !/low dscr|rental|rent support/i.test(String(warning)));
+    const financingWarningDetails = asArray(analysis.financingWarningDetails || []);
+    const financingWarnings = asArray(analysis.financingWarnings || []).filter((warning) => rentalDecisionCritical || !/low dscr|dscr.*below/i.test(String(warning)));
+    const lenderLinked = analysis.financingTruth?.lenderRecordStatus === "LINKED" || financingWarningDetails.some((warning) => warning.source === "LENDER_RULE");
     const compCount = safeNumber(analysis.compCount ?? 0);
     const buyBoxResult = safeDisplay(analysis.buyBoxResult || deal.buyBoxResult, "Insufficient Data");
     const arvConfidence = safeDisplay(analysis.arvConfidence || deal.arvConfidence, "Insufficient Data");
@@ -154,9 +166,9 @@ export function buildRedTeamReview(dealInput = {}, analysisInput = {}, scenarioI
     const requiredCorrectiveActions = [];
     if (supportedArv <= 0 || compCount < 3) requiredCorrectiveActions.push("Order appraisal");
     if (rehabBudget > 0 && rehabBudget > 50000) requiredCorrectiveActions.push("Increase rehab contingency");
-    if (cashRequired > cashOnHand) requiredCorrectiveActions.push("Increase available liquidity");
-    if (estimatedRent <= 0) requiredCorrectiveActions.push("Verify achievable rent");
-    if (financingWarnings.length) requiredCorrectiveActions.push("Request revised lender terms");
+    if (liquidityKnown && cashRequired > cashOnHand) requiredCorrectiveActions.push("Increase available liquidity");
+    if (rentalDecisionCritical && estimatedRent <= 0) requiredCorrectiveActions.push("Verify achievable rent");
+    if (financingWarnings.length) requiredCorrectiveActions.push(lenderLinked ? "Request revised lender terms" : "Review Royal Star internal financing thresholds");
     if (buyBoxResult !== "PASS") requiredCorrectiveActions.push("Re-underwrite against the target buy box");
     if (!warnings.length) requiredCorrectiveActions.push("Confirm supporting comps");
     if (recommendedExit === "Hold" || recommendedExit === "Insufficient Data") requiredCorrectiveActions.push("Add a secondary exit strategy");
@@ -164,8 +176,8 @@ export function buildRedTeamReview(dealInput = {}, analysisInput = {}, scenarioI
     const strongestArgumentAgainstDeal = (() => {
       if (recommendedExit === "Hold" || recommendedExit === "Insufficient Data") return "The deal relies on too many assumptions to support a confident recommendation.";
       if (supportedArv <= 0 || compCount < 3) return "The deal lacks sufficient comp and valuation support to justify the current ARV assumption.";
-      if (monthlyCashFlow < 0 || dscr < 1) return "The deal produces weak or negative operating economics under current assumptions.";
-      if (cashRequired > cashOnHand) return "The required cash contribution exceeds available liquidity and could break the deal.";
+      if (rentalDecisionCritical && (monthlyCashFlow < 0 || dscr < 1)) return "The deal produces weak or negative operating economics under current assumptions.";
+      if (liquidityKnown && cashRequired > cashOnHand) return "The required cash contribution exceeds available liquidity and could break the deal.";
       if (warnings.length || financingWarnings.length) return "The current recommendation is vulnerable to unresolved underwriting and lender concerns.";
       return "The recommendation depends on one or more optimistic assumptions that are not yet fully supported.";
     })();
@@ -173,9 +185,9 @@ export function buildRedTeamReview(dealInput = {}, analysisInput = {}, scenarioI
     const mostFragileAssumption = (() => {
       if (supportedArv <= 0 || compCount < 3) return "Supported ARV is not yet established.";
       if (rehabBudget > 0 && rehabBudget > 50000) return "Rehab budget may be understated relative to scope.";
-      if (estimatedRent <= 0) return "Rental income assumption is not supported by market data.";
-      if (cashRequired > cashOnHand) return "Required cash contribution may exceed available liquidity.";
-      if (dscr < 1.2) return "DSCR is too weak to support the recommendation.";
+      if (rentalDecisionCritical && estimatedRent <= 0) return "Rental income assumption is not supported by market data.";
+      if (liquidityKnown && cashRequired > cashOnHand) return "Required cash contribution may exceed available liquidity.";
+      if (rentalDecisionCritical && dscr < 1.2) return "DSCR is too weak to support the recommendation.";
       if (warnings.some((warning) => warning.toLowerCase().includes("buy box"))) return "The property may fall outside the buy box.";
       return "The recommendation depends on a single optimistic assumption.";
     })();
@@ -183,15 +195,16 @@ export function buildRedTeamReview(dealInput = {}, analysisInput = {}, scenarioI
     const mostImportantMissingInformation = (() => {
       if (supportedArv <= 0 || compCount < 3) return "Independent ARV support from comps or appraisal";
       if (rehabBudget <= 0) return "Rehab scope and contingency detail";
+      if (!liquidityKnown) return "Liquidity confirmation and cash-to-close detail";
       if (cashRequired > cashOnHand) return "Liquidity confirmation and cash-to-close detail";
-      if (estimatedRent <= 0) return "Verified rent and operating assumptions";
+      if (rentalDecisionCritical && estimatedRent <= 0) return "Verified rent and operating assumptions";
       return "Lender terms and exit strategy support";
     })();
 
     const largestFinancialRisk = (() => {
-      if (scenarioSummaryProfit < 0 || monthlyCashFlow < 0) return "Negative projected profit";
-      if (scenarioSummaryMonthlyCashFlow < 0 || monthlyCashFlow < 0) return "Negative monthly cash flow";
-      if (cashRequired > cashOnHand) return "Cash-to-close exceeds available liquidity";
+      if (scenarioSummaryProfit < 0) return "Negative projected profit";
+      if (rentalDecisionCritical && (scenarioSummaryMonthlyCashFlow < 0 || monthlyCashFlow < 0)) return "Negative monthly cash flow";
+      if (liquidityKnown && cashRequired > cashOnHand) return "Cash-to-close exceeds available liquidity";
       return "Weak downside margin";
     })();
 
@@ -210,8 +223,8 @@ export function buildRedTeamReview(dealInput = {}, analysisInput = {}, scenarioI
 
     const largestFinancingRisk = (() => {
       if (financingWarnings.length) return financingWarnings[0];
-      if (cashRequired > cashOnHand) return "Liquidity requirement may exceed available cash";
-      if (dscr < 1.2) return "DSCR is too weak for current lender terms";
+      if (liquidityKnown && cashRequired > cashOnHand) return "Liquidity requirement may exceed available cash";
+      if (rentalDecisionCritical && dscr < 1.2) return "DSCR is too weak for current lender terms";
       return "Financing terms may tighten under downside conditions";
     })();
 
@@ -222,8 +235,8 @@ export function buildRedTeamReview(dealInput = {}, analysisInput = {}, scenarioI
     })();
 
     const downsideRecommendation = (() => {
-      if (scenarioSurvivalResult === "Fails" || scenarioSummaryProfit < 0 || monthlyCashFlow < 0 || dscr < 1) return "Reject";
-      if (scenarioSurvivalResult === "Marginal" || scenarioSummaryRoi < 0.05 || scenarioSummaryMonthlyCashFlow < 0) return "Hold";
+      if (scenarioSurvivalResult === "Fails" || scenarioSummaryProfit < 0 || (rentalDecisionCritical && (monthlyCashFlow < 0 || dscr < 1))) return "Reject";
+      if (scenarioSurvivalResult === "Marginal" || scenarioSummaryRoi < 0.05 || (rentalDecisionCritical && scenarioSummaryMonthlyCashFlow < 0)) return "Hold";
       if (scenarioSurvivalResult === "Survives with Conditions") return "Conditional Buy";
       return "Conditional Buy";
     })();
@@ -236,7 +249,7 @@ export function buildRedTeamReview(dealInput = {}, analysisInput = {}, scenarioI
 
     let recommendationConfidence = "Insufficient Data";
     let confidenceReasons = [];
-    if (scenarioSurvivalResult === "Fails" || scenarioSummaryProfit < 0 || monthlyCashFlow < 0 || dscr < 1 || cashRequired > cashOnHand) {
+    if (scenarioSurvivalResult === "Fails" || scenarioSummaryProfit < 0 || (rentalDecisionCritical && (monthlyCashFlow < 0 || dscr < 1)) || (liquidityKnown && cashRequired > cashOnHand)) {
       recommendationConfidence = "Very Low";
     } else if (scenarioSurvivalResult === "Marginal" || supportedArv <= 0 || compCount < 3 || buyBoxResult !== "PASS" || marketScore < 60 || financingWarnings.length > 0 || warnings.length > 0) {
       recommendationConfidence = "Low";
@@ -271,9 +284,9 @@ export function buildRedTeamReview(dealInput = {}, analysisInput = {}, scenarioI
     const challenges = [
       buildChallenge(
         "Valuation Challenge",
-        `Projected ARV ${formatCurrency(arv)}; Supported ARV ${formatCurrency(supportedArv)}`,
+        `Projected ARV ${formatCurrency(arv)}; Supported ARV ${supportedArv === null ? "Not Established" : formatCurrency(supportedArv)}`,
         `Projected ARV exceeds supported ARV or lacks support from comps/appraisal`,
-        `Projected downside ARV impact: ${formatCurrency(Math.max(0, arv - supportedArv))}`,
+        `Projected downside ARV impact: ${supportedArv === null ? "Not Established" : formatCurrency(Math.max(0, arv - supportedArv))}`,
         `Score effect: ${supportedArv <= 0 || compCount < 3 ? "Materially reduced" : "Moderate"}`,
         `Risk effect: ${supportedArv <= 0 || compCount < 3 ? "High" : "Moderate"}`,
         `Recommendation effect: ${supportedArv <= 0 || compCount < 3 ? "Weakens materially" : "Re-underwrite may be needed"}`,
@@ -293,16 +306,16 @@ export function buildRedTeamReview(dealInput = {}, analysisInput = {}, scenarioI
       ),
       buildChallenge(
         "Financing Challenge",
-        `Current financing requires ${formatCurrency(cashRequired)} cash and DSCR ${dscr.toFixed(2)}`,
-        `Higher rate, fees, tighter LTC/LTARV, or lower DSCR pressure the deal`,
+        `Current financing requires ${formatCurrency(cashRequired)} cash${rentalDecisionCritical ? ` and DSCR ${dscr.toFixed(2)}` : "; DSCR is N/A for the primary Flip strategy"}`,
+        `Higher rate, fees, or tighter LTC/LTARV pressure the deal${rentalDecisionCritical ? ", along with lower DSCR" : ""}`,
         `Monthly payment impact: ${formatCurrency(Math.max(0, cashRequired * 0.01))}`,
         `Score effect: ${financingWarnings.length ? "Materially reduced" : "Moderate"}`,
         `Risk effect: ${financingWarnings.length ? "High" : "Moderate"}`,
-        `Recommendation effect: ${financingWarnings.length ? "Weakens materially" : "Needs lender review"}`,
+        `Recommendation effect: ${financingWarnings.length ? "Weakens materially" : lenderLinked ? "Needs lender review" : "Needs internal financing review"}`,
         financingWarnings,
-        requiredCorrectiveActions.filter((action) => action.includes("lender") || action.includes("liquidity")),
+        requiredCorrectiveActions.filter((action) => /lender|liquidity|financing threshold/i.test(action)),
       ),
-      buildChallenge(
+      rentalDecisionCritical ? buildChallenge(
         "Rental Challenge",
         `Current rent ${formatCurrency(estimatedRent)} and vacancy ${formatPercent(vacancyRate)}`,
         `Lower rent, higher vacancy, and higher operating expenses compress cash flow`,
@@ -312,17 +325,17 @@ export function buildRedTeamReview(dealInput = {}, analysisInput = {}, scenarioI
         `Recommendation effect: ${estimatedRent > 0 ? "Weakens" : "Fails"}`,
         [estimatedRent <= 0 ? "Rent is unsupported" : "Rent sensitivity remains"],
         [estimatedRent <= 0 ? "Verify achievable rent" : "Re-check operating assumptions"],
-      ),
+      ) : null,
       buildChallenge(
         "Market Challenge",
         `Buy box result ${buyBoxResult}; market score ${marketScore}`,
-        `Outside buy box, weak rental demand, slow market, or weak liquidity pressure the value`,
+        `Outside buy box, slow market, or weak liquidity pressure the value${rentalDecisionCritical ? "; rental demand also affects the backup strategy" : ""}`,
         `Market support impact: ${marketScore < 60 ? "Material" : "Moderate"}`,
         `Score effect: ${marketScore < 60 ? "Materially reduced" : "Moderate"}`,
         `Risk effect: ${marketScore < 60 ? "High" : "Moderate"}`,
         `Recommendation effect: ${marketScore < 60 ? "Weakens materially" : "Needs market review"}`,
         warnings,
-        requiredCorrectiveActions.filter((action) => action.includes("buy box") || action.includes("exit") || action.includes("strategy")),
+        requiredCorrectiveActions.filter((action) => /buy box|exit|strategy|appraisal|comp/i.test(action)),
       ),
       buildChallenge(
         "Exit Challenge",
@@ -346,7 +359,7 @@ export function buildRedTeamReview(dealInput = {}, analysisInput = {}, scenarioI
         warnings,
         requiredCorrectiveActions.filter((action) => action.includes("appraisal") || action.includes("review") || action.includes("scope")),
       ),
-    ];
+    ].filter(Boolean);
 
     return {
       strongestArgumentAgainstDeal,
@@ -370,7 +383,10 @@ export function buildRedTeamReview(dealInput = {}, analysisInput = {}, scenarioI
         fragileAssumption: mostFragileAssumption,
         decisionBreakingThreshold: decisionBreakingAssumption,
         downsideRecommendation,
-        criticalRiskCount: [largestFinancialRisk, largestExecutionRisk, largestMarketRisk, largestFinancingRisk, largestExitRisk].filter((entry) => entry && entry !== "Insufficient Data").length,
+        criticalRiskCount: normalizeWarningRecords(
+          warnings,
+          analysis.financingWarningDetails || analysis.financingWarnings || [],
+        ).filter((entry) => entry.severity === "HIGH" || entry.severity === "CRITICAL").length,
         decisionBlockingActionCount: requiredCorrectiveActions.filter((action) => action.includes("appraisal") || action.includes("lender") || action.includes("buy box") || action.includes("liquidity")).length,
       },
       metadata: {

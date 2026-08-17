@@ -132,8 +132,8 @@ function buildDealIntelligenceFromDeals(deals = [], overlaysByDealId = {}) {
     const dealScore = Math.round(Math.max(0, Math.min(100, 40 + grossSpread / Math.max(estimatedArv, 1) * 40 + (estimatedRent > 0 ? 10 : 0) + (roi > 0 ? 10 : 0))));
     const rawDecision = (upload2Overlay.investmentDecision?.recommendation || underwriting.decisionConsistency?.recommendation || underwriting.recommendation?.action || 'REJECT').toString().trim().toUpperCase();
     const recommendation = rawDecision === 'BUY' ? 'Buy' : rawDecision === 'CONDITIONAL BUY' ? 'Conditional Buy' : rawDecision === 'REJECT' ? 'Do Not Purchase' : rawDecision === 'CONTINUE PROJECT' ? 'Continue Project' : rawDecision === 'CONTINUE REHAB' ? 'Continue Rehab' : rawDecision === 'HOLD' ? 'Hold' : 'Hold';
-    const buyBoxResult = safeString(upload2Overlay.buyBoxResult || underwriting.buyBox?.result || 'PASS', 'PASS').toUpperCase();
-    const normalizedBuyBoxResult = buyBoxResult === 'CONDITIONAL' && purchasePrice > 0 && rehabBudget > 0 && estimatedArv > 0 ? 'PASS' : buyBoxResult;
+    const buyBoxResult = safeString(underwriting.buyBox?.status || underwriting.buyBox?.result || upload2Overlay.buyBoxResult || 'REVIEW', 'REVIEW').toUpperCase();
+    const normalizedBuyBoxResult = buyBoxResult === 'CONDITIONAL' || buyBoxResult === 'CONDITIONAL PASS' || buyBoxResult === 'REVIEW REQUIRED' ? 'REVIEW' : buyBoxResult;
     const recommendedOffer = safeNumber(upload2Overlay.recommendedOffer) || Math.max(0, Math.min(purchasePrice + rehabBudget, estimatedArv * 0.86));
     const maximumAllowableOffer = safeNumber(upload2Overlay.maximumAllowableOffer) || Math.max(recommendedOffer, Math.min(purchasePrice + rehabBudget, estimatedArv * 0.9));
     const riskFlags = [];
@@ -223,7 +223,7 @@ function buildDealIntelligenceFromDeals(deals = [], overlaysByDealId = {}) {
       estimatedCashRequired: cashRequired,
       cashRequired,
       buyBoxResult: normalizedBuyBoxResult,
-      buyBoxReason: 'Base deal data is complete enough for review.',
+      buyBoxReason: underwriting.buyBox?.reasons?.[0] || 'Buy Box evaluation requires review.',
       overallRisk: dealScore < 60 ? 60 : 25,
       recommendedOffer,
       maximumAllowableOffer,

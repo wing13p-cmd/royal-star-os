@@ -76,3 +76,45 @@ test('buildRefinanceExitOptimizer returns a complete safe shape for partial inpu
   assert.equal(typeof result.summary, 'object');
   assert.equal(result.summary.message.includes('unavailable'), true);
 });
+
+test('Flip projected ARV enables sale planning without creating fake refinance proceeds', () => {
+  const result = buildRefinanceExitOptimizer({ properties: [{ strategy: 'Flip', projectedARV: 285000, currentLoanBalance: 182330, sellingCosts: 22000, rehabRemainingBudget: 0, interestRate: 11.24 }] });
+  assert.equal(result.status, 'Available with Conditions');
+  assert.equal(result.primaryExit, 'Sell After Rehab');
+  assert.equal(result.refinanceAnalysis.refinanceLoanAmount, null);
+  assert.equal(result.refinanceAnalysis.netRefinanceProceeds, null);
+  assert.equal(result.comparison.find((entry) => entry.strategy === 'Sell After Rehab').estimatedGrossProceeds, 285000);
+  assert.equal(result.comparison.find((entry) => entry.strategy === 'Sell After Rehab').estimatedNetProceeds, 80670);
+});
+
+test('preliminary calculated ARV does not unlock refinance proceeds', () => {
+  const result = buildRefinanceExitOptimizer({ properties: [{
+    strategy: 'Flip', projectedARV: 285000, calculatedARV: 280000, baseARV: 280000,
+    currentLoanBalance: 182330, refinanceLtv: 75, refinanceClosingCosts: 5000,
+  }] });
+  assert.equal(result.primaryExit, 'Sell After Rehab');
+  assert.equal(result.refinanceAnalysis.refinanceLoanAmount, null);
+  assert.equal(result.refinanceAnalysis.netRefinanceProceeds, null);
+  assert.equal(result.refinanceAnalysis.cashReturned, null);
+  assert.equal(result.refinanceAnalysis.cashLeftInDeal, null);
+});
+
+test('refinance and sale proceeds use supported value, payoff, costs, and explicit invested cash', () => {
+  const result = buildRefinanceExitOptimizer({ properties: [{
+    supportedARV: 285000,
+    currentLoanBalance: 182330,
+    refinanceLtv: 75,
+    refinanceClosingCosts: 5000,
+    totalCashInvested: 30000,
+    sellingCosts: 22000,
+    rehabRemainingBudget: 0,
+    interestRate: 11.24,
+  }] });
+  assert.equal(result.refinanceAnalysis.refinanceLoanAmount, 213750);
+  assert.equal(result.refinanceAnalysis.netRefinanceProceeds, 26420);
+  assert.equal(result.refinanceAnalysis.cashReturned, 26420);
+  assert.equal(result.refinanceAnalysis.cashLeftInDeal, 3580);
+  const sale = result.comparison.find((entry) => entry.strategy === 'Sell After Rehab');
+  assert.equal(sale.estimatedGrossProceeds, 285000);
+  assert.equal(sale.estimatedNetProceeds, 80670);
+});

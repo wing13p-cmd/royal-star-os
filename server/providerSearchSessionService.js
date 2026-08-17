@@ -1,9 +1,18 @@
 function createProviderSearchSessionService(options = {}) {
   const maxStoredSessions = options.maxStoredSessions || 25;
-  const cacheTtlMs = options.cacheTtlMs || 60000;
+  const cacheTtlMs = options.cacheTtlMs ?? 86400000;
+  const maxCacheEntries = options.maxCacheEntries || 50;
   const sessions = [];
   const cache = new Map();
+  const inFlight = new Map();
   const usage = new Map();
+  let persistenceCallback = null;
+
+  function notifyPersistence() {
+    if (typeof persistenceCallback === "function") {
+      try { persistenceCallback(exportState()); } catch { /* telemetry persistence must never break provider work */ }
+    }
+  }
 
   function now() {
     return new Date().toISOString();
@@ -58,6 +67,7 @@ function createProviderSearchSessionService(options = {}) {
     };
     sessions.push(session);
     pruneSessions();
+    notifyPersistence();
     return buildSessionSnapshot(session);
   }
 
@@ -69,6 +79,7 @@ function createProviderSearchSessionService(options = {}) {
     const session = getSession(sessionId);
     if (!session) return null;
     Object.assign(session, patch, { updatedAt: now() });
+    notifyPersistence();
     return buildSessionSnapshot(session);
   }
 
@@ -97,6 +108,7 @@ function createProviderSearchSessionService(options = {}) {
     if (!session) return null;
     session.snapshot = snapshot;
     session.updatedAt = now();
+    notifyPersistence();
     return buildSessionSnapshot(session);
   }
 
@@ -111,26 +123,44 @@ function createProviderSearchSessionService(options = {}) {
       lastError: result.lastError || session.lastError || "",
       updatedAt: now(),
     });
+    notifyPersistence();
     return buildSessionSnapshot(session);
   }
 
   function getCachedResult(cacheKey) {
-    const entry = cache.get(cacheKey);
-    if (!entry) return null;
-    if (Date.now() - entry.timestamp > cacheTtlMs) {
-      cache.delete(cacheKey);
-      return null;
-    }
-    return entry.value;
+    const entry = getCachedResultEntry(cacheKey);
+    return entry?.status === "HIT" ? entry.value : null;
   }
 
-  function setCachedResult(cacheKey, value) {
-    cache.set(cacheKey, { timestamp: Date.now(), value });
+  function getCachedResultEntry(cacheKey, options = {}) {
+    const entry = cache.get(cacheKey);
+    if (!entry) return { status: "MISS", value: null, timestamp: null, ageMs: null, ttlMs: cacheTtlMs };
+    const ageMs = Math.max(0, Date.now() - entry.timestamp);
+    const expired = Number.isFinite(Number(entry.expiresAt)) ? Date.now() >= Number(entry.expiresAt) : ageMs > cacheTtlMs;
+    if (expired && !options.includeExpired) {
+      return { status: "EXPIRED", value: null, timestamp: entry.timestamp, ageMs, ttlMs: cacheTtlMs, metadata: entry.metadata || {} };
+    }
+    return { status: expired ? "EXPIRED" : "HIT", value: entry.value, timestamp: entry.timestamp, ageMs, ttlMs: cacheTtlMs, metadata: entry.metadata || {} };
+  }
+
+  function setCachedResult(cacheKey, value, metadata = {}) {
+    const timestamp = Date.now();
+    cache.set(cacheKey, { timestamp, expiresAt: timestamp + cacheTtlMs, value, metadata });
+    while (cache.size > maxCacheEntries) cache.delete(cache.keys().next().value);
+    notifyPersistence();
     return value;
+  }
+
+  function getInFlight(cacheKey) { return inFlight.get(cacheKey) || null; }
+  function setInFlight(cacheKey, promise) {
+    inFlight.set(cacheKey, promise);
+    Promise.resolve(promise).finally(() => { if (inFlight.get(cacheKey) === promise) inFlight.delete(cacheKey); }).catch(() => {});
+    return promise;
   }
 
   function clearCache() {
     cache.clear();
+    notifyPersistence();
   }
 
   function recordUsage(provider = "manual", operation = "provider-search", outcome = "completed") {
@@ -149,6 +179,7 @@ function createProviderSearchSessionService(options = {}) {
     else existing.successfulRequests += 1;
     existing.lastUpdatedAt = now();
     usage.set(normalized, existing);
+    notifyPersistence();
     return existing;
   }
 
@@ -166,12 +197,77 @@ function createProviderSearchSessionService(options = {}) {
   }
 
   function getSummary() {
+    const subjectProperties = Array.from(cache.values())
+      .map((entry) => entry?.value?.property)
+      .filter((property) => property && property.address)
+      .map((property) => ({
+        provider: property.provider || "",
+        providerRecordId: property.providerRecordId || "",
+        subjectDealId: property.subjectDealId || "",
+        dealId: property.dealId || "",
+        propertyId: property.propertyId || property.subjectPropertyId || "",
+        address: property.address || "",
+        city: property.city || "",
+        state: property.state || "",
+        zipCode: property.zip || property.zipCode || "",
+        propertyType: property.propertyType || "",
+        bedrooms: property.bedrooms ?? "",
+        bathrooms: property.bathrooms ?? "",
+        squareFeet: property.squareFeet ?? "",
+        yearBuilt: property.yearBuilt ?? "",
+        latitude: property.latitude ?? "",
+        longitude: property.longitude ?? "",
+      }));
     return {
       latestSession: getLatestSession(),
       recentSessions: sessions.slice(-5).map((session) => buildSessionSnapshot(session)),
       cacheEntries: cache.size,
       usage: Object.fromEntries(Array.from(usage.entries())),
+      subjectProperties,
     };
+  }
+
+  function setPersistenceCallback(callback) { persistenceCallback = callback; }
+
+  function exportState() {
+    return {
+      sessions: sessions.map((session) => ({
+        ...session,
+        snapshot: session.snapshot ? {
+          ok: session.snapshot.ok,
+          status: session.snapshot.status,
+          errorCode: session.snapshot.errorCode || null,
+          diagnostics: session.snapshot.diagnostics || {},
+          resultCount: Number(session.snapshot.resultCount || session.resultCount || 0),
+        } : null,
+      })),
+      cache: Array.from(cache.entries()).map(([cacheKey, entry]) => ({ cacheKey, ...entry })),
+      usage: Object.fromEntries(usage.entries()),
+    };
+  }
+
+  function hydrate(snapshot = {}) {
+    sessions.length = 0;
+    cache.clear();
+    usage.clear();
+    const restoredSessions = Array.isArray(snapshot.sessions) ? snapshot.sessions.slice(-maxStoredSessions) : [];
+    restoredSessions.forEach((session) => sessions.push({ ...session, query: session.query || {} }));
+    const nowMs = Date.now();
+    const restoredCache = Array.isArray(snapshot.cache) ? snapshot.cache : [];
+    restoredCache.forEach((entry) => {
+      const expiresAt = Number(entry.expiresAt || (Number(entry.timestamp) + cacheTtlMs));
+      if (!entry.cacheKey || !entry.value || !Number.isFinite(expiresAt) || expiresAt <= nowMs) return;
+      cache.set(entry.cacheKey, {
+        timestamp: Number(entry.timestamp) || nowMs,
+        expiresAt,
+        value: entry.value,
+        metadata: entry.metadata || {},
+      });
+    });
+    while (cache.size > maxCacheEntries) cache.delete(cache.keys().next().value);
+    if (snapshot.usage && typeof snapshot.usage === "object") {
+      Object.entries(snapshot.usage).forEach(([key, value]) => usage.set(key, value));
+    }
   }
 
   return {
@@ -184,11 +280,17 @@ function createProviderSearchSessionService(options = {}) {
     snapshotSession,
     recordResult,
     getCachedResult,
+    getCachedResultEntry,
     setCachedResult,
+    getInFlight,
+    setInFlight,
     clearCache,
     recordUsage,
     getUsageSummary,
     getSummary,
+    setPersistenceCallback,
+    exportState,
+    hydrate,
   };
 }
 

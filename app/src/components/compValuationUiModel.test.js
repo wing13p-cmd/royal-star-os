@@ -19,6 +19,7 @@ test("buildCompValuationUiModel surfaces advisory valuation results from include
   assert.equal(model.pendingImports.length, 1);
   assert.equal(model.rejectedComps.length, 1);
   assert.match(model.confidenceLabel, /High|Moderate|Preliminary|Low/);
+  assert.ok(model.baseArv > 200000 && model.baseArv < 240000);
 });
 
 test("buildCompValuationUiModel returns an empty advisory state when no comps are present", () => {
@@ -30,4 +31,12 @@ test("buildCompValuationUiModel returns an empty advisory state when no comps ar
   assert.equal(model.pendingImports.length, 0);
   assert.equal(model.rejectedComps.length, 0);
   assert.equal(model.confidenceLabel, "Pending");
+});
+
+test("approved provider comp can remain excluded from ARV without appearing rejected", () => {
+  const model = buildCompValuationUiModel({ comps: [{ id: "provider-1", salePrice: 280000, squareFeet: 1400, included: false, verified: true, inclusionStatus: "approved", providerImported: true }], subjectDeal: { squareFeet: 1400 } });
+  assert.equal(model.approvedComps.length, 1);
+  assert.equal(model.reviewQueue.length, 0);
+  assert.equal(model.rejectedComps.length, 0);
+  assert.equal(model.baseArv, 0);
 });

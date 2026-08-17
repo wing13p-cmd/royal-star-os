@@ -34,7 +34,9 @@ function getPrimaryRecommendation(analysis, deal) {
   if (analysis.dealScore >= 45 && (analysis.warnings?.length || 0) > 0) {
     return "Re-Underwrite";
   }
-  if (analysis.estimatedFlipProfit <= 0 || analysis.roi <= 0 || analysis.cashRequired > safeNumber(deal.cashOnHand)) {
+  const liquidityKnown = [deal.availableLiquidity, deal.cashOnHand, deal.liquidity].some((value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)));
+  const availableLiquidity = safeNumber(deal.availableLiquidity ?? deal.cashOnHand ?? deal.liquidity);
+  if (analysis.estimatedFlipProfit <= 0 || analysis.roi <= 0 || (liquidityKnown && analysis.cashRequired > availableLiquidity)) {
     return "Reject";
   }
   if (analysis.overallRisk > 60) {
@@ -43,10 +45,11 @@ function getPrimaryRecommendation(analysis, deal) {
   return "Hold";
 }
 
-function getStrategyRecommendation(analysis) {
+function getStrategyRecommendation(analysis, deal = {}) {
   if (analysis.dealScore >= 80 && analysis.estimatedFlipProfit > 0) return "Flip";
-  if (analysis.rentToCostRatio > 0.01 && analysis.dscr > 1.2) return "BRRRR";
-  if (analysis.monthlyCashFlow > 0 && analysis.capRate > 0.06) return "Rental";
+  const rentalApplicable = /brrrr|rental|hold/i.test(String(deal.strategy || deal.exitStrategy || "")) || deal.evaluateRentalBackup === true;
+  if (rentalApplicable && analysis.rentToCostRatio > 0.01 && analysis.dscr > 1.2) return "BRRRR";
+  if (rentalApplicable && analysis.monthlyCashFlow > 0 && analysis.capRate > 0.06) return "Rental";
   if (analysis.dealScore < 60) return "Do Not Purchase";
   return "Hold";
 }
@@ -104,7 +107,7 @@ function getLargestRisk(analysis) {
 
 export function buildRecommendationEngine(deal = {}, analysis = {}) {
   const primaryRecommendation = getPrimaryRecommendation(analysis, deal);
-  const strategyRecommendation = getStrategyRecommendation(analysis);
+  const strategyRecommendation = getStrategyRecommendation(analysis, deal);
   const recommendedOffer = safeDisplay(analysis.recommendedOffer, "Insufficient Data");
   const mao = safeDisplay(analysis.maximumAllowableOffer ?? analysis.maxAllowableOffer ?? analysis.recommendedOffer ?? analysis.targetOffer, "Insufficient Data");
   const walkAwayPrice = safeDisplay(analysis.walkAwayPrice, "Insufficient Data");

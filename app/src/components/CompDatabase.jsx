@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { buildApiUrl } from "../utils/apiClient.js";
 import { appendMediaAuditEntry, filterExportPermittedMedia, validatePhotoUpload } from "../utils/photoUploadPolicy.js";
 import { buildCompValuationUiModel } from "./compValuationUiModel.js";
+import { buildSessionAuthHeaders } from "../utils/sessionAuth.js";
+import { buildCompCreatePayload, buildCompReviewCounts, buildCompStatistics, filterCompsForSubject, findPersistedProviderSubject, formatProviderSaleDate, getProviderReviewCandidate, getProviderReviewCandidateKey, importProviderCandidateTransaction, normalizeProviderReviewCandidates, persistCompViaApi, rejectProviderReviewCandidate } from "./compDatabaseContract.js";
 import { buildCompEnterpriseUiModel, buildCompExportPackage, buildAppraisalExportPackage, buildPdfSummary, buildExcelCompPackage, buildCompDatabaseBackup } from "../utils/compEnterpriseIntelligence.js";
 import logo from "../assets/royal-star-logo.png";
 
@@ -82,10 +85,7 @@ function formatCurrency(value) {
 }
 
 function formatDate(value) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return formatProviderSaleDate(value);
 }
 
 function formatCompAddress(value) {
@@ -330,6 +330,24 @@ export default function CompDatabase({
   const [providerOnboardingState, setProviderOnboardingState] = useState({ provider: "manual", status: "Not Configured", active: false, maskedCredentialStatus: { configured: false, hasSecret: false, status: "Not Configured", secretMasked: "not-set" } });
   const [providerConfigForm, setProviderConfigForm] = useState({ provider: "manual", baseUrl: "", apiKey: "", clientId: "", clientSecret: "", datasetId: "", mediaRights: "REMOTE_REFERENCE_ONLY" });
   const [providerSessionSummary, setProviderSessionSummary] = useState({ latestSession: null, recentSessions: [], cacheEntries: 0, usage: {} });
+  const [providerSearchHistory, setProviderSearchHistory] = useState([]);
+  const [providerFreshness, setProviderFreshness] = useState(null);
+  const [providerCacheDiagnostics, setProviderCacheDiagnostics] = useState({});
+  const [providerSubject, setProviderSubject] = useState(null);
+  const [providerCandidates, setProviderCandidates] = useState([]);
+  const [rejectedProviderCandidates, setRejectedProviderCandidates] = useState([]);
+  const [selectedProviderCandidateId, setSelectedProviderCandidateId] = useState("");
+  const [providerImportState, setProviderImportState] = useState({ candidateId: "", status: "idle", message: "" });
+  const [providerEvidenceState, setProviderEvidenceState] = useState({ candidateId: "", status: "idle", report: null, error: "" });
+  const providerImportInFlightRef = useRef("");
+  const mountedRef = useRef(true);
+  const subjectDealIdRef = useRef("");
+  const providerReviewCloseButtonRef = useRef(null);
+  const providerReviewReturnFocusRef = useRef(null);
+  const providerReviewTraceRef = useRef({ handlerExecuted: false, candidateId: "", selectionChanged: false, candidateResolved: false, portalRendered: false, modalMounted: false, remainedMounted: false });
+  const providerSearchRequestRef = useRef(0);
+  const [providerSearchCounts, setProviderSearchCounts] = useState({ providerCandidatesRetrieved: 0, qualifyingCandidatesReturned: 0, deduplicatedCandidates: 0, tierCounts: { 1: 0, 2: 0, 3: 0, 4: 0 } });
+  const [providerSearchDiagnostics, setProviderSearchDiagnostics] = useState({});
   const [opsTemplates, setOpsTemplates] = useState([]);
   const [opsSearchHistory, setOpsSearchHistory] = useState([]);
   const [opsFreshness, setOpsFreshness] = useState(null);
@@ -337,17 +355,19 @@ export default function CompDatabase({
   const [opsDiagnostics, setOpsDiagnostics] = useState(null);
   const [opsMessage, setOpsMessage] = useState({ type: "", text: "" });
 
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
+
   useEffect(() => {
     const loadOpsState = async () => {
       try {
-        const [templatesRes, historyRes, readinessRes, diagnosticsRes] = await Promise.all([
+        const [templatesRes, readinessRes, diagnosticsRes] = await Promise.all([
           fetch(buildApiUrl("/api/comps/operations/templates")),
-          fetch(buildApiUrl("/api/comps/operations/search-history")),
           fetch(buildApiUrl("/api/comps/operations/readiness"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ comps: comps }) }),
           fetch(buildApiUrl("/api/comps/operations/diagnostics"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ comps, redaction: true }) }),
         ]);
         if (templatesRes.ok) setOpsTemplates(await templatesRes.json());
-        if (historyRes.ok) setOpsSearchHistory(await historyRes.json());
         if (readinessRes.ok) setOpsReadiness(await readinessRes.json());
         if (diagnosticsRes.ok) setOpsDiagnostics(await diagnosticsRes.json());
       } catch (error) {
@@ -410,12 +430,20 @@ export default function CompDatabase({
 
     const loadProviderSessionSummary = async () => {
       try {
-        const response = await fetch(buildApiUrl("/api/comps/search-session"));
-        if (!response.ok) throw new Error("Unable to fetch provider session summary");
-        const summary = await response.json();
+        const [sessionResponse, historyResponse] = await Promise.all([
+          fetch(buildApiUrl("/api/comps/search-session")),
+          fetch(buildApiUrl("/api/comps/provider-search-history")),
+        ]);
+        if (!sessionResponse.ok || !historyResponse.ok) throw new Error("Unable to fetch provider search telemetry");
+        const summary = await sessionResponse.json();
+        const history = await historyResponse.json();
         setProviderSessionSummary(summary || { latestSession: null, recentSessions: [], cacheEntries: 0, usage: {} });
+        setProviderSearchHistory(Array.isArray(history) ? history : []);
+        const diagnostics = summary?.latestSession?.snapshot?.diagnostics || {};
+        setProviderCacheDiagnostics(diagnostics);
+        setProviderFreshness(buildProviderFreshness(summary?.latestSession, diagnostics));
       } catch (error) {
-        console.error("Unable to load provider session summary", error);
+        console.error("Unable to load provider search telemetry", error);
       }
     };
 
@@ -424,12 +452,60 @@ export default function CompDatabase({
     loadComps();
     loadDeals();
     loadProviderSessionSummary();
-  }, [comps]);
+  }, []);
+
+  const buildProviderFreshness = (session, diagnostics = {}) => {
+    const timestamp = diagnostics.lastLiveProviderRefresh || session?.updatedAt || session?.createdAt || null;
+    if (!timestamp) return null;
+    const ageMs = Math.max(0, Date.now() - Date.parse(timestamp));
+    const ttlMs = Number(diagnostics.cacheTtlMs || 0);
+    return { timestamp, ageMs, ttlMs, status: ttlMs > 0 && ageMs <= ttlMs ? "Fresh" : "Stale" };
+  };
+
+  const refreshProviderTelemetry = async (diagnosticsOverride = null) => {
+    try {
+      const [sessionResponse, historyResponse] = await Promise.all([
+        fetch(buildApiUrl("/api/comps/search-session")),
+        fetch(buildApiUrl("/api/comps/provider-search-history")),
+      ]);
+      if (!sessionResponse.ok || !historyResponse.ok) return;
+      const summary = await sessionResponse.json();
+      const history = await historyResponse.json();
+      setProviderSessionSummary(summary || { latestSession: null, recentSessions: [], cacheEntries: 0, usage: {} });
+      setProviderSearchHistory(Array.isArray(history) ? history : []);
+      const diagnostics = diagnosticsOverride || summary?.latestSession?.snapshot?.diagnostics || {};
+      setProviderCacheDiagnostics(diagnostics);
+      setProviderFreshness(buildProviderFreshness(summary?.latestSession, diagnostics));
+    } catch (error) {
+      console.error("Unable to refresh provider search telemetry", error);
+    }
+  };
 
   const selectedSubjectDeal = useMemo(() => deals.find((deal) => deal.id === subjectDealId) || null, [deals, subjectDealId]);
 
+  useEffect(() => {
+    providerSearchRequestRef.current += 1;
+    subjectDealIdRef.current = subjectDealId;
+    setProviderCandidates([]);
+    setProviderSubject(null);
+    setRejectedProviderCandidates([]);
+    setSelectedProviderCandidateId("");
+    setProviderImportState({ candidateId: "", status: "idle", message: "" });
+    setProviderSearchCounts({ providerCandidatesRetrieved: 0, qualifyingCandidatesReturned: 0, deduplicatedCandidates: 0, tierCounts: { 1: 0, 2: 0, 3: 0, 4: 0 } });
+    setProviderSearchDiagnostics({});
+    setProviderSearchState({ loading: false, status: "", error: "", summary: "" });
+  }, [subjectDealId]);
+
+  useEffect(() => {
+    if (!selectedSubjectDeal || providerSubject) return;
+    const restored = findPersistedProviderSubject(selectedSubjectDeal, providerSessionSummary?.subjectProperties);
+    if (restored) setProviderSubject(restored);
+  }, [selectedSubjectDeal, providerSessionSummary, providerSubject]);
+
+  const subjectComps = useMemo(() => filterCompsForSubject(comps, selectedSubjectDeal), [comps, selectedSubjectDeal]);
+
   const normalizedComps = useMemo(() => {
-    return comps.map((comp) => ({
+    return subjectComps.map((comp) => ({
       ...comp,
       salePrice: toNumber(comp.salePrice),
       listPrice: toNumber(comp.listPrice),
@@ -448,7 +524,7 @@ export default function CompDatabase({
       bathroomDifference: selectedSubjectDeal?.bathrooms ? toNumber(comp.bathrooms) - toNumber(selectedSubjectDeal.bathrooms) : null,
       ageDifference: selectedSubjectDeal?.yearBuilt ? toNumber(comp.yearBuilt) - toNumber(selectedSubjectDeal.yearBuilt) : null,
     }));
-  }, [comps, selectedSubjectDeal]);
+  }, [subjectComps, selectedSubjectDeal]);
 
   const filteredComps = useMemo(() => {
     const search = searchText.trim().toLowerCase();
@@ -583,8 +659,9 @@ export default function CompDatabase({
 
   const summaryStats = useMemo(() => {
     const included = normalizedComps.filter((comp) => comp.included !== false);
-    const averageSalePrice = included.length > 0 ? included.reduce((sum, comp) => sum + toNumber(comp.salePrice), 0) / included.length : 0;
-    const averagePpsf = included.length > 0 ? included.reduce((sum, comp) => sum + toNumber(comp.pricePerSqft), 0) / included.length : 0;
+    const statistics = buildCompStatistics(normalizedComps, selectedSubjectDeal);
+    const averageSalePrice = statistics.averageSalePrice;
+    const averagePpsf = statistics.averagePpsf;
     const subjectSqft = selectedSubjectDeal?.squareFeet ? toNumber(selectedSubjectDeal.squareFeet) : null;
     const baseArv = subjectSqft && averagePpsf > 0 ? averagePpsf * subjectSqft : averageSalePrice;
     const lowArv = subjectSqft && averagePpsf > 0 ? averagePpsf * subjectSqft * 0.95 : averageSalePrice * 0.9;
@@ -596,11 +673,7 @@ export default function CompDatabase({
     const recent = [...included].sort((left, right) => (right.saleDate || "").localeCompare(left.saleDate || ""))[0] || null;
 
     return {
-      total: normalizedComps.length,
-      included: included.length,
-      averageSalePrice,
-      averagePpsf,
-      baseArv,
+      ...statistics,
       confidence,
       recommendation,
       strongest,
@@ -613,6 +686,34 @@ export default function CompDatabase({
   const valuationUiModel = useMemo(() => buildCompValuationUiModel({ comps: normalizedComps, subjectDeal: selectedSubjectDeal }), [normalizedComps, selectedSubjectDeal]);
   const selectedCompReview = useMemo(() => (selectedComp ? buildCompValuationUiModel({ comps: [selectedComp], subjectDeal: selectedSubjectDeal }) : null), [selectedComp, selectedSubjectDeal]);
   const enterpriseUiModel = useMemo(() => buildCompEnterpriseUiModel({ comps: normalizedComps, auditLog: [], subjectDeal: selectedSubjectDeal }), [normalizedComps, selectedSubjectDeal]);
+  const reviewCounts = useMemo(() => buildCompReviewCounts({ providerCandidates, persistedComps: normalizedComps, rejectedCandidates: rejectedProviderCandidates }), [providerCandidates, normalizedComps, rejectedProviderCandidates]);
+  const selectedProviderCandidate = useMemo(() => getProviderReviewCandidate(providerCandidates, selectedProviderCandidateId), [providerCandidates, selectedProviderCandidateId]);
+  const selectedProviderMedia = useMemo(() => {
+    if (!selectedProviderCandidate || selectedProviderCandidate.mediaRestricted || selectedProviderCandidate.mediaExpired) return null;
+    const media = Array.isArray(selectedProviderCandidate.media) ? selectedProviderCandidate.media : [];
+    return media.find((item) => item?.url || item?.sourceUrl || item?.referenceUrl) || null;
+  }, [selectedProviderCandidate]);
+
+  useEffect(() => {
+    if (!selectedProviderCandidateId || typeof document === "undefined") return undefined;
+    providerReviewTraceRef.current = { ...providerReviewTraceRef.current, selectionChanged: true, candidateResolved: Boolean(selectedProviderCandidate), portalRendered: Boolean(selectedProviderCandidate) };
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setSelectedProviderCandidateId("");
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    const focusFrame = window.requestAnimationFrame(() => {
+      providerReviewCloseButtonRef.current?.focus();
+      if (providerReviewTraceRef.current.modalMounted) providerReviewTraceRef.current = { ...providerReviewTraceRef.current, remainedMounted: true };
+    });
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousBodyOverflow;
+      providerReviewReturnFocusRef.current?.focus?.();
+    };
+  }, [selectedProviderCandidateId, selectedProviderCandidate]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -644,32 +745,17 @@ export default function CompDatabase({
   };
 
   const persistComp = async (payload, existingComp = null) => {
-    if (existingComp) {
-      try {
-        const response = await fetch(buildApiUrl(`/api/comps/${existingComp.id}`), {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (!response.ok) throw new Error("Unable to update comp");
-        return response.json();
-      } catch (error) {
-        console.error("Unable to update comp via API, using local fallback", error);
-        return { ...payload, id: existingComp.id, createdAt: existingComp.createdAt, updatedAt: new Date().toISOString() };
-      }
-    }
-
     try {
-      const response = await fetch(buildApiUrl("/api/comps"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      return await persistCompViaApi({
+        fetchImpl: fetch,
+        url: buildApiUrl("/api/comps"),
+        payload,
+        existingId: existingComp?.id || "",
+        headers: buildSessionAuthHeaders({ "Content-Type": "application/json" }),
       });
-      if (!response.ok) throw new Error("Unable to create comp");
-      return response.json();
     } catch (error) {
-      console.error("Unable to create comp via API, using local fallback", error);
-      return { ...payload, id: createId(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      console.error(existingComp ? "Unable to update comp via API" : "Unable to create comp via API", error);
+      throw error;
     }
   };
 
@@ -678,17 +764,21 @@ export default function CompDatabase({
     try {
       const response = await fetch(buildApiUrl("/api/comps/provider-test"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildSessionAuthHeaders({ "Content-Type": "application/json" }),
       });
-      if (!response.ok) throw new Error("Provider test failed");
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const status = response.status === 401 || response.status === 403 ? "Internal RSOS provider-route authorization failure" : "Internal RSOS provider-route failure";
+        throw new Error(result.status || result.error || status);
+      }
       setProviderStatus({ ...providerStatus, ...result });
       setMessage({ type: result.ok ? "success" : "error", text: `Provider test: ${result.status}` });
       setProviderSearchState({ loading: false, status: result.ok ? "Connected" : result.status, error: result.ok ? "" : result.status, summary: result.ok ? "Provider connection verified." : "Provider connection failed safely." });
     } catch (error) {
       console.error("Unable to test provider connection", error);
-      setMessage({ type: "error", text: "Provider test could not be completed." });
-      setProviderSearchState({ loading: false, status: "Error", error: "Provider test could not be completed.", summary: "" });
+      const message = error?.message || "Internal RSOS provider-route failure";
+      setMessage({ type: "error", text: `Provider test: ${message}` });
+      setProviderSearchState({ loading: false, status: "Error", error: message, summary: "" });
     }
   };
 
@@ -702,11 +792,12 @@ export default function CompDatabase({
     try {
       const response = await fetch(buildApiUrl("/api/comps/subject-property"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildSessionAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ address, city: selectedSubjectDeal?.city || formValues.city, state: selectedSubjectDeal?.state || formValues.state, zipCode: selectedSubjectDeal?.zipCode || formValues.zipCode }),
       });
       if (!response.ok) throw new Error("Subject lookup failed");
       const result = await response.json();
+      if (result.ok && result.property) setProviderSubject(result.property);
       setProviderSearchState({ loading: false, status: result.ok ? "Lookup complete" : result.status, error: result.ok ? "" : result.status, summary: result.property ? `Provider returned ${result.property.propertyType || "property"} data.` : "No provider property match." });
       setMessage({ type: result.ok ? "success" : "error", text: result.ok ? "Subject-property lookup completed." : result.status });
     } catch (error) {
@@ -716,18 +807,25 @@ export default function CompDatabase({
     }
   };
 
-  const handleFindSoldComps = async () => {
+  const handleFindSoldComps = async (forceRefresh = false) => {
     const subjectAddress = selectedSubjectDeal?.propertyAddress || selectedSubjectDeal?.address || formValues.compAddress || "";
     if (!subjectAddress) {
       setMessage({ type: "error", text: "Select a subject deal or enter a subject address first." });
       return;
     }
-    setProviderSearchState({ loading: true, status: "Searching sold comps…", error: "", summary: "Same type • 6 months • 0.5 mi • ±20% sqft" });
+    const requestId = ++providerSearchRequestRef.current;
+    const requestSubjectId = selectedSubjectDeal?.id || "";
+    setProviderSearchState({ loading: true, status: forceRefresh ? "Refreshing live sold comps…" : "Searching sold comps…", error: "", summary: "Tier 1 starts at same type • 6 months • 0.5 mi • ±20% sqft; widening only if fewer than 3 qualify." });
     try {
       const response = await fetch(buildApiUrl("/api/comps/sold-comps"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildSessionAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
+          subjectDealId: selectedSubjectDeal?.id || "",
+          dealId: selectedSubjectDeal?.id || "",
+          propertyId: selectedSubjectDeal?.propertyId || selectedSubjectDeal?.linkedPropertyId || "",
+          latitude: providerSubject?.latitude ?? "",
+          longitude: providerSubject?.longitude ?? "",
           address: subjectAddress,
           city: selectedSubjectDeal?.city || formValues.city,
           state: selectedSubjectDeal?.state || formValues.state,
@@ -735,6 +833,7 @@ export default function CompDatabase({
           radiusMiles: 0.5,
           months: 6,
           maxResults: 10,
+          forceRefresh,
           propertyType: formValues.propertyType || selectedSubjectDeal?.propertyType || "Single Family",
           bedrooms: formValues.bedrooms || selectedSubjectDeal?.bedrooms,
           bathrooms: formValues.bathrooms || selectedSubjectDeal?.bathrooms,
@@ -744,21 +843,110 @@ export default function CompDatabase({
       });
       if (!response.ok) throw new Error("Sold-comp search failed");
       const result = await response.json();
-      const importedRecords = Array.isArray(result.records) ? result.records : [];
-      if (importedRecords.length > 0) {
-        const nextComps = [...comps, ...importedRecords];
-        setComps(nextComps);
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem("royalStarComps", JSON.stringify(nextComps));
-        }
-      }
-      setProviderSearchState({ loading: false, status: result.status || "Complete", error: result.ok ? "" : result.status, summary: importedRecords.length > 0 ? `Imported ${importedRecords.length} review-ready comp${importedRecords.length === 1 ? "" : "s"}.` : "No qualifying comps retrieved." });
+      if (requestId !== providerSearchRequestRef.current || requestSubjectId !== subjectDealIdRef.current) return;
+      const importedRecords = normalizeProviderReviewCandidates(Array.isArray(result.records) ? result.records : [], selectedSubjectDeal);
+      setProviderCandidates(importedRecords);
+      setRejectedProviderCandidates([]);
+      setSelectedProviderCandidateId("");
+      const tierCounts = result.tierCounts || {};
+      const qualifyingCandidatesReturned = result.totalReviewCandidates ?? result.qualifyingCandidateCount ?? importedRecords.length;
+      setProviderSearchCounts({ providerCandidatesRetrieved: result.providerCandidateCount || 0, qualifyingCandidatesReturned, deduplicatedCandidates: Math.max(0, qualifyingCandidatesReturned - importedRecords.length), tierCounts: { 1: tierCounts[1] || 0, 2: tierCounts[2] || 0, 3: tierCounts[3] || 0, 4: tierCounts[4] || 0 } });
+      setProviderSearchDiagnostics(result.diagnostics || {});
+      setProviderCacheDiagnostics(result.diagnostics || {});
+      setProviderFreshness(buildProviderFreshness({ updatedAt: result.diagnostics?.lastLiveProviderRefresh }, result.diagnostics || {}));
+      refreshProviderTelemetry(result.diagnostics || {});
+      const tierSummary = `Provider candidates retrieved: ${result.providerCandidateCount || 0} • Qualifying candidates returned: ${qualifyingCandidatesReturned} • Active review queue after deduplication: ${importedRecords.length} • Tier 1 qualifying: ${tierCounts[1] || 0} • Tier 2 additional: ${tierCounts[2] || 0} • Tier 3 additional: ${tierCounts[3] || 0} • Tier 4 additional: ${tierCounts[4] || 0}`;
+      setProviderSearchState({ loading: false, status: result.status || "Complete", error: result.ok ? "" : result.status, summary: result.ok ? `${tierSummary}. Nothing was imported automatically.` : result.status });
       setMessage({ type: result.ok ? "success" : "error", text: result.status || "Sold-comp search complete." });
     } catch (error) {
       console.error("Unable to search sold comps", error);
       setProviderSearchState({ loading: false, status: "Error", error: "Sold-comp search could not be completed.", summary: "" });
       setMessage({ type: "error", text: "Sold-comp search could not be completed." });
     }
+  };
+
+  const handleVerifyProviderCandidate = async (candidate, forceRefresh = false) => {
+    const candidateId = candidate.id || candidate.providerRecordId;
+    setProviderEvidenceState({ candidateId, status: "loading", report: null, error: "" });
+    try {
+      const response = await fetch(buildApiUrl("/api/comps/verify-evidence"), {
+        method: "POST",
+        headers: buildSessionAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ comp: candidate, subject: selectedSubjectDeal || {}, forceRefresh }),
+      });
+      if (!response.ok) throw new Error("Evidence verification failed");
+      const result = await response.json();
+      const report = result.evidence || null;
+      setProviderEvidenceState({ candidateId, status: "complete", report, error: "" });
+      setProviderCandidates((current) => current.map((entry) => entry.id === candidate.id ? {
+        ...entry,
+        evidenceReport: report,
+        verifiedCompScore: report?.verifiedCompScore ?? null,
+        verificationRecommendation: report?.recommendation || "NEEDS_REVIEW",
+        evidenceProvenance: report?.provenance || [],
+        discrepancies: report?.discrepancies || [],
+        media: report?.media?.length ? report.media : entry.media,
+      } : entry));
+    } catch (error) {
+      console.error("Unable to verify comp evidence", error);
+      setProviderEvidenceState({ candidateId, status: "failed", report: null, error: "Evidence sources could not be verified. The comp remains pending review." });
+    }
+  };
+
+  const handleReviewProviderCandidate = (candidate) => {
+    if (typeof document !== "undefined") providerReviewReturnFocusRef.current = document.activeElement;
+    const candidateId = candidate.reviewCandidateKey || getProviderReviewCandidateKey(candidate) || candidate.id;
+    providerReviewTraceRef.current = { handlerExecuted: true, candidateId, selectionChanged: false, candidateResolved: false, portalRendered: false, modalMounted: false, remainedMounted: false };
+    setSelectedProviderCandidateId(candidateId);
+    setMessage({ type: "", text: "" });
+  };
+
+  const handleCloseProviderCandidateReview = () => {
+    setSelectedProviderCandidateId("");
+    setProviderEvidenceState({ candidateId: "", status: "idle", report: null, error: "" });
+  };
+
+  const handleApproveProviderCandidate = async (candidate) => {
+    if (!selectedSubjectDeal || providerImportInFlightRef.current) return;
+    const candidateId = candidate.id;
+    const importSubjectId = selectedSubjectDeal.id;
+    providerImportInFlightRef.current = candidateId;
+    setProviderImportState({ candidateId, status: "importing", message: "Importing…" });
+    setMessage({ type: "", text: "" });
+    try {
+      const result = await importProviderCandidateTransaction({
+        fetchImpl: fetch,
+        url: buildApiUrl("/api/comps"),
+        candidate,
+        subjectDeal: selectedSubjectDeal,
+        headers: buildSessionAuthHeaders({ "Content-Type": "application/json" }),
+        timeoutMs: 15000,
+      });
+      if (!mountedRef.current || subjectDealIdRef.current !== importSubjectId) return;
+      const nextComps = result.comps;
+      setComps(nextComps);
+      setProviderCandidates((current) => current.filter((entry) => entry.id !== candidateId));
+      setSelectedProviderCandidateId("");
+      setProviderImportState({ candidateId, status: result.status === "succeeded" ? "succeeded" : "reconciled", message: result.status === "succeeded" ? "Imported successfully" : "Already imported / reconciled" });
+      if (typeof window !== "undefined") window.localStorage.setItem("royalStarComps", JSON.stringify(nextComps));
+      setMessage({ type: "success", text: result.status === "succeeded" ? "Provider comp imported successfully. Include in ARV remains off pending valuation review." : "Provider comp was already persisted and has been reconciled. Include in ARV remains off." });
+    } catch (error) {
+      if (!mountedRef.current || subjectDealIdRef.current !== importSubjectId) return;
+      const timedOut = error?.category === "timeout";
+      setProviderImportState({ candidateId, status: timedOut ? "timed_out" : "failed", message: error?.message || "Import failed" });
+      setMessage({ type: "error", text: timedOut ? "Import timed out — verify before retrying. The candidate remains in review." : "Unable to import comp. Persistence was not confirmed; the candidate remains in review." });
+    } finally {
+      if (providerImportInFlightRef.current === candidateId) providerImportInFlightRef.current = "";
+    }
+  };
+
+  const handleRejectProviderCandidate = (candidate) => {
+    if (providerImportInFlightRef.current) return;
+    const next = rejectProviderReviewCandidate(providerCandidates, rejectedProviderCandidates, candidate);
+    setProviderCandidates(next.active);
+    setRejectedProviderCandidates(next.rejected);
+    setSelectedProviderCandidateId("");
+    setMessage({ type: "success", text: "Provider candidate rejected. No comp was persisted." });
   };
 
   const handlePhotoUpload = async (event) => {
@@ -799,7 +987,7 @@ export default function CompDatabase({
             notes: "User-uploaded photo pending review and rights confirmation.",
           },
         ];
-        const payload = normalizeCompPayload({
+        const payload = buildCompCreatePayload(normalizeCompPayload({
           ...existingComp,
           media: nextMedia,
           mediaRightsStatus: "REMOTE_REFERENCE_ONLY",
@@ -814,7 +1002,7 @@ export default function CompDatabase({
             rightsMode: "REMOTE_REFERENCE_ONLY",
             approvedForExport: false,
           }),
-        });
+        }), selectedSubjectDeal);
         const savedComp = await persistComp(payload, existingComp);
         const nextComps = existingComp ? comps.map((entry) => (entry.id === existingComp.id ? { ...entry, ...savedComp, id: existingComp.id } : entry)) : [...comps, savedComp];
         setComps(nextComps);
@@ -839,6 +1027,11 @@ export default function CompDatabase({
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+    if (!selectedSubjectDeal) {
+      setMessage({ type: "error", text: "Select a subject deal before adding a comp." });
+      return;
+    }
+
     if (!formValues.compAddress.trim()) {
       setMessage({ type: "error", text: "Comp address is required." });
       return;
@@ -861,16 +1054,21 @@ export default function CompDatabase({
     }
 
     const existingComp = comps.find((comp) => comp.id === selectedCompId);
-    const normalizedPayload = normalizeCompPayload({
+    const normalizedPayload = buildCompCreatePayload(normalizeCompPayload({
       ...formValues,
-      subjectProperty: selectedSubjectDeal?.propertyAddress || formValues.subjectProperty,
       provider: "manual",
       providerImported: false,
       manuallyEntered: true,
       verified: false,
       inclusionStatus: "pending",
-    });
-    const savedComp = await persistComp(normalizedPayload, existingComp);
+    }), selectedSubjectDeal);
+    let savedComp;
+    try {
+      savedComp = await persistComp(normalizedPayload, existingComp);
+    } catch (error) {
+      setMessage({ type: "error", text: existingComp ? "Unable to update comp. No changes were saved." : "Unable to add comp. Persistence was not confirmed." });
+      return;
+    }
 
     const nextComps = existingComp ? comps.map((comp) => (comp.id === existingComp.id ? { ...comp, ...savedComp, id: existingComp.id } : comp)) : [...comps, savedComp];
     setComps(nextComps);
@@ -979,7 +1177,7 @@ export default function CompDatabase({
     if (!target) return;
 
     try {
-      const response = await fetch(buildApiUrl(`/api/comps/${compId}`), { method: "DELETE" });
+      const response = await fetch(buildApiUrl(`/api/comps/${compId}`), { method: "DELETE", headers: buildSessionAuthHeaders() });
       if (!response.ok) throw new Error("Unable to delete comp");
       const nextComps = comps.filter((comp) => comp.id !== compId);
       setComps(nextComps);
@@ -1174,18 +1372,30 @@ export default function CompDatabase({
                 <div style={styles.formActions}>
                   <button type="button" style={styles.secondaryButton} onClick={handleProviderTest} disabled={providerSearchState.loading}>{providerSearchState.loading ? "WORKING…" : "TEST CONNECTION"}</button>
                   <button type="button" style={styles.secondaryButton} onClick={handleSubjectLookup} disabled={providerSearchState.loading}>LOOKUP SUBJECT</button>
-                  <button type="button" style={styles.secondaryButton} onClick={handleFindSoldComps} disabled={providerSearchState.loading}>FIND SOLD COMPS</button>
+                  <button type="button" style={styles.secondaryButton} onClick={() => handleFindSoldComps(false)} disabled={providerSearchState.loading}>FIND SOLD COMPS</button>
+                  <button type="button" style={styles.secondaryButton} onClick={() => handleFindSoldComps(true)} disabled={providerSearchState.loading}>REFRESH LIVE COMPS</button>
                 </div>
-                <div style={styles.providerMeta}>Criteria: same type • 6 months • 0.5 mi • ±20% sqft • ±1 bed/bath • review-first import.</div>
+                <div style={styles.providerMeta}>Criteria: Tier 1 0.5 mi/6 mo/±20% sqft; then controlled expansion through Tier 4 (1.5 mi/18 mo/±30% sqft) only when fewer than 3 qualify. Same type • ±1 bed/bath • review-first.</div>
                 <div style={styles.providerMeta}>{providerSearchState.summary || (providerStatus.configured ? "Ready for a safe provider lookup." : "Manual mode only until a local provider key or license is configured.")}</div>
                 <div style={styles.providerMeta}>Providers: {Array.isArray(providerStatus.availableProviders) ? providerStatus.availableProviders.join(", ") : "manual"}</div>
                 <div style={styles.providerMeta}>Credential readiness: {providerStatus.keyPresent ? "Local credentials detected" : "Awaiting local credentials / licensing"}</div>
                 <div style={styles.providerMeta}>Media rights: {compMediaSummary.rightsStatus || "REMOTE_REFERENCE_ONLY"} • Review required: {compMediaSummary.reviewRequired ? "Yes" : "No"}</div>
                 <div style={styles.providerMeta}>Media available: {compMediaSummary.mediaCount} • Primary photo: {compMediaSummary.primaryPhoto ? compMediaSummary.primaryPhoto.label || "Photo" : "None"}</div>
                 <div style={styles.providerMeta}>Search session: {providerSessionSummary.latestSession?.status || "idle"} • Cache entries: {providerSessionSummary.cacheEntries || 0}</div>
+                <div style={styles.providerMeta}>Provider candidates retrieved: {providerSearchCounts.providerCandidatesRetrieved}</div>
+                <div style={styles.providerMeta}>Qualifying candidates returned: {providerSearchCounts.qualifyingCandidatesReturned} • Active review queue: {reviewCounts.qualifyingReviewCandidates} • Deduplicated before queue: {providerSearchCounts.deduplicatedCandidates}</div>
+                <div style={styles.providerMeta}>Rejected this search: {reviewCounts.rejectedCandidates} • Persisted pending: {reviewCounts.persistedPendingComps} • Persisted approved: {reviewCounts.approvedComps} • Included in ARV: {reviewCounts.includedInArvComps}</div>
+                <div style={styles.providerMeta}>Qualifying review candidates: {reviewCounts.qualifyingReviewCandidates} • Rejected this search: {reviewCounts.rejectedCandidates}</div>
+                {providerSearchDiagnostics.pagesRetrieved ? <div style={styles.providerMeta}>Pages retrieved: {providerSearchDiagnostics.pagesRetrieved} • Provider records retrieved: {providerSearchDiagnostics.providerRecordsRetrieved || 0} • Normalized: {providerSearchDiagnostics.normalizedRecords || 0} • Normalization failures: {providerSearchDiagnostics.failedNormalizationRecords || 0} • Invalid sales: {providerSearchDiagnostics.invalidSaleRecords || 0} • Future sales: {providerSearchDiagnostics.futureSaleRecords || 0} • Missing distance/type: {providerSearchDiagnostics.missingDistanceRecords || 0}/{providerSearchDiagnostics.missingPropertyTypeRecords || 0} • Provider cap reached: {providerSearchDiagnostics.providerCapReached ? "Yes" : "No"}</div> : null}
+                {providerSearchDiagnostics.pagesRetrieved ? <div style={styles.providerMeta}>Provider deduplicated: {providerSearchDiagnostics.deduplicatedRecords || 0} • Type/sqft/bed/bath rejections: {providerSearchDiagnostics.propertyTypeMismatches || 0}/{providerSearchDiagnostics.squareFeetRejections || 0}/{providerSearchDiagnostics.bedroomRejections || 0}/{providerSearchDiagnostics.bathroomRejections || 0} • Final review candidates: {providerSearchDiagnostics.finalReviewCandidateCount || 0}</div> : null}
+                {providerSearchDiagnostics.cacheStatus ? <div style={styles.providerMeta}>Cache: {providerSearchDiagnostics.cacheStatus} • Age: {providerSearchDiagnostics.cacheAgeMs === null ? "—" : `${Math.round(providerSearchDiagnostics.cacheAgeMs / 3600000 * 10) / 10}h`} • TTL: {Math.round((providerSearchDiagnostics.cacheTtlMs || 0) / 3600000 * 10) / 10}h • Upstream requests this search: {providerSearchDiagnostics.upstreamProviderRequestsThisSearch || 0} • Avoided: {providerSearchDiagnostics.requestsAvoidedByCache || 0} • Coalesced: {providerSearchDiagnostics.requestCoalesced ? "Yes" : "No"} • Last live refresh: {providerSearchDiagnostics.lastLiveProviderRefresh || "—"}</div> : null}
                 <div style={styles.providerMeta}>Upload: {selectedCompId ? "Attach a review-only photo to the selected comp" : "Select a comp before uploading"}</div>
                 <div style={{ marginTop: "10px", border: `1px solid ${BORDER}`, padding: "8px", background: "#0b0b0b" }}>
-                  <div style={{ color: GOLD, fontSize: "12px" }}>ADMINISTRATOR PROVIDER ONBOARDING</div>
+                  <div style={{ color: GOLD, fontSize: "12px" }}>ACTIVE SERVER PROVIDER</div>
+                  <div style={styles.providerMeta}>Active Provider: {providerStatus.provider === "rentcast" ? "RentCast" : providerStatus.provider || "Manual"}</div>
+                  <div style={styles.providerMeta}>Provider Source: {providerStatus.keyPresent ? "Server Environment" : "Local / Manual"} • Connection: {providerSearchState.status === "Connected" ? "Connected" : providerStatus.status}</div>
+                  <div style={styles.providerMeta}>Credential: {providerStatus.keyPresent ? "Configured securely" : "Not configured"}</div>
+                  <div style={{ color: GOLD, fontSize: "12px", marginTop: "10px" }}>ADMINISTRATOR PROVIDER OVERRIDE</div>
                   <div style={{ display: "grid", gap: "8px", marginTop: "8px" }}>
                     <select name="provider" value={providerConfigForm.provider} onChange={handleProviderConfigChange} style={styles.select}>
                       <option value="manual">Manual</option>
@@ -1196,9 +1406,9 @@ export default function CompDatabase({
                       <option value="county-import">County Import</option>
                     </select>
                     <input name="baseUrl" placeholder="Base URL" value={providerConfigForm.baseUrl} onChange={handleProviderConfigChange} style={styles.input} />
-                    <input name="apiKey" placeholder="API Key (masked locally)" value={providerConfigForm.apiKey} onChange={handleProviderConfigChange} style={styles.input} />
+                    <input type="password" name="apiKey" placeholder="API Key (masked locally)" value={providerConfigForm.apiKey} onChange={handleProviderConfigChange} style={styles.input} />
                     <input name="clientId" placeholder="Client ID" value={providerConfigForm.clientId} onChange={handleProviderConfigChange} style={styles.input} />
-                    <input name="clientSecret" placeholder="Client Secret" value={providerConfigForm.clientSecret} onChange={handleProviderConfigChange} style={styles.input} />
+                    <input type="password" name="clientSecret" placeholder="Client Secret" value={providerConfigForm.clientSecret} onChange={handleProviderConfigChange} style={styles.input} />
                     <input name="datasetId" placeholder="Dataset ID" value={providerConfigForm.datasetId} onChange={handleProviderConfigChange} style={styles.input} />
                     <select name="mediaRights" value={providerConfigForm.mediaRights} onChange={handleProviderConfigChange} style={styles.select}>
                       <option value="REMOTE_REFERENCE_ONLY">Remote Reference Only</option>
@@ -1214,8 +1424,8 @@ export default function CompDatabase({
                     <button type="button" style={styles.secondaryButton} onClick={() => handleProviderAction("rotate")}>Rotate Credential</button>
                     <button type="button" style={styles.secondaryButton} onClick={() => handleProviderAction("remove")}>Remove Credential</button>
                   </div>
-                  <div style={styles.providerMeta}>Status: {providerOnboardingState.status} • Active: {providerOnboardingState.active ? "Yes" : "No"}</div>
-                  <div style={styles.providerMeta}>Credential Status: {providerOnboardingState.maskedCredentialStatus?.secretMasked || "not-set"}</div>
+                  <div style={styles.providerMeta}>Override Status: {providerOnboardingState.status} • Override Active: {providerOnboardingState.active ? "Yes" : "No"}</div>
+                  <div style={styles.providerMeta}>Override Credential: {providerOnboardingState.maskedCredentialStatus?.configured ? "Configured securely" : "Not configured"}</div>
                 </div>
                 <label style={styles.label}><span style={styles.fieldLabel}>Upload Property Photo</span><input type="file" accept="image/*" onChange={handlePhotoUpload} style={styles.input} /></label>
                 {photoUploadState.summary ? <div style={styles.providerMeta}>{photoUploadState.summary}</div> : null}
@@ -1240,9 +1450,9 @@ export default function CompDatabase({
                 <h4 style={styles.sectionTitle}>ARV ANALYSIS</h4>
                 <div style={styles.summaryGrid}>
                   <SummaryCard label="Average Sale Price" value={formatCurrency(summaryStats.averageSalePrice)} />
-                  <SummaryCard label="Median Sale Price" value={formatCurrency([...filteredComps].filter((comp) => comp.included !== false).map((comp) => comp.salePrice).sort((left, right) => left - right)[Math.floor((filteredComps.filter((comp) => comp.included !== false).length - 1) / 2)] || 0)} />
+                  <SummaryCard label="Median Sale Price" value={formatCurrency(summaryStats.medianSalePrice)} />
                   <SummaryCard label="Average Price / Sq Ft" value={formatCurrency(summaryStats.averagePpsf)} />
-                  <SummaryCard label="Median Price / Sq Ft" value={formatCurrency([...(filteredComps.filter((comp) => comp.included !== false).map((comp) => comp.pricePerSqft) || [])].sort((left, right) => left - right)[Math.floor((filteredComps.filter((comp) => comp.included !== false).length - 1) / 2)] || 0)} />
+                  <SummaryCard label="Median Price / Sq Ft" value={formatCurrency(summaryStats.medianPpsf)} />
                   <SummaryCard label="Low ARV" value={formatCurrency(summaryStats.recommendation?.conservative || 0)} />
                   <SummaryCard label="Base ARV" value={formatCurrency(summaryStats.recommendation?.base || 0)} />
                   <SummaryCard label="High ARV" value={formatCurrency(summaryStats.recommendation?.aggressive || 0)} />
@@ -1261,7 +1471,10 @@ export default function CompDatabase({
                     <SummaryCard label="Recommended Range" value={valuationUiModel.summary.recommendedRange} />
                     <SummaryCard label="Likely ARV" value={formatCurrency(valuationUiModel.likelyArv)} />
                     <SummaryCard label="Approved Comps" value={valuationUiModel.approvedComps.length} />
-                    <SummaryCard label="Needs Review" value={valuationUiModel.reviewQueue.length} />
+                    <SummaryCard label="Provider Review Queue" value={reviewCounts.qualifyingReviewCandidates} />
+                    <SummaryCard label="Persisted Pending" value={reviewCounts.persistedPendingComps} />
+                    <SummaryCard label="Persisted Approved" value={reviewCounts.approvedComps} />
+                    <SummaryCard label="Included in ARV" value={reviewCounts.includedInArvComps} />
                   </div>
                   <div style={{ display: "grid", gap: "8px", marginTop: "8px" }}>
                     {valuationUiModel.methods.map((method) => (
@@ -1292,10 +1505,25 @@ export default function CompDatabase({
                   </div>
                   <div style={styles.section}>
                     <h5 style={styles.sectionTitle}>REVIEW QUEUE / REJECTED</h5>
-                    {valuationUiModel.reviewQueue.length === 0 && valuationUiModel.rejectedComps.length === 0 ? (
+                    {providerCandidates.length === 0 && valuationUiModel.reviewQueue.length === 0 && valuationUiModel.rejectedComps.length === 0 && rejectedProviderCandidates.length === 0 ? (
                       <div style={styles.summaryLabel}>No review queue items.</div>
                     ) : (
                       <>
+                        {providerCandidates.map((candidate) => (
+                          <div key={`provider-review-${candidate.id}`} style={{ border: `1px solid ${GOLD}`, padding: "8px", marginBottom: "8px", background: "rgba(242,197,0,0.06)" }}>
+                            <div style={{ color: GOLD, fontSize: "12px" }}>{candidate.compAddress || candidate.address || "Provider candidate"}</div>
+                            <div style={styles.summaryLabel}>{candidate.city}, {candidate.state} {candidate.zipCode} • {formatCurrency(Number(candidate.salePrice))} • Sold {formatDate(candidate.saleDate)}</div>
+                            <div style={styles.summaryLabel}>{candidate.searchTierLabel || `Tier ${candidate.searchTier || "—"}`} • Similarity {Number(candidate.similarityScore || 0).toFixed(1)} • {candidate.distanceMiles === "" ? "Distance unavailable" : `${candidate.distanceMiles} mi`}</div>
+                            <div style={styles.summaryLabel}>{candidate.squareFeet || "—"} sq ft • {candidate.bedrooms || "—"} bd • {candidate.bathrooms || "—"} ba • {candidate.propertyType || "—"}</div>
+                            <div style={styles.summaryLabel}>Sale age: {candidate.saleAgeDays ?? "—"} days / {candidate.saleAgeMonths ?? "—"} months • Sqft variance: {candidate.squareFeetVariancePercentage ?? "—"}% • Bed variance: {candidate.bedroomVariance ?? "—"} • Bath variance: {candidate.bathroomVariance ?? "—"}</div>
+                            <div style={styles.summaryLabel}>Provider: {candidate.provider || candidate.source || "Provider"} • ID: {candidate.providerRecordId || candidate.id}</div>
+                            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "8px" }}>
+                              <button type="button" style={styles.tableButton} onClick={() => handleReviewProviderCandidate(candidate)}>REVIEW / VIEW</button>
+                              <button type="button" style={styles.tableButton} disabled={providerImportState.status === "importing"} onClick={() => handleApproveProviderCandidate(candidate)}>{providerImportState.status === "importing" && providerImportState.candidateId === candidate.id ? "IMPORTING…" : "APPROVE / IMPORT"}</button>
+                              <button type="button" style={styles.tableButton} disabled={providerImportState.status === "importing"} onClick={() => handleRejectProviderCandidate(candidate)}>REJECT</button>
+                            </div>
+                          </div>
+                        ))}
                         {valuationUiModel.reviewQueue.map((comp) => (
                           <div key={`review-${comp.id}`} style={{ border: `1px solid ${BORDER}`, padding: "8px", marginBottom: "8px", background: "#0b0b0b" }}>
                             <div style={{ color: GOLD, fontSize: "12px" }}>{comp.compAddress || comp.address || "Comp"}</div>
@@ -1306,6 +1534,12 @@ export default function CompDatabase({
                           <div key={`reject-${comp.id}`} style={{ border: `1px solid #ff6b6b`, padding: "8px", marginBottom: "8px", background: "rgba(255,107,107,0.08)" }}>
                             <div style={{ color: GOLD, fontSize: "12px" }}>{comp.compAddress || comp.address || "Comp"}</div>
                             <div style={{ color: "#ff6b6b", fontSize: "11px" }}>Rejected / excluded from advisory set</div>
+                          </div>
+                        ))}
+                        {rejectedProviderCandidates.map((comp) => (
+                          <div key={`provider-reject-${comp.id}`} style={{ border: `1px solid #ff6b6b`, padding: "8px", marginBottom: "8px", background: "rgba(255,107,107,0.08)" }}>
+                            <div style={{ color: GOLD, fontSize: "12px" }}>{comp.compAddress || comp.address || "Provider candidate"}</div>
+                            <div style={{ color: "#ff6b6b", fontSize: "11px" }}>Rejected from temporary review • not persisted</div>
                           </div>
                         ))}
                       </>
@@ -1342,7 +1576,7 @@ export default function CompDatabase({
             </div>
             <div style={{ marginTop: "10px", border: `1px solid ${BORDER}`, padding: "8px", background: "#0b0b0b" }}>
               <div style={{ color: GOLD, fontSize: "12px" }}>REVIEW-FIRST STATUS</div>
-              <div style={styles.summaryLabel}>Live providers remain disabled. Imports stay pending review and do not alter approved ARVs.</div>
+              <div style={styles.summaryLabel}>{providerStatus.configured ? `${providerStatus.provider === "rentcast" ? "RentCast" : providerStatus.provider} is active. Provider results remain pending review and do not alter approved ARVs until explicitly imported and included.` : "No live provider is configured. Manual imports remain review-first."}</div>
             </div>
             <div style={{ display: "grid", gap: "8px", marginTop: "10px" }}>
               <div style={{ border: `1px solid ${BORDER}`, padding: "8px", background: "#0b0b0b" }}>
@@ -1365,14 +1599,15 @@ export default function CompDatabase({
             {opsMessage.text ? <div style={opsMessage.type === "success" ? styles.successMessage : styles.errorMessage}>{opsMessage.text}</div> : null}
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "10px" }}>
               <button type="button" style={styles.secondaryButton} onClick={handleSaveOpsTemplate}>SAVE TEMPLATE</button>
-              <button type="button" style={styles.secondaryButton} onClick={handleRecordOpsSearch}>RECORD SEARCH</button>
+              <button type="button" style={styles.secondaryButton} onClick={handleRecordOpsSearch}>RECORD OPERATIONS AUDIT</button>
               <button type="button" style={styles.secondaryButton} onClick={handleLifecycleTransition}>APPLY LIFECYCLE</button>
               <button type="button" style={styles.secondaryButton} onClick={handleBulkReview}>BULK REVIEW</button>
             </div>
             <div style={styles.summaryGrid}>
               <SummaryCard label="Templates" value={opsTemplates.length} />
-              <SummaryCard label="Search History" value={opsSearchHistory.length} />
+              <SummaryCard label="Provider Search History" value={providerSearchHistory.length} />
               <SummaryCard label="Freshness" value={opsFreshness?.status || "Unknown"} />
+              <SummaryCard label="Provider Data Freshness" value={providerFreshness?.status || "Unknown"} />
               <SummaryCard label="Readiness" value={opsReadiness?.status || "Not Ready"} />
             </div>
             <div style={{ display: "grid", gap: "8px" }}>
@@ -1381,11 +1616,21 @@ export default function CompDatabase({
                 {opsTemplates.slice(0, 3).map((template) => <div key={template.id} style={{ ...styles.summaryLabel, marginTop: "6px" }}>{template.name}</div>)}
               </div>
               <div style={{ border: `1px solid ${BORDER}`, padding: "8px", background: "#0b0b0b" }}>
-                <div style={{ color: GOLD, fontSize: "12px" }}>RECENT SEARCHES</div>
-                {opsSearchHistory.slice(0, 3).map((entry) => <div key={entry.id} style={{ ...styles.summaryLabel, marginTop: "6px" }}>{entry.subjectProperty || "Search"} • {entry.template || "Template"}</div>)}
+                <div style={{ color: GOLD, fontSize: "12px" }}>RECENT PROVIDER SEARCHES</div>
+                {providerSearchHistory.slice(-3).reverse().map((entry, index) => <div key={entry.id || `${entry.timestamp}-${index}`} style={{ ...styles.summaryLabel, marginTop: "6px" }}>
+                  {entry.query?.address || entry.query?.subjectProperty || "Search"} • {entry.query?.provider || entry.provider || "Provider"} • {entry.timestamp ? new Date(entry.timestamp).toLocaleString() : "Unknown time"} • {entry.diagnostics?.cacheStatus || entry.cacheStatus || "Cache status unavailable"} • {entry.resultCount ?? "—"} qualifying
+                </div>)}
+                {providerSearchHistory.length === 0 ? <div style={{ ...styles.summaryLabel, marginTop: "6px" }}>No provider searches recorded.</div> : null}
               </div>
               <div style={{ border: `1px solid ${BORDER}`, padding: "8px", background: "#0b0b0b" }}>
-                <div style={{ color: GOLD, fontSize: "12px" }}>DIAGNOSTICS</div>
+                <div style={{ color: GOLD, fontSize: "12px" }}>PROVIDER SEARCH / CACHE</div>
+                <div style={styles.summaryLabel}>Cache status: {providerCacheDiagnostics.cacheStatus || "Unavailable"} • Age: {providerCacheDiagnostics.cacheAgeMs == null ? "—" : `${Math.round(providerCacheDiagnostics.cacheAgeMs / 3600000 * 10) / 10}h`} • TTL: {providerCacheDiagnostics.cacheTtlMs ? `${Math.round(providerCacheDiagnostics.cacheTtlMs / 3600000 * 10) / 10}h` : "—"}</div>
+                <div style={styles.summaryLabel}>Upstream requests: {providerCacheDiagnostics.upstreamProviderRequestsThisSearch ?? "—"} • Avoided: {providerCacheDiagnostics.requestsAvoidedByCache ?? "—"} • Coalesced: {providerCacheDiagnostics.requestCoalesced ? "Yes" : "No"}</div>
+                <div style={styles.summaryLabel}>Last live refresh: {providerCacheDiagnostics.lastLiveProviderRefresh || "—"} • Stale cache available: {providerCacheDiagnostics.staleCacheAvailable ? "Yes" : "No"}</div>
+                <div style={styles.summaryLabel}>Pages: {providerCacheDiagnostics.pagesRetrieved ?? "—"} • Provider records: {providerCacheDiagnostics.providerRecordsRetrieved ?? "—"} • Provider cap reached: {providerCacheDiagnostics.providerCapReached ? "Yes" : "No"}</div>
+              </div>
+              <div style={{ border: `1px solid ${BORDER}`, padding: "8px", background: "#0b0b0b" }}>
+                <div style={{ color: GOLD, fontSize: "12px" }}>OPERATIONS DIAGNOSTICS</div>
                 <div style={styles.summaryLabel}>Manual mode: {opsDiagnostics?.manualMode ? "Active" : "Inactive"} • Queue: {opsDiagnostics?.refreshQueueStatus || "Disabled"} • Redacted: {opsDiagnostics?.redacted ? "Yes" : "No"}</div>
               </div>
             </div>
@@ -1523,6 +1768,70 @@ export default function CompDatabase({
           ) : null}
         </section>
       </main>
+      {selectedProviderCandidate && typeof document !== "undefined" ? createPortal((
+        <div style={styles.reviewOverlay} role="dialog" aria-modal="true" aria-labelledby="provider-candidate-review-title" onMouseDown={(event) => { if (event.target === event.currentTarget) handleCloseProviderCandidateReview(); }}>
+          <div ref={(node) => { if (node) providerReviewTraceRef.current = { ...providerReviewTraceRef.current, modalMounted: true }; }} style={styles.reviewDialog} onMouseDown={(event) => event.stopPropagation()} data-review-candidate-key={selectedProviderCandidate.reviewCandidateKey || getProviderReviewCandidateKey(selectedProviderCandidate)} data-review-mounted="true">
+            <div style={styles.reviewHeader}>
+              <div>
+                <h2 id="provider-candidate-review-title" style={styles.reviewTitle}>PROVIDER CANDIDATE REVIEW</h2>
+                <div style={styles.reviewPending}>NOT YET APPROVED • NOT INCLUDED IN ARV</div>
+              </div>
+              <button ref={providerReviewCloseButtonRef} type="button" style={styles.tableButton} onClick={handleCloseProviderCandidateReview}>CLOSE / BACK WITHOUT CHANGES</button>
+            </div>
+            <div style={styles.reviewGrid}>
+              <div style={styles.detailRow}><span>Property</span><span>{selectedProviderCandidate.compAddress || selectedProviderCandidate.address || "—"}</span></div>
+              <div style={styles.detailRow}><span>Location</span><span>{selectedProviderCandidate.city || "—"}, {selectedProviderCandidate.state || "—"} {selectedProviderCandidate.zipCode || ""}</span></div>
+              <div style={styles.detailRow}><span>Sale Price</span><span>{selectedProviderCandidate.salePrice === "" ? "—" : formatCurrency(Number(selectedProviderCandidate.salePrice))}</span></div>
+              <div style={styles.detailRow}><span>Sale Date</span><span>{selectedProviderCandidate.saleDate ? formatDate(selectedProviderCandidate.saleDate) : "—"}</span></div>
+              <div style={styles.detailRow}><span>Distance</span><span>{selectedProviderCandidate.distanceMiles === "" ? "—" : `${selectedProviderCandidate.distanceMiles} mi`}</span></div>
+              <div style={styles.detailRow}><span>Property Type</span><span>{selectedProviderCandidate.propertyType || "—"}</span></div>
+              <div style={styles.detailRow}><span>Square Feet</span><span>{selectedProviderCandidate.squareFeet || "—"}</span></div>
+              <div style={styles.detailRow}><span>Bedrooms / Bathrooms</span><span>{selectedProviderCandidate.bedrooms ?? "—"} / {selectedProviderCandidate.bathrooms ?? "—"}</span></div>
+              <div style={styles.detailRow}><span>Year Built</span><span>{selectedProviderCandidate.yearBuilt || "—"}</span></div>
+              <div style={styles.detailRow}><span>Search Tier</span><span>{selectedProviderCandidate.searchTierLabel || `Tier ${selectedProviderCandidate.searchTier || "—"}`}</span></div>
+              <div style={styles.detailRow}><span>Similarity Score</span><span>{Number(selectedProviderCandidate.similarityScore || 0).toFixed(1)}</span></div>
+              <div style={styles.detailRow}><span>Square-Foot Variance</span><span>{selectedProviderCandidate.squareFeetVariancePercentage ?? "—"}%</span></div>
+              <div style={styles.detailRow}><span>Bedroom / Bathroom Variance</span><span>{selectedProviderCandidate.bedroomVariance ?? "—"} / {selectedProviderCandidate.bathroomVariance ?? "—"}</span></div>
+              <div style={styles.detailRow}><span>Sale Age / Recency</span><span>{selectedProviderCandidate.saleAgeDays ?? "—"} days / {selectedProviderCandidate.saleAgeMonths ?? "—"} months</span></div>
+              <div style={styles.detailRow}><span>Provider</span><span>{selectedProviderCandidate.provider || selectedProviderCandidate.source || "Provider"}</span></div>
+              <div style={styles.detailRow}><span>Provider / Property ID</span><span>{selectedProviderCandidate.providerRecordId || selectedProviderCandidate.id || "—"}</span></div>
+            </div>
+            <div style={styles.reviewEvidence}>
+              <div style={styles.fieldLabel}>QUALIFICATION / ACCEPTANCE REASONS</div>
+              <div style={styles.providerMeta}>{(selectedProviderCandidate.acceptanceReasons || []).join(" • ") || "Meets the selected Royal Star tier criteria."}</div>
+            </div>
+            <div style={styles.reviewWarning}>
+              Evidence quality: {selectedProviderCandidate.searchTier === 1 ? "Preferred Tier 1 evidence." : `Expanded Tier ${selectedProviderCandidate.searchTier || "—"} evidence is weaker than preferred Tier 1 evidence and remains subject to the existing confidence cap.`}
+            </div>
+            <div style={styles.reviewEvidence}>
+              <div style={styles.fieldLabel}>PHOTO / MEDIA REFERENCE</div>
+              <div style={styles.providerMeta}>{selectedProviderMedia ? (selectedProviderMedia.label || selectedProviderMedia.url || selectedProviderMedia.sourceUrl || selectedProviderMedia.referenceUrl) : "No provider-permitted media reference available."}</div>
+            </div>
+            <div style={styles.reviewEvidence}>
+              <div style={styles.fieldLabel}>COMP VERIFICATION / EVIDENCE ENGINE</div>
+              {providerEvidenceState.status === "idle" ? <div style={styles.providerMeta}>Run verification to collect cached public-record, transfer, tax, listing, condition, rights-safe media, provenance, and discrepancy evidence. Results are advisory and never auto-approve a comp.</div> : null}
+              {providerEvidenceState.status === "loading" ? <div style={styles.providerMeta}>Collecting authorized evidence…</div> : null}
+              {providerEvidenceState.error ? <div style={styles.errorMessage}>{providerEvidenceState.error}</div> : null}
+              {providerEvidenceState.report ? (
+                <div style={styles.warningList}>
+                  <div style={styles.providerMeta}>Verified Comp Score: {providerEvidenceState.report.verifiedCompScore}/100 • Recommendation: {providerEvidenceState.report.recommendation} • {providerEvidenceState.report.cached ? "Cached evidence" : "Fresh evidence"}</div>
+                  <div style={styles.providerMeta}>Coverage: {Object.entries(providerEvidenceState.report.coverage || {}).filter(([, value]) => value).map(([key]) => key).join(" • ") || "No verified coverage"}</div>
+                  <div style={styles.providerMeta}>Arm's-length review: {providerEvidenceState.report.armLengthAssessment?.status || "UNKNOWN"} • Discrepancies: {(providerEvidenceState.report.discrepancies || []).length} • Provenance records: {(providerEvidenceState.report.provenance || []).length}</div>
+                  <div style={styles.providerMeta}>Rights-safe media references: {(providerEvidenceState.report.media || []).length} • Local provider-image storage: {providerEvidenceState.report.rightsSummary?.locallyStored || 0}</div>
+                  {(providerEvidenceState.report.recommendationReasons || []).map((reason) => <div key={reason} style={styles.warning}>{reason}</div>)}
+                </div>
+              ) : null}
+              <button type="button" style={styles.tableButton} disabled={providerEvidenceState.status === "loading"} onClick={() => handleVerifyProviderCandidate(selectedProviderCandidate, providerEvidenceState.status === "complete")}>{providerEvidenceState.status === "complete" ? "REFRESH EVIDENCE" : "VERIFY EVIDENCE"}</button>
+            </div>
+            <div style={styles.reviewActions}>
+              <button type="button" style={styles.primaryButton} disabled={providerImportState.status === "importing"} onClick={() => handleApproveProviderCandidate(selectedProviderCandidate)}>{providerImportState.status === "importing" && providerImportState.candidateId === selectedProviderCandidate.id ? "IMPORTING…" : "APPROVE / IMPORT"}</button>
+              <button type="button" style={styles.secondaryButton} disabled={providerImportState.status === "importing"} onClick={() => handleRejectProviderCandidate(selectedProviderCandidate)}>REJECT</button>
+              <button type="button" style={styles.secondaryButton} onClick={handleCloseProviderCandidateReview}>CLOSE / BACK WITHOUT CHANGES</button>
+            </div>
+            {providerImportState.candidateId === selectedProviderCandidate.id && providerImportState.status !== "idle" ? <div style={providerImportState.status === "failed" || providerImportState.status === "timed_out" ? styles.errorMessage : styles.successMessage}>{providerImportState.message}</div> : null}
+          </div>
+        </div>
+      ), document.body) : null}
     </div>
   );
 }
@@ -1595,4 +1904,13 @@ const styles = {
   warningList: { display: "flex", flexDirection: "column", gap: "8px" },
   warning: { border: "1px solid #ff6b6b", color: "#ff6b6b", padding: "8px 10px", fontSize: "12px" },
   detailRow: { display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #2a2400", fontSize: "12px" },
+  reviewOverlay: { position: "fixed", top: 0, right: 0, bottom: 0, left: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", width: "100vw", height: "100vh", minHeight: "100%", padding: "16px", boxSizing: "border-box", overflow: "hidden", visibility: "visible", opacity: 1, pointerEvents: "auto", isolation: "isolate", background: "rgba(0,0,0,0.88)" },
+  reviewDialog: { position: "relative", width: "100%", maxWidth: "820px", maxHeight: "calc(100vh - 32px)", overflowX: "hidden", overflowY: "auto", WebkitOverflowScrolling: "touch", border: `2px solid ${BORDER}`, background: "#0b0b0b", color: GOLD, padding: "18px", boxSizing: "border-box", boxShadow: "0 0 28px rgba(242,197,0,0.2)" },
+  reviewHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap", borderBottom: `1px solid ${BORDER}`, paddingBottom: "12px", marginBottom: "12px" },
+  reviewTitle: { margin: 0, fontSize: "19px", color: GOLD },
+  reviewPending: { marginTop: "6px", color: "#ffcf66", fontSize: "12px", letterSpacing: "0.5px" },
+  reviewGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", columnGap: "18px" },
+  reviewEvidence: { border: `1px solid ${BORDER}`, padding: "10px", marginTop: "12px", background: "#111111" },
+  reviewWarning: { border: "1px solid #ffcf66", padding: "10px", marginTop: "12px", color: "#ffcf66", fontSize: "12px", background: "rgba(255,207,102,0.06)" },
+  reviewActions: { display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "14px" },
 };

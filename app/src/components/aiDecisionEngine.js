@@ -83,7 +83,8 @@ function buildEvidenceModel(deal, analysis) {
   if (purchasePrice <= 0) missingCriticalFields.push('Purchase price');
   if (rehabBudget <= 0) missingCriticalFields.push('Rehab budget');
   if (arv <= 0) missingCriticalFields.push('ARV');
-  if (estimatedRent <= 0) missingCriticalFields.push('Rent support');
+  const rentalStrategy = /brrrr|rental|hold/i.test(String(deal.strategy || deal.exitStrategy || '')) || deal.evaluateRentalBackup === true;
+  if (rentalStrategy && estimatedRent <= 0) missingCriticalFields.push('Rent support');
   if (supportedBaseArv <= 0) missingCriticalFields.push('Supported ARV');
 
   const dataCompleteness = clamp(Math.round((supportingFactors / 7) * 100), 0, 100);
@@ -129,11 +130,12 @@ function buildDealDecision(deal, analysis, evidenceModel) {
   const maxOffer = safeNumber(analysis.maximumAllowableOffer ?? analysis.maxAllowableOffer ?? deal.maximumAllowableOffer);
   const recommendedOffer = safeNumber(analysis.recommendedOffer ?? deal.recommendedOffer);
   const risk = safeNumber(analysis.overallRisk);
+  const rentalDecisionCritical = /brrrr|rental|hold/i.test(String(deal.strategy || deal.exitStrategy || '')) || deal.evaluateRentalBackup === true;
 
   const missingInformation = evidenceModel.missingCriticalFields.slice();
   if (buyBoxResult !== 'PASS' && buyBoxResult !== 'CONDITIONAL PASS') missingInformation.push('Buy-box fit');
   if (cashRequired > cashOnHand && cashOnHand > 0) missingInformation.push('Liquidity confirmation');
-  if (warnings.length === 0 && financingWarnings.length === 0 && evidenceModel.confidenceLabel === 'HIGH' && projectedProfit > 0 && roi > 0.08 && dscr >= 1.2 && monthlyCashFlow >= 0 && buyBoxResult === 'PASS') {
+  if (warnings.length === 0 && financingWarnings.length === 0 && evidenceModel.confidenceLabel === 'HIGH' && projectedProfit > 0 && roi > 0.08 && (!rentalDecisionCritical || (dscr >= 1.2 && monthlyCashFlow >= 0)) && buyBoxResult === 'PASS') {
     return {
       recommendedAction: 'PROCEED',
       confidenceLabel: 'HIGH',
@@ -232,7 +234,7 @@ function buildDealDecision(deal, analysis, evidenceModel) {
     };
   }
 
-  if (projectedProfit <= 0 || roi <= 0 || monthlyCashFlow < 0 || dscr < 1 || risk > 60 || warnings.some((warning) => warning.toLowerCase().includes('negative')) || financingWarnings.some((warning) => warning.toLowerCase().includes('critical')) || buyBoxResult !== 'PASS') {
+  if (projectedProfit <= 0 || roi <= 0 || (rentalDecisionCritical && (monthlyCashFlow < 0 || dscr < 1)) || risk > 60 || warnings.some((warning) => warning.toLowerCase().includes('negative')) || financingWarnings.some((warning) => warning.toLowerCase().includes('critical')) || buyBoxResult !== 'PASS') {
     return {
       recommendedAction: 'PAUSE',
       confidenceLabel: evidenceModel.confidenceLabel,

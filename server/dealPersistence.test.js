@@ -40,6 +40,20 @@ test("buildPersistedDealPayload preserves an explicit financing cost when it is 
   assert.equal(persisted.financials.financingCostSource, "manual-override");
 });
 
+test("buildPersistedDealPayload preserves canonical explicit total holding costs", () => {
+  const persisted = buildPersistedDealPayload({
+    propertyAddress: "123 Main St",
+    purchasePrice: 135000,
+    rehabBudget: 60000,
+    estimatedArv: 275000,
+    holdingMonths: 3,
+    holdingCosts: 6000,
+  });
+
+  assert.equal(persisted.holdingMonths, 3);
+  assert.equal(persisted.holdingCosts, 6000);
+});
+
 test("buildPersistedDealPayload writes shared underwriting risk and recommendation fields", () => {
   const persisted = buildPersistedDealPayload({
     propertyAddress: "952 Goss Rd",

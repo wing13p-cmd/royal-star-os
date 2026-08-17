@@ -270,8 +270,8 @@ test("offer preview switches to approved valuation source after ARV approval", a
 test("buy box policy evaluates target market rules", () => {
   const covington = evaluateCovingtonBuyBox({ zipCode: "41011", propertyType: "Single Family", units: 1, squareFeet: 1500, rehabBudget: 50000, strategy: "Flip" }, { arvConfidenceScore: 78, expectedProfit: 35000 });
   const cincinnati = evaluateCincinnatiBuyBox({ zipCode: "45211", propertyType: "Single Family", units: 1, squareFeet: 1450, rehabBudget: 58000, strategy: "BRRRR" }, { arvConfidenceScore: 72, expectedProfit: 28000 });
-  assert.ok(["PASS", "CONDITIONAL PASS", "REVIEW REQUIRED"].includes(covington.result));
-  assert.ok(["PASS", "CONDITIONAL PASS", "REVIEW REQUIRED"].includes(cincinnati.result));
+  assert.ok(["PASS", "REVIEW"].includes(covington.result));
+  assert.ok(["PASS", "REVIEW"].includes(cincinnati.result));
 });
 
 test("buy box evaluation hard-fails non 1-4 unit properties", async () => {
@@ -296,6 +296,15 @@ test("appraiser packet support includes governed comp set and valuation range", 
   assert.equal(support.ok, true);
   assert.ok(Array.isArray(support.compSet));
   assert.ok(support.lowBaseHighRange.base > 0);
+});
+
+test("unified valuation output includes centralized appraisal intelligence", () => {
+  const { db } = createFixture();
+  const result = deriveUnifiedUnderwritingIntelligence(db.deals[0], db.comps, [], {});
+  assert.equal(result.appraisalIntelligence.dealId, "deal-1");
+  assert.equal(result.appraisalIntelligence.methodology, "QUALITY_WEIGHTED_PPSF");
+  assert.equal(typeof result.appraisalIntelligence.appraisalStatus, "string");
+  assert.ok(result.appraisalIntelligence.supportedArv > 0);
 });
 
 test("audit histories are generated for valuation and offer actions", async () => {

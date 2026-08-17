@@ -1,28 +1,11 @@
 import { buildApiUrl } from './apiClient.js';
-
-const SESSION_STORAGE_KEYS = ['rsosSessionId', 'rsosAuthSessionId', 'sessionId'];
+import { buildSessionAuthHeaders, clearStoredSessionIds, getStoredSessionId } from './sessionAuth.js';
 
 function getStorage(storage) {
   return storage || (typeof window !== 'undefined' ? window.localStorage : null);
 }
 
-export function getStoredSessionId(storage) {
-  const safeStorage = getStorage(storage);
-  if (!safeStorage) return '';
-  for (const key of SESSION_STORAGE_KEYS) {
-    const value = safeStorage.getItem(key);
-    if (value) return String(value);
-  }
-  return '';
-}
-
-export function clearStoredSessionIds(storage) {
-  const safeStorage = getStorage(storage);
-  if (!safeStorage) return;
-  for (const key of SESSION_STORAGE_KEYS) {
-    safeStorage.removeItem(key);
-  }
-}
+export { clearStoredSessionIds, getStoredSessionId } from './sessionAuth.js';
 
 export async function resolveLogoutAvailability(options = {}) {
   const fetchImpl = options.fetchImpl || (typeof fetch === 'function' ? fetch : null);
@@ -40,10 +23,7 @@ export async function resolveLogoutAvailability(options = {}) {
   try {
     const response = await fetchImpl(buildApiUrl('/api/auth/me'), {
       method: 'GET',
-      headers: {
-        'x-rsos-session-id': sessionId,
-        'x-session-id': sessionId,
-      },
+      headers: buildSessionAuthHeaders({}, storage),
     });
 
     if (response.ok) {
@@ -88,10 +68,7 @@ export async function executeLogout(options = {}) {
   try {
     const response = await fetchImpl(buildApiUrl('/api/auth/logout'), {
       method: 'POST',
-      headers: {
-        'x-rsos-session-id': sessionId,
-        'x-session-id': sessionId,
-      },
+      headers: buildSessionAuthHeaders({}, storage),
     });
 
     if (!response.ok) {

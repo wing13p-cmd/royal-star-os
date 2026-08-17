@@ -19,7 +19,11 @@ export const RSOS_CANONICAL_NAVIGATION = Object.freeze([
   { id: 'material-matrix', label: 'MATERIAL MATRIX', viewKey: 'materialMatrix', icon: '▪', activeKey: 'materialMatrix', permission: 'read', sidebarVisible: true },
 ]);
 
-const KNOWN_VIEW_KEYS = new Set(RSOS_CANONICAL_NAVIGATION.map((entry) => entry.viewKey));
+const AUXILIARY_VIEW_KEYS = ['offerGenerator'];
+const KNOWN_VIEW_KEYS = new Set([
+  ...RSOS_CANONICAL_NAVIGATION.map((entry) => entry.viewKey),
+  ...AUXILIARY_VIEW_KEYS,
+]);
 
 export function getCanonicalNavigation() {
   return RSOS_CANONICAL_NAVIGATION.slice();

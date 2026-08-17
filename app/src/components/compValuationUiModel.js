@@ -4,17 +4,22 @@ function formatCurrency(value) {
 }
 
 function buildCompValuationUiModel({ comps = [], subjectDeal = null } = {}) {
-  const includedComps = (comps || []).filter((comp) => comp.included !== false);
-  const approvedComps = includedComps.filter((comp) => comp.inclusionStatus === "approved" || comp.verified);
-  const reviewQueue = includedComps.filter((comp) => comp.inclusionStatus === "pending" || comp.verified === false || (comp.warningFlags || []).length > 0);
-  const pendingImports = includedComps.filter((comp) => {
+  const allComps = comps || [];
+  const includedComps = allComps.filter((comp) => comp.included !== false);
+  const approvedComps = allComps.filter((comp) => !["excluded", "rejected"].includes(comp.inclusionStatus) && (comp.inclusionStatus === "approved" || comp.verified));
+  const reviewQueue = allComps.filter((comp) => !["excluded", "rejected"].includes(comp.inclusionStatus) && (comp.inclusionStatus === "pending" || comp.verified === false || (comp.warningFlags || []).length > 0));
+  const pendingImports = allComps.filter((comp) => {
     const pendingReview = comp.inclusionStatus === "pending" || comp.verified === false;
-    return pendingReview || (comp.providerImported && pendingReview);
+    return !["excluded", "rejected"].includes(comp.inclusionStatus) && (pendingReview || (comp.providerImported && pendingReview));
   });
-  const rejectedComps = (comps || []).filter((comp) => comp.included === false || comp.inclusionStatus === "excluded");
+  const rejectedComps = allComps.filter((comp) => ["excluded", "rejected"].includes(comp.inclusionStatus));
 
-  const baseArv = subjectDeal?.squareFeet && includedComps.length > 0
-    ? (includedComps.reduce((sum, comp) => sum + Number(comp.salePrice || 0), 0) / Math.max(1, includedComps.length)) * Number(subjectDeal.squareFeet || 1)
+  const validPpsf = includedComps
+    .map((comp) => Number(comp.squareFeet) > 0 ? Number(comp.salePrice) / Number(comp.squareFeet) : null)
+    .filter(Number.isFinite);
+  const averagePpsf = validPpsf.length ? validPpsf.reduce((sum, value) => sum + value, 0) / validPpsf.length : 0;
+  const baseArv = subjectDeal?.squareFeet && averagePpsf > 0
+    ? averagePpsf * Number(subjectDeal.squareFeet)
     : 0;
 
   const lowArv = baseArv > 0 ? baseArv * 0.95 : 0;

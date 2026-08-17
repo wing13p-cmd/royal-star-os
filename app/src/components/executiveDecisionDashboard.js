@@ -1,3 +1,5 @@
+import { gradeForScore, deduplicateWarnings } from "./dealIntelligenceTruthEngine.js";
+
 export function safeNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -22,20 +24,25 @@ function formatPercent(value) {
   return `${(parsed * 100).toFixed(1)}%`;
 }
 
-function gradeForScore(score) {
-  if (score >= 85) return "A";
-  if (score >= 70) return "B";
-  if (score >= 55) return "C";
-  if (score >= 40) return "D";
-  return "F";
-}
-
 function normalizeObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
+function hasKnownLiquidity(deal = {}) {
+  return [deal.availableLiquidity, deal.cashOnHand, deal.liquidity].some((value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)));
+}
+
+function isOwnedProject(deal = {}, analysis = {}) {
+  if (analysis.controllingRecommendation?.context === "OWNED_PROJECT") return true;
+  return /owned|rehab|active project|in progress/i.test(String(deal.status || deal.pipelineStage || deal.projectStatus || ""));
+}
+
 function mapDecisionStatus(recommendation, scenarioResult, redTeamResult) {
   const recommendationText = safeDisplay(recommendation, "Insufficient Data").toLowerCase();
+  if (recommendationText.includes("continue") && recommendationText.includes("control")) return "CONTINUE WITH CONTROLS";
+  if (recommendationText.includes("continue")) return "CONTINUE";
+  if (recommendationText.includes("disposition") || recommendationText.includes("exit")) return "EXIT / DISPOSITION REVIEW";
+  if (recommendationText.includes("stop")) return "STOP / DISPOSITION";
   if (recommendationText.includes("conditional")) return "READY WITH CONDITIONS";
   if (recommendationText.includes("strong buy") || recommendationText.includes("buy")) return "READY TO OFFER";
   if (recommendationText.includes("re-underwrite")) return "RE-UNDERWRITE REQUIRED";
@@ -92,15 +99,17 @@ function collectStrengths(deal, analysis, scenarioAnalysis, redTeamReview) {
 function collectRisks(deal, analysis, scenarioAnalysis, redTeamReview) {
   const risks = [];
   if (safeDisplay(analysis.arvConfidence, "Insufficient Data") === "Very Low" || safeDisplay(analysis.arvConfidence, "Insufficient Data") === "Low") risks.push("Unsupported ARV");
-  if (safeNumber(analysis.cashRequired) > safeNumber(deal.cashOnHand)) risks.push("Excessive cash required");
+  deduplicateWarnings(analysis.warningRecords || [], analysis.warnings || [], analysis.financingWarningDetails || [], analysis.financingWarnings || [])
+    .forEach((warning) => risks.push(warning));
+  if (hasKnownLiquidity(deal) && safeNumber(analysis.cashRequired) > safeNumber(deal.availableLiquidity ?? deal.cashOnHand ?? deal.liquidity)) risks.push("Excessive cash required");
   if (safeNumber(scenarioAnalysis?.summary?.failingScenarioCount || 0) > 0) risks.push("Scenario failure");
   if (safeDisplay(redTeamReview?.recommendationSurvivalResult, "Insufficient Data") === "Fails") risks.push("Red-Team recommendation failure");
-  if (safeNumber(analysis.dscr) < 1.2) risks.push("Low DSCR");
+  if (analysis.strategyMetrics?.decisionCritical && analysis.dscr != null && safeNumber(analysis.dscr) < 1.2) risks.push("Low DSCR");
   if (safeNumber(analysis.estimatedFlipProfit) <= 0) risks.push("Negative projected profit");
   if (safeNumber(analysis.monthlyCashFlow) < 0) risks.push("Negative monthly cash flow");
   if (safeDisplay(analysis.buyBoxResult, "Insufficient Data") !== "PASS") risks.push("Outside buy box");
   if (safeDisplay(analysis.recommendedExit, "Insufficient Data") === "Insufficient Data") risks.push("No clear exit strategy");
-  return risks.slice(0, 5);
+  return [...new Set(risks)].slice(0, 5);
 }
 
 function collectBlockingItems(deal, analysis, scenarioAnalysis) {
@@ -108,11 +117,15 @@ function collectBlockingItems(deal, analysis, scenarioAnalysis) {
   if (safeDisplay(analysis.arvConfidence, "Insufficient Data") === "Very Low" || safeDisplay(analysis.arvConfidence, "Insufficient Data") === "Low") {
     items.push({ item: "No supported ARV", reason: "The deal lacks confident valuation support.", owner: "Appraiser Packet Builder", priority: "Decision Blocking", dueStatus: "Pending", resolutionNeeded: "Obtain appraisal or stronger comps." });
   }
-  if (safeNumber(analysis.cashRequired) > safeNumber(deal.cashOnHand)) {
+  if (hasKnownLiquidity(deal) && safeNumber(analysis.cashRequired) > safeNumber(deal.availableLiquidity ?? deal.cashOnHand ?? deal.liquidity)) {
     items.push({ item: "Liquidity gap", reason: "Cash-to-close exceeds available liquidity.", owner: "Lender Dashboard", priority: "Financial", dueStatus: "Pending", resolutionNeeded: "Increase liquidity or revise financing." });
   }
-  if (safeDisplay(analysis.qualificationStatus, "Insufficient Data") !== "Qualified") {
+  const financingActive = analysis.financingTruth?.currentFinancingStatus === "ACTIVE / ENTERED";
+  const lenderLinked = analysis.financingTruth?.lenderRecordStatus === "LINKED";
+  if (!financingActive && lenderLinked && safeDisplay(analysis.qualificationStatus, "Insufficient Data") !== "Qualified") {
     items.push({ item: "No lender approval", reason: "The financing path is not yet qualified.", owner: "Lender Dashboard", priority: "Financing", dueStatus: "Pending", resolutionNeeded: "Secure lender terms." });
+  } else if (financingActive && !lenderLinked) {
+    items.push({ item: "Lender record not linked", reason: "Current financing is entered, but lender documentation is not linked.", owner: "Lender Dashboard", priority: "Data Quality", dueStatus: "Pending", resolutionNeeded: "Link or document the current lender record when available." });
   }
   if (safeDisplay(scenarioAnalysis?.summary?.scenarioSurvivalResult, "Insufficient Data") === "Fails") {
     items.push({ item: "Severe downside failure", reason: "The downside scenarios no longer support the recommendation.", owner: "Deal Analyzer", priority: "Decision Blocking", dueStatus: "Pending", resolutionNeeded: "Re-underwrite the deal." });
@@ -125,13 +138,13 @@ function collectNextActions(deal, analysis, scenarioAnalysis) {
   if (safeDisplay(analysis.arvConfidence, "Insufficient Data") === "Very Low" || safeDisplay(analysis.arvConfidence, "Insufficient Data") === "Low") {
     actions.push({ priority: "Decision Blocking", action: "Order appraisal and refresh comps", reason: "ARV support is weak.", relatedModule: "Comp Database", completionStatus: "Pending" });
   }
-  if (safeNumber(analysis.cashRequired) > safeNumber(deal.cashOnHand)) {
+  if (hasKnownLiquidity(deal) && safeNumber(analysis.cashRequired) > safeNumber(deal.availableLiquidity ?? deal.cashOnHand ?? deal.liquidity)) {
     actions.push({ priority: "Financial", action: "Increase liquidity or lower the offer", reason: "Cash requirement exceeds available liquidity.", relatedModule: "Lender Dashboard", completionStatus: "Pending" });
   }
   if (safeNumber(analysis.rehabBudget) > 0 && safeNumber(analysis.rehabBudget) > 50000) {
     actions.push({ priority: "Rehab", action: "Validate rehab scope and contingency", reason: "Rehab costs may be understated.", relatedModule: "Rehab Project Tracker", completionStatus: "Pending" });
   }
-  if (safeNumber(analysis.dscr) < 1.2) {
+  if (analysis.strategyMetrics?.decisionCritical && analysis.dscr != null && safeNumber(analysis.dscr) < 1.2) {
     actions.push({ priority: "Financing", action: "Request revised lender terms", reason: "DSCR is too weak for the current terms.", relatedModule: "Lender Dashboard", completionStatus: "Pending" });
   }
   if (safeDisplay(scenarioAnalysis?.summary?.scenarioSurvivalResult, "Insufficient Data") !== "Survives") {
@@ -141,11 +154,12 @@ function collectNextActions(deal, analysis, scenarioAnalysis) {
 }
 
 function buildDecisionMatrix(deal, analysis, scenarioAnalysis, redTeamReview) {
+  const ownedProject = isOwnedProject(deal, analysis);
   const categories = [
     {
       category: "Buy Box",
-      score: safeNumber(analysis.dealScore),
-      grade: gradeForScore(safeNumber(analysis.dealScore)),
+      score: safeNumber(analysis.buyBoxScoring?.score ?? analysis.buyBox?.score),
+      grade: gradeForScore(safeNumber(analysis.buyBoxScoring?.score ?? analysis.buyBox?.score)),
       risk: safeDisplay(analysis.buyBoxResult === "PASS" ? "Low" : "High", "Insufficient Data"),
       status: safeDisplay(analysis.buyBoxResult === "PASS" ? "Pass" : analysis.buyBoxResult === "CONDITIONAL PASS" ? "Conditional" : "Fail", "Insufficient Data"),
       strength: analysis.buyBoxResult === "PASS" ? "Meets the default buy-box criteria" : "Insufficient Data",
@@ -153,7 +167,7 @@ function buildDecisionMatrix(deal, analysis, scenarioAnalysis, redTeamReview) {
       action: analysis.buyBoxResult === "PASS" ? "Monitor" : "Re-underwrite against the buy box",
     },
     {
-      category: "Acquisition",
+      category: ownedProject ? "Historical Acquisition Reference" : "Acquisition",
       score: safeNumber(analysis.dealScore),
       grade: gradeForScore(safeNumber(analysis.dealScore)),
       risk: safeDisplay(safeNumber(analysis.purchasePrice) > safeNumber(scenarioAnalysis?.baseScenario?.results?.recommendedOffer) ? "High" : "Moderate", "Insufficient Data"),
@@ -164,23 +178,23 @@ function buildDecisionMatrix(deal, analysis, scenarioAnalysis, redTeamReview) {
     },
     {
       category: "Valuation",
-      score: safeNumber(analysis.valuationScore),
-      grade: gradeForScore(safeNumber(analysis.valuationScore)),
-      risk: safeDisplay(analysis.arvConfidence === "Very Low" || analysis.arvConfidence === "Low" ? "High" : "Moderate", "Insufficient Data"),
-      status: safeDisplay(analysis.arvConfidence === "High" || analysis.arvConfidence === "Very High" ? "Pass" : analysis.arvConfidence === "Moderate" ? "Conditional" : "Fail", "Insufficient Data"),
-      strength: safeDisplay(analysis.arvConfidence === "High" || analysis.arvConfidence === "Very High" ? "ARV confidence is strong" : "Insufficient Data", "Insufficient Data"),
-      concern: safeDisplay(analysis.arvConfidence === "Very Low" || analysis.arvConfidence === "Low" ? "ARV support is weak" : "None", "Insufficient Data"),
-      action: safeDisplay(analysis.arvConfidence === "Very Low" || analysis.arvConfidence === "Low" ? "Obtain appraisal or stronger comps" : "Monitor", "Insufficient Data"),
+      score: safeNumber(analysis.appraisalIntelligence?.appraisalSupportScore),
+      grade: gradeForScore(safeNumber(analysis.appraisalIntelligence?.appraisalSupportScore)),
+      risk: safeDisplay(analysis.appraisalIntelligence?.appraisalRiskLevel || "HIGH", "Insufficient Data"),
+      status: safeDisplay(analysis.appraisalIntelligence?.appraisalStatus || "NOT_READY", "Insufficient Data"),
+      strength: safeDisplay(analysis.appraisalIntelligence?.strengths?.[0], "Insufficient Data"),
+      concern: safeDisplay(analysis.appraisalIntelligence?.warnings?.[0], "Valuation evidence is insufficient."),
+      action: safeDisplay(analysis.appraisalIntelligence?.recommendedNextAction, "Obtain appraisal or stronger comps"),
     },
     {
       category: "Rehab",
       score: safeNumber(analysis.rehabScore),
       grade: gradeForScore(safeNumber(analysis.rehabScore)),
-      risk: safeDisplay(safeNumber(analysis.rehabBudget) > 50000 ? "High" : "Moderate", "Insufficient Data"),
-      status: safeDisplay(safeNumber(analysis.rehabBudget) <= 50000 ? "Pass" : "Conditional", "Insufficient Data"),
-      strength: safeDisplay(safeNumber(analysis.rehabBudget) <= 50000 ? "Rehab cost remains manageable" : "Insufficient Data", "Insufficient Data"),
-      concern: safeDisplay(safeNumber(analysis.rehabBudget) > 50000 ? "Rehab budget is large" : "None", "Insufficient Data"),
-      action: safeDisplay(safeNumber(analysis.rehabBudget) > 50000 ? "Validate rehab contingency" : "Monitor", "Insufficient Data"),
+      risk: safeDisplay(analysis.rehabTruth?.executionRisk, "Insufficient Data"),
+      status: safeDisplay(analysis.rehabTruth?.scopeValidated ? "Validated" : "Evidence Review", "Insufficient Data"),
+      strength: safeDisplay(analysis.rehabTruth?.budgetAttractiveness >= 60 ? "Rehab budget fits the acquisition threshold" : "Insufficient Data", "Insufficient Data"),
+      concern: safeDisplay(analysis.rehabTruth?.dataCompletenessScore < 50 ? "Rehab scope and execution evidence are incomplete" : "None", "Insufficient Data"),
+      action: safeDisplay(analysis.rehabTruth?.scopeValidated ? "Monitor" : "Validate scope, bids, and contingency", "Insufficient Data"),
     },
     {
       category: "Financing",
@@ -189,8 +203,8 @@ function buildDecisionMatrix(deal, analysis, scenarioAnalysis, redTeamReview) {
       risk: safeDisplay(analysis.financingWarnings && analysis.financingWarnings.length ? "High" : "Moderate", "Insufficient Data"),
       status: safeDisplay(analysis.qualificationStatus === "Qualified" ? "Pass" : analysis.qualificationStatus ? "Conditional" : "Insufficient Data", "Insufficient Data"),
       strength: safeDisplay(analysis.qualificationStatus === "Qualified" ? "Financing is qualified" : "Insufficient Data", "Insufficient Data"),
-      concern: safeDisplay(analysis.qualificationStatus !== "Qualified" ? "Financing still needs confirmation" : "None", "Insufficient Data"),
-      action: safeDisplay(analysis.qualificationStatus !== "Qualified" ? "Request lender approval" : "Monitor", "Insufficient Data"),
+      concern: safeDisplay(analysis.financingTruth?.lenderRecordStatus === "NOT LINKED" ? "Current financing is entered; lender-record qualification is not evaluated" : analysis.qualificationStatus !== "Qualified" ? "Linked lender terms need confirmation" : "None", "Insufficient Data"),
+      action: safeDisplay(analysis.financingTruth?.lenderRecordStatus === "NOT LINKED" ? "Review Royal Star internal financing thresholds" : analysis.qualificationStatus !== "Qualified" ? "Review linked lender qualification" : "Monitor", "Insufficient Data"),
     },
     {
       category: "Market",
@@ -204,13 +218,13 @@ function buildDecisionMatrix(deal, analysis, scenarioAnalysis, redTeamReview) {
     },
     {
       category: "Rental",
-      score: safeNumber(analysis.marketScore),
-      grade: gradeForScore(safeNumber(analysis.marketScore)),
-      risk: safeDisplay(safeNumber(analysis.monthlyCashFlow) < 0 ? "High" : "Moderate", "Insufficient Data"),
-      status: safeDisplay(safeNumber(analysis.monthlyCashFlow) >= 0 ? "Pass" : "Conditional", "Insufficient Data"),
-      strength: safeDisplay(safeNumber(analysis.monthlyCashFlow) >= 0 ? "Cash flow is positive" : "Insufficient Data", "Insufficient Data"),
-      concern: safeDisplay(safeNumber(analysis.monthlyCashFlow) < 0 ? "Current rent assumptions are not supporting cash flow" : "None", "Insufficient Data"),
-      action: safeDisplay(safeNumber(analysis.monthlyCashFlow) < 0 ? "Verify rent and expenses" : "Monitor", "Insufficient Data"),
+      score: analysis.rentalTruth?.score ?? "N/A",
+      grade: analysis.rentalTruth?.grade || "INSUFFICIENT DATA",
+      risk: safeDisplay(!analysis.rentalTruth?.applicable ? "Not Applicable to Primary Flip" : analysis.rentalTruth?.score == null ? "Unknown" : analysis.rentalTruth.score < 55 ? "High" : "Moderate", "Insufficient Data"),
+      status: safeDisplay(!analysis.rentalTruth?.applicable ? "Backup Strategy Analysis — Not Controlling" : analysis.rentalTruth?.score == null ? "Needs Evidence" : "Evaluated", "Insufficient Data"),
+      strength: safeDisplay(analysis.rentalTruth?.verifiedRent != null ? "Verified market rent is available" : "Insufficient Data", "Insufficient Data"),
+      concern: safeDisplay(!analysis.rentalTruth?.applicable ? "Backup Strategy Analysis — Not Controlling" : analysis.rentalTruth?.warning || "None", "Insufficient Data"),
+      action: safeDisplay(!analysis.rentalTruth?.applicable ? "No primary Flip action required" : analysis.rentalTruth?.warning ? "Verify rent and operating assumptions" : "Monitor", "Insufficient Data"),
     },
     {
       category: "Exit",
@@ -239,7 +253,7 @@ function buildDecisionMatrix(deal, analysis, scenarioAnalysis, redTeamReview) {
       risk: safeDisplay(scenarioAnalysis?.summary?.scenarioSurvivalResult === "Fails" ? "High" : scenarioAnalysis?.summary?.scenarioSurvivalResult === "Marginal" ? "Moderate" : "Low", "Insufficient Data"),
       status: safeDisplay(scenarioAnalysis?.summary?.scenarioSurvivalResult === "Survives" ? "Pass" : scenarioAnalysis?.summary?.scenarioSurvivalResult === "Survives with Conditions" ? "Conditional" : scenarioAnalysis?.summary?.scenarioSurvivalResult === "Marginal" ? "Conditional" : "Fail", "Insufficient Data"),
       strength: safeDisplay(scenarioAnalysis?.summary?.scenarioSurvivalResult === "Survives" ? "Base recommendation survives the base scenarios" : "Insufficient Data", "Insufficient Data"),
-      concern: safeDisplay(scenarioAnalysis?.summary?.scenarioSurvivalResult === "Fails" ? "The base recommendation fails the downside scenarios" : "None", "Insufficient Data"),
+      concern: safeDisplay(scenarioAnalysis?.summary?.scenarioSurvivalResult === "Fails" ? "The base recommendation fails the downside scenarios" : scenarioAnalysis?.summary?.scenarioSurvivalResult ? "Scenario evidence requires continued monitoring" : "Scenario evidence is insufficient", "Insufficient Data"),
       action: safeDisplay(scenarioAnalysis?.summary?.scenarioSurvivalResult === "Fails" ? "Re-underwrite the deal" : "Monitor", "Insufficient Data"),
     },
     {
@@ -249,7 +263,7 @@ function buildDecisionMatrix(deal, analysis, scenarioAnalysis, redTeamReview) {
       risk: safeDisplay(redTeamReview?.recommendationSurvivalResult === "Fails" ? "High" : redTeamReview?.recommendationSurvivalResult === "Marginal" ? "Moderate" : "Low", "Insufficient Data"),
       status: safeDisplay(redTeamReview?.recommendationSurvivalResult === "Fails" ? "Fail" : redTeamReview?.recommendationSurvivalResult === "Marginal" ? "Conditional" : redTeamReview?.recommendationSurvivalResult === "Survives" ? "Pass" : "Insufficient Data", "Insufficient Data"),
       strength: safeDisplay(redTeamReview?.recommendationSurvivalResult === "Survives" ? "The recommendation survives Red-Team challenge" : "Insufficient Data", "Insufficient Data"),
-      concern: safeDisplay(redTeamReview?.recommendationSurvivalResult === "Fails" ? "The recommendation is not robust" : "None", "Insufficient Data"),
+      concern: safeDisplay(redTeamReview?.recommendationSurvivalResult === "Fails" ? "The recommendation is not robust" : redTeamReview?.recommendationSurvivalResult ? "Red-Team conditions require continued monitoring" : "Red-Team evidence is insufficient", "Insufficient Data"),
       action: safeDisplay(redTeamReview?.recommendationSurvivalResult === "Fails" ? "Revisit assumptions" : "Monitor", "Insufficient Data"),
     },
   ];
@@ -258,6 +272,7 @@ function buildDecisionMatrix(deal, analysis, scenarioAnalysis, redTeamReview) {
 }
 
 function buildKnownUncertainNeeded(deal, analysis, scenarioAnalysis) {
+  const rentalApplicable = analysis.strategyMetrics?.rentalMetricsApplicable === true;
   const known = [];
   if (safeNumber(analysis.purchasePrice) > 0) known.push(`Purchase price: ${formatCurrency(analysis.purchasePrice)}`);
   if (safeNumber(analysis.estimatedFlipProfit) !== 0) known.push(`Projected profit: ${formatCurrency(analysis.estimatedFlipProfit)}`);
@@ -267,34 +282,32 @@ function buildKnownUncertainNeeded(deal, analysis, scenarioAnalysis) {
   const uncertain = [];
   if (safeDisplay(analysis.arvConfidence, "Insufficient Data") === "Very Low" || safeDisplay(analysis.arvConfidence, "Insufficient Data") === "Low") uncertain.push("ARV confidence is weak");
   if (safeNumber(analysis.rehabBudget) <= 0) uncertain.push("Rehab budget is not confirmed");
-  if (safeNumber(analysis.monthlyCashFlow) === 0) uncertain.push("Rental support remains uncertain");
-  if (safeDisplay(analysis.qualificationStatus, "Insufficient Data") !== "Qualified") uncertain.push("Lender qualification remains uncertain");
+  if (rentalApplicable && analysis.strategyMetrics?.monthlyCashFlow == null) uncertain.push("Rental support remains uncertain for the backup rental exit");
+  if (analysis.financingTruth?.lenderRecordStatus === "NOT LINKED") uncertain.push("Lender record linkage is unavailable; entered current financing remains recognized");
   const needed = [];
   if (safeDisplay(analysis.arvConfidence, "Insufficient Data") === "Very Low" || safeDisplay(analysis.arvConfidence, "Insufficient Data") === "Low") needed.push("Appraisal");
   if (safeNumber(analysis.rehabBudget) <= 0) needed.push("Contractor bids");
-  if (safeNumber(analysis.monthlyCashFlow) === 0) needed.push("Verified rent");
-  if (safeDisplay(analysis.qualificationStatus, "Insufficient Data") !== "Qualified") needed.push("Lender term sheet");
-  return { known: known.slice(0, 5), uncertain: uncertain.slice(0, 5), needed: needed.slice(0, 5) };
+  if (rentalApplicable && analysis.strategyMetrics?.monthlyCashFlow == null) needed.push("Verified rent for backup rental analysis");
+  if (analysis.financingTruth?.lenderRecordStatus === "NOT LINKED" && analysis.financingTruth?.currentFinancingStatus !== "ACTIVE / ENTERED") needed.push("Prospective lender term sheet");
+  const warningMessages = deduplicateWarnings(analysis.warningRecords || [], analysis.warnings || [], analysis.financingWarningDetails || [], analysis.financingWarnings || []);
+  if (warningMessages.some((warning) => /loan-to-cost|loan exposure|cash requirement/i.test(warning))) needed.push("Review Royal Star internal financing thresholds and capital structure");
+  if (safeNumber(analysis.rehabBudget) > 50000) needed.push("Validate rehab scope and contingency");
+  if (!safeDisplay(analysis.recommendedExit, "")) needed.push("Confirm backup exit");
+  return { known: known.slice(0, 5), uncertain: uncertain.slice(0, 5), needed: [...new Set(needed)].slice(0, 5) };
 }
 
-function buildScenarioSummary(scenarioAnalysis) {
-  const summaries = [];
+function buildScenarioSummary(scenarioAnalysis, analysis = {}) {
   const scenarios = Array.isArray(scenarioAnalysis?.scenarios) ? scenarioAnalysis.scenarios : [];
-  const labels = ["Best Case", "Expected Case", "Moderate Downside", "Severe Downside", "Delayed Exit", "Refinance Stress", "Rental Stress"];
-  for (let index = 0; index < labels.length; index += 1) {
-    const entry = scenarios[index] || {};
-    summaries.push({
-      name: labels[index],
-      profit: formatCurrency(entry?.summary?.profit ?? 0),
-      roi: formatPercent(entry?.summary?.roi ?? 0),
-      cashRequired: formatCurrency(entry?.summary?.cashRequired ?? 0),
-      monthlyCashFlow: formatCurrency(entry?.summary?.monthlyCashFlow ?? 0),
-      dscr: safeDisplay(entry?.summary?.dscr, "Insufficient Data"),
+  return scenarios.map((entry, index) => ({
+      name: safeDisplay(entry?.scenarioName || entry?.name, `Scenario ${index + 1}`),
+      profit: entry?.summary?.profit == null ? "N/A" : formatCurrency(entry.summary.profit),
+      roi: entry?.summary?.roi == null ? "N/A" : formatPercent(entry.summary.roi),
+      cashRequired: entry?.summary?.cashRequired == null ? "N/A" : formatCurrency(entry.summary.cashRequired),
+      monthlyCashFlow: entry?.summary?.monthlyCashFlow == null ? "N/A" : formatCurrency(entry.summary.monthlyCashFlow),
+      dscr: entry?.summary?.formatted?.dscr || (entry?.summary?.dscr == null && (analysis.strategyMetrics?.rentalMetricsApplicable === false || /flip/i.test(String(analysis.recommendationStrategy || analysis.strategy || ""))) ? "N/A — FLIP STRATEGY" : safeDisplay(entry?.summary?.dscr, "Insufficient Data")),
       recommendation: safeDisplay(entry?.summary?.recommendation || entry?.results?.recommendation, "Insufficient Data"),
       survivalResult: safeDisplay(entry?.summary?.survival || entry?.results?.survival, "Insufficient Data"),
-    });
-  }
-  return summaries;
+    }));
 }
 
 function buildRanking(allDealRecords, allDeals) {
@@ -302,12 +315,14 @@ function buildRanking(allDealRecords, allDeals) {
   for (let index = 0; index < allDealRecords.length; index += 1) {
     const record = allDealRecords[index] || {};
     const deal = allDeals[index] || {};
+    const score = safeNumber(record.dealScore);
     ranking.push({
       id: deal.id || record.id || `deal-${index}`,
       property: safeDisplay(record.propertyAddress || record.address || deal.propertyAddress || deal.address || `Deal ${index + 1}`, "Untitled Deal"),
       recommendation: safeDisplay(record.recommendationDecision || record.recommendation?.primaryRecommendation, "Insufficient Data"),
       strategy: safeDisplay(record.recommendationStrategy || record.recommendation?.strategyRecommendation, "Insufficient Data"),
-      score: safeNumber(record.dealScore),
+      score,
+      grade: gradeForScore(score),
       risk: safeNumber(record.riskScore),
       profit: safeNumber(record.estimatedFlipProfit),
       roi: safeNumber(record.roi),
@@ -329,10 +344,11 @@ export function buildExecutiveDecisionDashboard(primaryDealAnalysis = {}, primar
     const redTeam = redTeamReview && typeof redTeamReview === "object" && !Array.isArray(redTeamReview) ? redTeamReview : {};
 
     const purchasePrice = safeNumber(deal.purchasePrice ?? analysis.purchasePrice ?? deal.askingPrice ?? analysis.askingPrice);
+    const ownedProject = isOwnedProject(deal, analysis);
     const askingPrice = safeNumber(deal.askingPrice ?? analysis.askingPrice ?? purchasePrice);
-    const explicitMao = safeNumber(scenario?.baseScenario?.results?.mao ?? analysis.maximumAllowableOffer ?? analysis.mao ?? 0);
-    const explicitRecommendedOffer = safeNumber(scenario?.baseScenario?.results?.recommendedOffer ?? analysis.recommendedOffer ?? analysis.recommendation?.executiveSummary?.recommendedOffer ?? 0);
-    const explicitWalkAwayPrice = safeNumber(scenario?.baseScenario?.results?.walkAwayPrice ?? analysis.walkAwayPrice ?? 0);
+    const explicitMao = safeNumber(analysis.offerTruth?.maximumAllowableOffer ?? analysis.maximumAllowableOffer ?? analysis.mao ?? 0);
+    const explicitRecommendedOffer = safeNumber(analysis.offerTruth?.targetOffer ?? analysis.recommendedOffer ?? analysis.recommendation?.executiveSummary?.recommendedOffer ?? 0);
+    const explicitWalkAwayPrice = safeNumber(analysis.offerTruth?.walkAwayPrice ?? analysis.walkAwayPrice ?? 0);
     const derivedOfferMultiplier = safeNumber(analysis.dealScore) >= 80 ? 1.04 : safeNumber(analysis.dealScore) >= 70 ? 1.03 : safeNumber(analysis.dealScore) >= 60 ? 1.02 : 1.0;
     const mao = explicitMao > 0 ? explicitMao : purchasePrice > 0 ? purchasePrice * (safeNumber(analysis.dealScore) >= 70 ? 1.05 : 1.03) : 0;
     const recommendedOffer = explicitRecommendedOffer > 0 ? explicitRecommendedOffer : purchasePrice > 0 ? purchasePrice * derivedOfferMultiplier : 0;
@@ -341,7 +357,7 @@ export function buildExecutiveDecisionDashboard(primaryDealAnalysis = {}, primar
     const riskBuffer = safeNumber(analysis.riskScore) > 60 ? recommendedOffer * 0.1 : safeNumber(analysis.riskScore) > 40 ? recommendedOffer * 0.05 : recommendedOffer * 0.03;
     const lowOffer = Math.max(0, recommendedOffer - riskBuffer);
     const highOffer = recommendedOffer;
-    const overallRecommendation = safeDisplay(analysis.recommendationDecision || analysis.recommendation?.primaryRecommendation || analysis.recommendation?.executiveSummary?.overallRecommendation, "Insufficient Data");
+    const overallRecommendation = safeDisplay(analysis.controllingRecommendation?.controllingDecision || analysis.recommendationDecision || analysis.recommendation?.primaryRecommendation || analysis.recommendation?.executiveSummary?.overallRecommendation, "Insufficient Data");
     const recommendedStrategy = safeDisplay(analysis.recommendationStrategy || analysis.recommendation?.strategyRecommendation, "Insufficient Data");
     const secondaryStrategy = safeDisplay(analysis.secondaryStrategy || (recommendedStrategy === "Flip" ? "BRRRR" : recommendedStrategy === "BRRRR" ? "Hold" : recommendedStrategy === "Hold" ? "Flip" : "Insufficient Data"), "Insufficient Data");
     const dealScore = safeNumber(analysis.dealScore);
@@ -356,8 +372,8 @@ export function buildExecutiveDecisionDashboard(primaryDealAnalysis = {}, primar
       purchasePrice || askingPrice || mao || recommendedOffer || walkAwayPrice || dealScore || overallRisk || safeDisplay(analysis.arvConfidence, "Insufficient Data") !== "Insufficient Data" || safeDisplay(analysis.recommendationDecision, "Insufficient Data") !== "Insufficient Data" || safeDisplay(analysis.recommendationStrategy, "Insufficient Data") !== "Insufficient Data"
     );
 
-    let offerStatus = "Insufficient Data";
-    if (recommendedOffer > 0) {
+    let offerStatus = ownedProject ? "Historical / Reference Only — Property Already Owned" : "Insufficient Data";
+    if (!ownedProject && recommendedOffer > 0) {
       if (purchasePrice > recommendedOffer) offerStatus = "Above Recommended Offer";
       else if (purchasePrice < recommendedOffer) offerStatus = "Below Recommended Offer";
       else if (purchasePrice > mao && mao > 0) offerStatus = "Above MAO";
@@ -386,7 +402,7 @@ export function buildExecutiveDecisionDashboard(primaryDealAnalysis = {}, primar
     const nextActions = collectNextActions(deal, analysis, scenario);
     const decisionMatrix = buildDecisionMatrix(deal, analysis, scenario, redTeam);
     const knownUncertainNeeded = buildKnownUncertainNeeded(deal, analysis, scenario);
-    const scenarioSummary = buildScenarioSummary(scenario);
+    const scenarioSummary = buildScenarioSummary(scenario, analysis);
     const ranking = buildRanking(allDealRecords, allDeals);
 
     const executiveRecommendationEngine = analysis.executiveRecommendationEngine || {};
@@ -416,20 +432,20 @@ export function buildExecutiveDecisionDashboard(primaryDealAnalysis = {}, primar
       { label: "Overall Deal Score", value: dealScore },
       { label: "Overall Risk", value: overallRisk },
       { label: "ARV Confidence", value: safeDisplay(analysis.arvConfidence, "Insufficient Data") },
-      { label: "Maximum Allowable Offer", value: formatCurrency(mao) },
-      { label: "Recommended Offer", value: formatCurrency(recommendedOffer) },
+      { label: "Authoritative Acquisition MAO", value: formatCurrency(mao) },
+      { label: "Target Offer", value: formatCurrency(recommendedOffer) },
       { label: "Walk-Away Price", value: formatCurrency(walkAwayPrice) },
       { label: "Purchase Price", value: formatCurrency(purchasePrice) },
       { label: "Price Reduction Needed", value: formatCurrency(priceReductionNeeded) },
       { label: "Projected Profit", value: formatCurrency(safeNumber(analysis.estimatedFlipProfit)) },
-      { label: "Projected ROI", value: formatPercent(safeNumber(analysis.roi)) },
+      { label: "ROI on Total Project Cost", value: analysis.roiTruth?.roiOnTotalProjectCost == null ? "Insufficient Data" : formatPercent(analysis.roiTruth.roiOnTotalProjectCost) },
       { label: "Cash Required", value: formatCurrency(safeNumber(analysis.cashRequired)) },
-      { label: "Monthly Cash Flow", value: formatCurrency(safeNumber(analysis.monthlyCashFlow)) },
-      { label: "DSCR", value: safeDisplay(safeNumber(analysis.dscr) === 0 ? "Insufficient Data" : analysis.dscr, "Insufficient Data") },
+      { label: "Monthly Cash Flow", value: analysis.strategyMetrics?.monthlyCashFlow == null ? "N/A — FLIP STRATEGY" : formatCurrency(analysis.strategyMetrics.monthlyCashFlow) },
+      { label: "DSCR", value: analysis.strategyMetrics?.dscr == null ? "N/A — FLIP STRATEGY" : safeDisplay(analysis.strategyMetrics.dscr, "Insufficient Data") },
       { label: "Scenario Survival", value: survivalResult },
       { label: "Red-Team Confidence", value: recommendationConfidence },
-      { label: "Critical Warning Count", value: safeNumber(analysis.warnings && analysis.warnings.length ? analysis.warnings.length : 0) },
-      { label: "Missing Data Count", value: safeNumber((analysis.warnings && analysis.warnings.length ? 1 : 0) + (safeDisplay(analysis.arvConfidence, "Insufficient Data") === "Very Low" || safeDisplay(analysis.arvConfidence, "Insufficient Data") === "Low" ? 1 : 0)) },
+      { label: "Critical Warning Count", value: analysis.criticalRiskCount ?? deduplicateWarnings(analysis.warnings || []).length },
+      { label: "Missing Data Count", value: analysis.requiredDataTruth?.missingDataCount ?? 0 },
     ] : [];
 
     return {
@@ -441,6 +457,8 @@ export function buildExecutiveDecisionDashboard(primaryDealAnalysis = {}, primar
         propertyAddress: safeDisplay(deal.propertyAddress || deal.address || analysis.propertyAddress || analysis.address || "Untitled Deal", "Untitled Deal"),
         analysisStatus: safeDisplay(backendStatus, "Backend Connected"),
         overallRecommendation: overallRecommendation,
+        decisionContext: analysis.controllingRecommendation?.context || "ACQUISITION",
+        acquisitionDecision: analysis.controllingRecommendation?.acquisitionDecision || analysis.recommendationDecision || "Insufficient Data",
         recommendedStrategy,
         secondaryStrategy,
         overallDealScore: dealScore,
@@ -454,6 +472,8 @@ export function buildExecutiveDecisionDashboard(primaryDealAnalysis = {}, primar
       primaryCards,
       decisionStatus,
       offerDecision: {
+        context: ownedProject ? "HISTORICAL_ACQUISITION_REFERENCE" : "ACTIVE_ACQUISITION",
+        controlling: !ownedProject,
         askingPrice: formatCurrency(askingPrice),
         currentPurchasePrice: formatCurrency(purchasePrice),
         maximumAllowableOffer: formatCurrency(mao),

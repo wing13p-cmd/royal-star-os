@@ -6,9 +6,12 @@ import { fileURLToPath } from "node:url";
 import { getStoredOrGeneratedDealIntelligence, syncDealIntelligenceStore } from "./dealIntelligenceService.js";
 import { buildRuntimeConfig, validateRuntimeConfig, redactSensitiveValue } from "../app/src/utils/config.js";
 import { buildPersistedDealPayload } from "./dealPersistence.js";
+import { mergeDealRoundTripUpdate, normalizeDealRoundTripPayload } from "./dealRoundTripContract.js";
+import { findExistingProviderImport, mergeCompResponse, normalizePersistedComp } from "./compPersistenceContract.js";
 import { migrateLegacyEnterpriseData } from "../app/src/utils/enterpriseSharedDataSchema.js";
 import { sanitizePayload, getRequestContext, hasPermission, validateNumericRange } from "./security.js";
 import { readJsonBody, HttpRequestBodyError } from "./requestBody.js";
+import { getSessionIdFromRequest, populateRequestUserFromSession } from "./sessionAuthorization.js";
 import {
   ManualCompAdapter,
   RentCastCompAdapter,
@@ -24,7 +27,10 @@ import { buildMultiSourceCompSearchService } from "./multiSourceCompOrchestrator
 import { createProviderOnboardingService } from "./providers/providerOnboardingService.js";
 import { createEnterpriseProviderPlatform } from "./providers/enterpriseProviderPlatform.js";
 import { createProviderSearchSessionService } from "./providerSearchSessionService.js";
+import { createProviderTelemetryStore } from "./providerTelemetryStore.js";
+import { buildSoldCompCacheKey as buildCanonicalSoldCompCacheKey } from "./providerSearchIdentity.js";
 import { createCompOperationsService } from "./compOperationsService.js";
+import { createCompEvidenceEngine } from "./compEvidenceEngine.js";
 import { createDealPortfolioSyncService } from "./dealPortfolioSyncService.js";
 import { createCrossModuleSyncService } from "./crossModuleSyncService.js";
 import { createDealPropertySyncService } from "./dealPropertySyncService.js";
@@ -78,6 +84,7 @@ const materialsFile = path.join(dataDir, "materials.json");
 const lendersFile = path.join(dataDir, "lenders.json");
 const appraisalPacketsFile = path.join(dataDir, "appraisalPackets.json");
 const rehabProjectsFile = path.join(dataDir, "rehabProjects.json");
+const providerTelemetryFile = path.join(dataDir, "provider-search-telemetry.json");
 const runtimeConfig = validateRuntimeConfig(buildRuntimeConfig({
   env: process.env,
   runtimeEnv: {},
@@ -123,8 +130,37 @@ const activeProviderKey = compProviderConfig.provider === "rentcast"
 const activeCompProvider = compProviderAdapters[activeProviderKey] || compProviderAdapters.manual;
 const multiSourceCompSearchService = buildMultiSourceCompSearchService({ adapters: compProviderAdapters });
 const providerOnboardingService = createProviderOnboardingService();
-const enterpriseProviderPlatform = createEnterpriseProviderPlatform();
-const providerSearchSessionService = createProviderSearchSessionService();
+const enterpriseProviderPlatform = createEnterpriseProviderPlatform({
+  env: process.env,
+  credentials: {
+    "county-assessor": { apiKey: process.env.RSOS_COUNTY_ASSESSOR_API_KEY || "" },
+    "county-recorder": { apiKey: process.env.RSOS_COUNTY_RECORDER_API_KEY || "" },
+    "permit-records": { apiKey: process.env.RSOS_PERMIT_RECORDS_API_KEY || "" },
+    "google-maps": { apiKey: process.env.RSOS_GOOGLE_MAPS_API_KEY || "" },
+  },
+  baseUrls: {
+    "county-assessor": process.env.RSOS_COUNTY_ASSESSOR_BASE_URL || "",
+    "county-recorder": process.env.RSOS_COUNTY_RECORDER_BASE_URL || "",
+    "permit-records": process.env.RSOS_PERMIT_RECORDS_BASE_URL || "",
+    "google-maps": process.env.RSOS_GOOGLE_MAPS_BASE_URL || "",
+  },
+});
+const compEvidenceEngine = createCompEvidenceEngine({
+  providerAdapters: enterpriseProviderPlatform.providerAdapters,
+  cacheTtlMs: Number(process.env.COMP_EVIDENCE_CACHE_TTL_MS) > 0 ? Number(process.env.COMP_EVIDENCE_CACHE_TTL_MS) : 604800000,
+});
+const providerSearchSessionService = createProviderSearchSessionService({
+  cacheTtlMs: Number(process.env.COMP_SEARCH_CACHE_TTL_MS) > 0 ? Number(process.env.COMP_SEARCH_CACHE_TTL_MS) : 86400000,
+  maxCacheEntries: Number(process.env.COMP_SEARCH_CACHE_MAX_ENTRIES) > 0 ? Number(process.env.COMP_SEARCH_CACHE_MAX_ENTRIES) : 50,
+});
+const providerTelemetryStore = createProviderTelemetryStore({
+  filePath: providerTelemetryFile,
+  maxHistoryEntries: 25,
+  maxCacheEntries: Number(process.env.COMP_SEARCH_CACHE_MAX_ENTRIES) > 0 ? Number(process.env.COMP_SEARCH_CACHE_MAX_ENTRIES) : 50,
+});
+let providerTelemetryHydrated = false;
+let resolveProviderTelemetryReady;
+const providerTelemetryReadyPromise = new Promise((resolve) => { resolveProviderTelemetryReady = resolve; });
 let writerLockHandle = null;
 
 async function ensureDirectoryWritable(directoryPath, label) {
@@ -224,6 +260,26 @@ const protectedFields = ["id", "createdAt", "updatedAt", "role", "roles", "permi
 const shutdownSignals = new Set(["SIGINT", "SIGTERM"]);
 const providerSearchHistory = [];
 
+async function persistProviderTelemetry() {
+  if (!providerTelemetryHydrated) return;
+  await providerTelemetryStore.persist({
+    history: providerSearchHistory,
+    service: providerSearchSessionService.exportState(),
+  }).catch((error) => {
+    console.error("[RSOS] Provider telemetry persistence failed:", error.message);
+  });
+}
+
+async function hydrateProviderTelemetry() {
+  const state = await providerTelemetryStore.load();
+  providerSearchSessionService.hydrate(state.service || {});
+  providerSearchHistory.push(...(Array.isArray(state.history) ? state.history : []));
+  providerTelemetryHydrated = true;
+  await persistProviderTelemetry();
+}
+
+providerSearchSessionService.setPersistenceCallback(() => { void persistProviderTelemetry(); });
+
 function addProviderSearchHistory(entry = {}) {
   providerSearchHistory.push({
     ...entry,
@@ -232,10 +288,14 @@ function addProviderSearchHistory(entry = {}) {
   if (providerSearchHistory.length > 25) {
     providerSearchHistory.splice(0, providerSearchHistory.length - 25);
   }
+  void persistProviderTelemetry();
 }
 
 function normalizeProviderSearchQuery(payload = {}) {
   return {
+    subjectDealId: getStringValue(payload.subjectDealId || payload.dealId),
+    dealId: getStringValue(payload.dealId || payload.subjectDealId),
+    propertyId: getStringValue(payload.propertyId || payload.subjectPropertyId),
     address: getStringValue(payload.address || payload.subjectAddress),
     city: getStringValue(payload.city),
     state: getStringValue(payload.state),
@@ -248,7 +308,14 @@ function normalizeProviderSearchQuery(payload = {}) {
     bathrooms: getNumberValue(payload.bathrooms),
     squareFeet: getNumberValue(payload.squareFeet),
     yearBuilt: getNumberValue(payload.yearBuilt),
+    latitude: getNumberValue(payload.latitude),
+    longitude: getNumberValue(payload.longitude),
+    forceRefresh: payload.forceRefresh === true,
   };
+}
+
+function buildSoldCompCacheKey(query = {}) {
+  return buildCanonicalSoldCompCacheKey(query, activeProviderKey);
 }
 
 function createId(prefix = "deal") {
@@ -588,7 +655,7 @@ function validateProperty(property) {
   return errors;
 }
 
-function normalizeDealPayload(payload = {}) {
+function normalizeDealPayloadLegacy(payload = {}) {
   return {
     propertyAddress: getStringValue(payload.propertyAddress ?? payload.address),
     city: getStringValue(payload.city),
@@ -606,6 +673,16 @@ function normalizeDealPayload(payload = {}) {
     estimatedRent: getNumberValue(payload.estimatedRent),
     taxes: getNumberValue(payload.taxes),
     insurance: getNumberValue(payload.insurance),
+    annualPropertyTaxes: getNumberValue(payload.annualPropertyTaxes ?? payload.annualTaxes ?? payload.taxes),
+    annualInsurance: getNumberValue(payload.annualInsurance ?? payload.insurance),
+    monthlyHoa: getNumberValue(payload.monthlyHoa ?? payload.hoa),
+    vacancyPercent: getNumberValue(payload.vacancyPercent ?? payload.vacancyPercentage),
+    maintenancePercent: getNumberValue(payload.maintenancePercent ?? payload.maintenancePercentage),
+    capexPercent: getNumberValue(payload.capexPercent ?? payload.capitalExpendituresPercentage ?? payload.capExPercentage),
+    propertyManagementPercent: getNumberValue(payload.propertyManagementPercent ?? payload.propertyManagementPercentage),
+    monthlyUtilities: getNumberValue(payload.monthlyUtilities ?? payload.monthlyUtilitiesPaidByOwner),
+    otherMonthlyExpenses: getNumberValue(payload.otherMonthlyExpenses),
+    otherMonthlyIncome: getNumberValue(payload.otherMonthlyIncome ?? payload.otherIncome),
     financingCosts: getNumberValue(payload.financingCosts),
     rawFinancingCostInput: getNumberValue(payload.financials?.rawFinancingCostInput ?? payload.rawFinancingCostInput ?? payload.financingCosts),
     calculatedFinancingCosts: getNumberValue(payload.financials?.calculatedFinancingCosts ?? payload.calculatedFinancingCosts ?? payload.calculatedFinancingCost),
@@ -619,6 +696,8 @@ function normalizeDealPayload(payload = {}) {
     } : undefined,
     closingCosts: getNumberValue(payload.closingCosts),
     holdingMonths: getNumberValue(payload.holdingMonths),
+    holdingCosts: getNumberValue(payload.totalHoldingCosts ?? payload.holdingCosts ?? payload.holdingCost),
+    monthlyHoldingCost: getNumberValue(payload.monthlyHoldingCost),
     annualInterestRate: getNumberValue(payload.annualInterestRate ?? payload.interestRate ?? payload.rate),
     actualLoanAmount: getNumberValue(payload.actualLoanAmount ?? payload.actualLoan ?? payload.loanAmount ?? payload.fundingAmount),
     lenderLoanAmount: getNumberValue(payload.lenderLoanAmount ?? payload.lenderLoan ?? payload.loanAmountFromLender),
@@ -638,6 +717,10 @@ function normalizeDealPayload(payload = {}) {
     loanTermMonths: getNumberValue(payload.loanTermMonths ?? payload.loanTerm ?? payload.termMonths),
     amortizationTermMonths: getNumberValue(payload.amortizationTermMonths ?? payload.amortizationTerm),
     paymentType: getStringValue(payload.paymentType ?? payload.loanPaymentType ?? payload.debtPaymentType),
+    refinanceLtvPercent: getNumberValue(payload.refinanceLtvPercent ?? payload.refinanceLtvPercentage),
+    refinanceInterestRate: getNumberValue(payload.refinanceInterestRate),
+    refinanceLoanTermYears: getNumberValue(payload.refinanceLoanTermYears),
+    refinanceClosingCosts: getNumberValue(payload.refinanceClosingCosts),
     leadSource: getStringValue(payload.leadSource),
     strategy: getStringValue(payload.strategy ?? payload.exitStrategy),
     notes: getStringValue(payload.notes),
@@ -669,6 +752,10 @@ function normalizeDealPayload(payload = {}) {
   };
 }
 
+function normalizeDealPayload(payload = {}) {
+  return normalizeDealRoundTripPayload(payload);
+}
+
 function validateDeal(deal) {
   const errors = [];
   if (!deal.propertyAddress) errors.push("propertyAddress is required");
@@ -678,6 +765,7 @@ function validateDeal(deal) {
   if (deal.purchasePrice !== "" && deal.purchasePrice < 0) errors.push("purchasePrice cannot be negative");
   if (deal.rehabBudget !== "" && deal.rehabBudget < 0) errors.push("rehabBudget cannot be negative");
   if (deal.estimatedArv !== "" && deal.estimatedArv < 0) errors.push("estimatedArv cannot be negative");
+  if (deal.holdingCosts !== "" && deal.holdingCosts < 0) errors.push("holdingCosts cannot be negative");
   return errors;
 }
 
@@ -817,54 +905,10 @@ function validateDealIntelligence(entry) {
 }
 
 function normalizeCompPayload(payload = {}) {
-  const salePrice = Number(payload.salePrice);
-  const listPrice = Number(payload.listPrice);
-  const bedrooms = Number(payload.bedrooms);
-  const bathrooms = Number(payload.bathrooms);
-  const squareFeet = Number(payload.squareFeet);
-  const yearBuilt = Number(payload.yearBuilt);
-  const distanceMiles = Number(payload.distanceMiles);
-
-  return {
-    id: payload.id || "",
-    subjectProperty: payload.subjectProperty || "",
-    compAddress: payload.compAddress || "",
-    city: payload.city || "",
-    state: payload.state || "",
-    zipCode: payload.zipCode || "",
-    salePrice: Number.isFinite(salePrice) ? salePrice : "",
-    saleDate: payload.saleDate || "",
-    listPrice: Number.isFinite(listPrice) ? listPrice : "",
-    propertyType: payload.propertyType || "Single Family",
-    bedrooms: Number.isFinite(bedrooms) ? bedrooms : "",
-    bathrooms: Number.isFinite(bathrooms) ? bathrooms : "",
-    squareFeet: Number.isFinite(squareFeet) ? squareFeet : "",
-    yearBuilt: Number.isFinite(yearBuilt) ? yearBuilt : "",
-    lotSize: payload.lotSize || "",
-    distanceMiles: Number.isFinite(distanceMiles) ? distanceMiles : "",
-    condition: payload.condition || "Average",
-    garage: payload.garage || "",
-    basement: payload.basement || "",
-    source: payload.source || "",
-    sourceLink: payload.sourceLink || "",
-    notes: payload.notes || "",
-    included: payload.included !== false,
-    provider: payload.provider || activeCompProvider?.constructor?.name === "RentCastCompAdapter" ? "rentcast" : "manual",
-    providerImported: Boolean(payload.providerImported),
-    manuallyEntered: Boolean(payload.manuallyEntered),
-    verified: Boolean(payload.verified),
-    inclusionStatus: payload.inclusionStatus || "pending",
-    exclusionReason: payload.exclusionReason || "",
-    warningFlags: Array.isArray(payload.warningFlags) ? payload.warningFlags : [],
-    media: Array.isArray(payload.media) ? payload.media : [],
-    mediaRightsStatus: payload.mediaRightsStatus || "REMOTE_REFERENCE_ONLY",
-    attributionRequired: payload.attributionRequired !== false,
-    mediaRestricted: Boolean(payload.mediaRestricted),
-    mediaExpired: Boolean(payload.mediaExpired),
-    duplicateSourceCount: Number(payload.duplicateSourceCount) || 0,
-    createdAt: payload.createdAt || "",
-    updatedAt: payload.updatedAt || "",
-  };
+  return normalizePersistedComp({
+    ...payload,
+    provider: payload.provider || (activeCompProvider?.constructor?.name === "RentCastCompAdapter" ? "rentcast" : "manual"),
+  });
 }
 
 function validateComp(comp) {
@@ -1682,11 +1726,7 @@ async function readCompsFile() { return readJsonArrayFile(compsFile, [], "comps"
 function mapCompRecordForResponse(comp, subjectProperty = {}) {
   const normalized = buildNormalizedCompRecord(comp, subjectProperty, comp.provider || (activeCompProvider?.constructor?.name === "RentCastCompAdapter" ? "rentcast" : "manual"));
   const quality = scoreCompQuality(normalized, subjectProperty);
-  return {
-    ...normalized,
-    ...quality,
-    qualityScore: quality.finalCompQualityScore,
-  };
+  return mergeCompResponse(comp, normalized, { ...quality, qualityScore: quality.finalCompQualityScore });
 }
 
 function buildCompProviderStatus() {
@@ -1820,7 +1860,7 @@ function setCorsHeaders(res, req) {
     res.setHeader("Access-Control-Allow-Origin", "*");
   }
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-RSOS-Operator-Token, X-RSOS-Admin-Token");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-RSOS-Operator-Token, X-RSOS-Admin-Token, X-RSOS-Session-ID, X-Session-ID");
 }
 
 function isOperatorAuthorized(req) {
@@ -1832,10 +1872,6 @@ function isOperatorAuthorized(req) {
   const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
   const headerToken = String(req.headers["x-rsos-operator-token"] || "").trim();
   return Boolean(operatorToken && (operatorToken === bearerToken || operatorToken === headerToken));
-}
-
-function getSessionIdFromRequest(req = {}) {
-  return String(req.headers["x-session-id"] || req.headers["x-rsos-session-id"] || "").trim();
 }
 
 function sendJson(res, statusCode, payload) {
@@ -1956,6 +1992,13 @@ async function handleCollection(req, res, entity, readFile, writeFile, normalize
       return;
     }
     const items = await readFile();
+    if (entity === "comp") {
+      const existingProviderImport = findExistingProviderImport(items, normalized);
+      if (existingProviderImport) {
+        sendJson(res, 200, existingProviderImport);
+        return;
+      }
+    }
     const now = new Date().toISOString();
     const item = { ...normalized, id: createId(newIdPrefix), createdAt: now, updatedAt: now };
     items.push(item);
@@ -2011,7 +2054,13 @@ async function handleCollection(req, res, entity, readFile, writeFile, normalize
       return;
     }
     const existingItem = items[targetIndex];
-    const normalizedForUpdate = entity === "deal" ? mergeDealLinkageFields(existingItem, normalized) : normalized;
+    const normalizedForUpdate = entity === "deal"
+      ? (() => {
+        const presenceAwareMerged = mergeDealRoundTripUpdate(existingItem, normalized, sanitizedPayload);
+        const recalculated = normalizeDealPayload(buildPersistedDealPayload(presenceAwareMerged));
+        return mergeDealLinkageFields(existingItem, recalculated);
+      })()
+      : normalized;
     const updatedItem = { ...existingItem, ...normalizedForUpdate, id: existingItem.id, createdAt: existingItem.createdAt, updatedAt: new Date().toISOString() };
     items[targetIndex] = updatedItem;
     await writeFile(items);
@@ -2077,6 +2126,7 @@ const server = http.createServer(async (req, res) => {
   const segments = pathname.split("/").filter(Boolean);
 
   try {
+    await populateRequestUserFromSession(req, verifySession);
     createRequestContext(req, res);
 
     if (pathname === "/health" || pathname === "/api/health") {
@@ -2951,6 +3001,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (segments[0] === "api" && segments[1] === "comps") {
+      await providerTelemetryReadyPromise;
       if (segments[2] === "operations") {
         const operationName = segments[3] || "";
         if (req.method === "GET" && operationName === "templates") {
@@ -3154,6 +3205,30 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 200, result);
         return;
       }
+      if (req.method === "POST" && segments[2] === "verify-evidence") {
+        const auth = authorizeRequest(req, res, "write");
+        if (!auth.allowed) return;
+        if (!enforceRateLimit(req, res, "write")) return;
+        let payload = {};
+        try {
+          payload = await readJsonBody(req);
+        } catch (error) {
+          if (error instanceof HttpRequestBodyError) {
+            sendStructuredError(res, error.statusCode, error.message, error.errorType, req.requestContext?.requestId || "");
+            return;
+          }
+          throw error;
+        }
+        const sanitizedPayload = sanitizeIncomingPayload(payload);
+        const comp = sanitizedPayload.comp || sanitizedPayload;
+        if (!getStringValue(comp.compAddress || comp.address)) {
+          sendStructuredError(res, 400, "Comp address is required", "validation_error", req.requestContext?.requestId || "");
+          return;
+        }
+        const evidence = await compEvidenceEngine.verify(comp, sanitizedPayload.subject || {}, { forceRefresh: Boolean(sanitizedPayload.forceRefresh) });
+        sendJson(res, 200, { ok: true, evidence, governance: { reviewRequired: true, autoApprovalAllowed: false, supportedArvChanged: false }, cache: compEvidenceEngine.cacheSummary() });
+        return;
+      }
       if (req.method === "POST" && segments[2] === "subject-property") {
         const auth = authorizeRequest(req, res, "write");
         if (!auth.allowed) return;
@@ -3169,7 +3244,13 @@ const server = http.createServer(async (req, res) => {
           throw error;
         }
         const sanitizedPayload = sanitizeIncomingPayload(payload);
-        const address = getStringValue(sanitizedPayload.address || sanitizedPayload.subjectAddress);
+        const addressParts = [
+          getStringValue(sanitizedPayload.address || sanitizedPayload.subjectAddress),
+          getStringValue(sanitizedPayload.city),
+          getStringValue(sanitizedPayload.state),
+          getStringValue(sanitizedPayload.zipCode || sanitizedPayload.zip),
+        ].filter(Boolean);
+        const address = addressParts.join(", ");
         if (!address) {
           sendStructuredError(res, 400, "Address is required", "validation_error", req.requestContext?.requestId || "");
           return;
@@ -3222,25 +3303,43 @@ const server = http.createServer(async (req, res) => {
           return;
         }
         const searchSession = providerSearchSessionService.createSession({ provider: activeProviderKey, operation: "sold-comps", query, status: "running" });
-        const cacheKey = `sold-comps:${String(activeProviderKey).toLowerCase()}:${query.address.toLowerCase()}:${query.radiusMiles}:${query.months}:${query.maxResults}`;
-        const cachedResult = providerSearchSessionService.getCachedResult(cacheKey);
-        if (cachedResult) {
+        const cacheKey = buildSoldCompCacheKey(query);
+        const cachedEntry = providerSearchSessionService.getCachedResultEntry(cacheKey, { includeExpired: true });
+        const existingRetrieval = providerSearchSessionService.getInFlight(cacheKey);
+        const cacheTtlMs = cachedEntry.ttlMs;
+        const decorateDiagnostics = (diagnostics = {}, cacheStatus = "MISS", metadata = {}, requestCoalesced = false) => ({
+          ...diagnostics,
+          cacheStatus,
+          cacheAgeMs: cachedEntry.ageMs,
+          cacheTtlMs,
+          upstreamProviderRequestsThisSearch: cacheStatus === "HIT" ? 0 : (diagnostics.pagesRetrieved || 0),
+          requestsAvoidedByCache: cacheStatus === "HIT" ? Number(metadata.upstreamProviderRequests || diagnostics.pagesRetrieved || 0) : 0,
+          requestCoalesced,
+          lastLiveProviderRefresh: metadata.lastLiveProviderRefresh || null,
+          staleCacheAvailable: Boolean(cachedEntry.value && (cacheStatus === "EXPIRED" || cacheStatus === "BYPASSED")),
+        });
+        if (!query.forceRefresh && cachedEntry.status === "HIT" && !existingRetrieval) {
+          const cachedResult = { ...cachedEntry.value, diagnostics: decorateDiagnostics(cachedEntry.value.diagnostics, "HIT", cachedEntry.metadata) };
           providerSearchSessionService.recordUsage(activeProviderKey, "sold-comps", "cached");
           providerSearchSessionService.recordResult(searchSession.id, { status: "Cached", resultCount: cachedResult.resultCount || 0, cachedResults: true, requestDurationMs: 0, lastError: "" });
+          addProviderSearchHistory({ provider: activeProviderKey, operation: "sold-comps", query, ok: true, status: "Cached", resultCount: cachedResult.resultCount || 0, diagnostics: cachedResult.diagnostics });
           sendJson(res, 200, { ...cachedResult, cached: true, sessionId: searchSession.id });
           return;
         }
-        const providerResults = await multiSourceCompSearchService.searchSoldComparables(query);
-        const storedComps = await readCompsFile();
-        const seenKeys = new Set(storedComps.map((item) => [item.providerRecordId, item.address, item.compAddress].filter(Boolean).join("|")));
-        const now = new Date().toISOString();
-        const importedRecords = [];
-        const records = Array.isArray(providerResults.records) ? providerResults.records : [];
-        records.forEach((record) => {
-          const key = [record.providerRecordId, record.address, record.compAddress].filter(Boolean).join("|");
-          if (!key || seenKeys.has(key)) return;
-          seenKeys.add(key);
-          const importedRecord = normalizeCompPayload({
+        const requestCoalesced = Boolean(existingRetrieval);
+        const retrieval = existingRetrieval || (async () => {
+          if (typeof activeCompProvider.searchSoldComparablesDetailed === "function") {
+            return activeCompProvider.searchSoldComparablesDetailed(query);
+          }
+          const candidates = await activeCompProvider.searchSoldComparables(query);
+          return { ok: true, status: "Success", errorCode: null, providerCandidates: candidates, qualifyingCandidates: candidates, rejectedCandidates: [] };
+        })();
+        if (!existingRetrieval) providerSearchSessionService.setInFlight(cacheKey, retrieval);
+        const providerResult = await retrieval;
+        const linkRecord = (record) => normalizeCompPayload({
+            id: record.id || record.compId || record.providerRecordId || "",
+            compId: record.compId || record.id || record.providerRecordId || "",
+            providerRecordId: record.providerRecordId || record.id || record.compId || "",
             compAddress: record.address || "",
             city: record.city || "",
             state: record.state || "",
@@ -3257,6 +3356,14 @@ const server = http.createServer(async (req, res) => {
             source: record.provider ? `${record.provider} Provider` : "Provider Import",
             sourceLink: record.sourceURL || record.sourceLink || "",
             notes: record.notes || "",
+            listingDescription: record.listingDescription || record.description || "",
+            listingHistory: Array.isArray(record.listingHistory) ? record.listingHistory : [],
+            saleHistory: Array.isArray(record.saleHistory) ? record.saleHistory : [],
+            taxHistory: Array.isArray(record.taxHistory) ? record.taxHistory : [],
+            media: Array.isArray(record.media) ? record.media : [],
+            mediaRightsStatus: record.mediaRightsStatus || "REMOTE_REFERENCE_ONLY",
+            attributionRequired: record.attributionRequired !== false,
+            parcelNumber: record.parcelNumber || "",
             provider: record.provider || (activeCompProvider?.constructor?.name === "RentCastCompAdapter" ? "rentcast" : "manual"),
             providerImported: true,
             manuallyEntered: false,
@@ -3264,22 +3371,44 @@ const server = http.createServer(async (req, res) => {
             inclusionStatus: "pending",
             included: false,
             active: true,
+            searchTier: record.searchTier,
+            searchTierLabel: record.searchTierLabel,
+            saleAgeDays: record.saleAgeDays,
+            saleAgeMonths: record.saleAgeMonths,
+            squareFeetVariancePercentage: record.squareFeetVariancePercentage,
+            bedroomVariance: record.bedroomVariance,
+            bathroomVariance: record.bathroomVariance,
+            propertyTypeMatch: record.propertyTypeMatch,
+            similarityScore: record.similarityScore,
+            acceptanceReasons: record.acceptanceReasons,
+            rejectionReasons: record.rejectionReasons,
+            tierTrace: record.tierTrace,
+            priorRejectionReasons: record.priorRejectionReasons,
             subjectProperty: query.address || "",
-            createdAt: now,
-            updatedAt: now,
+            subjectDealId: query.subjectDealId,
+            dealId: query.dealId || query.subjectDealId,
+            propertyId: query.propertyId,
+            subjectPropertyId: query.propertyId || query.subjectDealId,
           });
-          importedRecords.push({ ...importedRecord, id: createId("comp"), createdAt: now, updatedAt: now });
-        });
-        if (importedRecords.length > 0) {
-          await writeCompsFile([...storedComps, ...importedRecords]);
+        const providerCandidates = (providerResult.providerCandidates || []).map(linkRecord);
+        const qualifyingCandidates = (providerResult.qualifyingCandidates || []).map(linkRecord);
+        const status = !providerResult.ok
+          ? providerResult.status || "Provider Request Failed"
+          : providerCandidates.length === 0
+            ? "Provider Returned Zero Candidates"
+            : qualifyingCandidates.length === 0
+              ? "0 qualifying comps after review criteria"
+              : "Qualifying Comps Found";
+        const liveRefreshAt = new Date().toISOString();
+        const responsePayload = { ok: providerResult.ok, status: providerResult.ok ? (providerResult.status || status) : status, errorCode: providerResult.errorCode || null, records: qualifyingCandidates, providerCandidates, providerCandidateCount: providerCandidates.length, qualifyingCandidateCount: qualifyingCandidates.length, totalReviewCandidates: providerResult.totalReviewCandidates ?? qualifyingCandidates.length, tierCounts: providerResult.tierCounts || { 1: qualifyingCandidates.length, 2: 0, 3: 0, 4: 0 }, tiersRun: providerResult.tiersRun || [1], rejectedCandidates: providerResult.rejectedCandidates || [], diagnostics: decorateDiagnostics(providerResult.diagnostics || {}, query.forceRefresh ? "BYPASSED" : (cachedEntry.status === "EXPIRED" ? "EXPIRED" : "MISS"), { lastLiveProviderRefresh: liveRefreshAt }, requestCoalesced), resultCount: qualifyingCandidates.length, reviewRequired: true, persisted: false };
+        if (providerResult.ok) {
+          providerSearchSessionService.setCachedResult(cacheKey, responsePayload, { upstreamProviderRequests: providerResult.diagnostics?.pagesRetrieved || 0, lastLiveProviderRefresh: liveRefreshAt });
         }
-        const responsePayload = { ok: true, status: records.length > 0 ? "Success" : "No Qualifying Comps", errorCode: null, records: importedRecords, resultCount: importedRecords.length, providerSummary: providerResults.providerResults || [] };
-        providerSearchSessionService.setCachedResult(cacheKey, responsePayload);
-        providerSearchSessionService.recordUsage(activeProviderKey, "sold-comps", importedRecords.length > 0 ? "completed" : "completed");
-        providerSearchSessionService.recordResult(searchSession.id, { status: responsePayload.status, resultCount: importedRecords.length, cachedResults: false, requestDurationMs: 0, lastError: "" });
+        providerSearchSessionService.recordUsage(activeProviderKey, "sold-comps", providerResult.ok ? "completed" : "failed");
+        providerSearchSessionService.recordResult(searchSession.id, { status: responsePayload.status, resultCount: qualifyingCandidates.length, cachedResults: false, requestDurationMs: 0, lastError: providerResult.errorCode || "" });
         providerSearchSessionService.snapshotSession(searchSession.id, responsePayload);
-        addProviderSearchHistory({ operation: "sold-comps", query, ok: true, status: records.length > 0 ? "Success" : "No Qualifying Comps", resultCount: importedRecords.length });
-        sendJson(res, 200, { ...responsePayload, sessionId: searchSession.id });
+        addProviderSearchHistory({ provider: activeProviderKey, operation: "sold-comps", query, ok: providerResult.ok, status, resultCount: qualifyingCandidates.length, diagnostics: responsePayload.diagnostics });
+        sendJson(res, 200, { ...responsePayload, staleCacheAvailable: Boolean(!providerResult.ok && cachedEntry.value), sessionId: searchSession.id });
         return;
       }
       if (req.method === "POST" && segments[2] === "active-listings") {
@@ -3382,7 +3511,7 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 200, { ok: true, summary: providerSearchSessionService.getSummary() });
         return;
       }
-      if (req.method === "GET") {
+      if (req.method === "GET" && segments.length === 2) {
         const items = await readCompsFile();
         const subjectProperty = {};
         const mapped = items.map((item) => mapCompRecordForResponse(item, subjectProperty));
@@ -3568,11 +3697,14 @@ const server = http.createServer(async (req, res) => {
 
 const serverInstance = server.listen(port, bindHost, async () => {
   try {
+    await hydrateProviderTelemetry();
+    resolveProviderTelemetryReady();
     await initializeAuthState(process.env);
     await dealPropertySyncService.migrateExistingLinkages("Startup Migration");
     await syncDealIntelligenceStore();
     await crossModuleSyncService.synchronizeAll("System Administrator");
   } catch (error) {
+    resolveProviderTelemetryReady();
     console.error("[RSOS] Unable to initialize deal intelligence store", error);
   }
   safeConsoleLog("info", "backend_listening", { port, host: bindHost });

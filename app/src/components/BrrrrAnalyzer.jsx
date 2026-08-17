@@ -5,6 +5,7 @@ import { buildUnifiedUnderwritingIntelligence } from "./intelligenceUpgradeEngin
 import { getSidebarNavigation } from "../utils/navigationModel.js";
 import { useLogoutControl } from "../hooks/useLogoutControl.js";
 import { normalizePercent } from "../utils/percentageNormalization.js";
+import { buildPropertyAutomation } from "./propertyAutomationEngine.js";
 
 const navigation = getSidebarNavigation();
 
@@ -14,6 +15,8 @@ const initialValues = {
   arv: "",
   closingCosts: "",
   financingCosts: "",
+  earnestMoney: "",
+  holdingMonths: "",
   initialCashInvested: "",
   refinanceLtvPercent: "75",
   refinanceInterestRate: "",
@@ -110,29 +113,32 @@ export default function BrrrrAnalyzer({ onBack, onOpenDealIntake, onOpenDealAnal
 
     const selectedDeal = deals.find((deal) => String(deal.id) === String(chosenId));
     if (!selectedDeal) return;
+    const canonical = buildPropertyAutomation(selectedDeal).moduleData.brrrrAnalyzer;
 
     setFormValues({
-      purchasePrice: selectedDeal.purchasePrice ?? "",
-      rehabBudget: selectedDeal.rehabBudget ?? "",
-      arv: selectedDeal.estimatedArv ?? selectedDeal.arv ?? "",
-      closingCosts: selectedDeal.closingCosts ?? "",
-      financingCosts: selectedDeal.financingCosts ?? "",
-      initialCashInvested: selectedDeal.initialCashInvested ?? "",
-      refinanceLtvPercent: selectedDeal.refinanceLtvPercent ?? "75",
-      refinanceInterestRate: selectedDeal.refinanceInterestRate ?? "",
-      refinanceLoanTermYears: selectedDeal.refinanceLoanTermYears ?? "30",
-      refinanceClosingCosts: selectedDeal.refinanceClosingCosts ?? "",
-      monthlyRent: selectedDeal.estimatedRent ?? selectedDeal.monthlyRent ?? "",
-      otherMonthlyIncome: selectedDeal.otherMonthlyIncome ?? "",
-      annualPropertyTaxes: selectedDeal.annualPropertyTaxes ?? "",
-      annualInsurance: selectedDeal.annualInsurance ?? "",
-      monthlyHoa: selectedDeal.monthlyHoa ?? "",
-      vacancyPercent: selectedDeal.vacancyPercent ?? "5",
-      maintenancePercent: selectedDeal.maintenancePercent ?? "5",
-      capexPercent: selectedDeal.capexPercent ?? "5",
-      propertyManagementPercent: selectedDeal.propertyManagementPercent ?? "8",
-      monthlyUtilities: selectedDeal.monthlyUtilities ?? "",
-      otherMonthlyExpenses: selectedDeal.otherMonthlyExpenses ?? "",
+      purchasePrice: canonical.purchasePrice ?? "",
+      rehabBudget: canonical.rehabBudget ?? "",
+      arv: canonical.arv ?? "",
+      closingCosts: canonical.closingCosts ?? "",
+      financingCosts: canonical.financingCosts ?? "",
+      earnestMoney: canonical.earnestMoney ?? "",
+      holdingMonths: canonical.holdingMonths ?? "",
+      initialCashInvested: canonical.initialCashInvested ?? "",
+      refinanceLtvPercent: canonical.refinanceLtvPercentage ?? "75",
+      refinanceInterestRate: canonical.refinanceInterestRate ?? "",
+      refinanceLoanTermYears: canonical.refinanceLoanTermYears ?? "30",
+      refinanceClosingCosts: canonical.refinanceClosingCosts ?? "",
+      monthlyRent: canonical.monthlyRent ?? "",
+      otherMonthlyIncome: canonical.otherMonthlyIncome ?? "",
+      annualPropertyTaxes: canonical.annualPropertyTaxes ?? "",
+      annualInsurance: canonical.annualInsurance ?? "",
+      monthlyHoa: canonical.hoa ?? "",
+      vacancyPercent: canonical.vacancyPercentage ?? "5",
+      maintenancePercent: canonical.maintenancePercentage ?? "5",
+      capexPercent: canonical.capitalExpendituresPercentage ?? "5",
+      propertyManagementPercent: canonical.propertyManagementPercentage ?? "8",
+      monthlyUtilities: canonical.monthlyUtilitiesPaidByOwner ?? "",
+      otherMonthlyExpenses: canonical.otherMonthlyExpenses ?? "",
     });
   };
 
@@ -144,6 +150,8 @@ export default function BrrrrAnalyzer({ onBack, onOpenDealIntake, onOpenDealAnal
       estimatedRent: formValues.monthlyRent,
       closingCosts: formValues.closingCosts,
       financingCosts: formValues.financingCosts,
+      earnestMoney: formValues.earnestMoney,
+      holdingMonths: formValues.holdingMonths,
       initialCashInvested: formValues.initialCashInvested,
       refinanceLtvPercent: formValues.refinanceLtvPercent,
       refinanceInterestRate: formValues.refinanceInterestRate,
@@ -333,6 +341,8 @@ export default function BrrrrAnalyzer({ onBack, onOpenDealIntake, onOpenDealAnal
                   ["ARV", "arv"],
                   ["Closing Costs", "closingCosts"],
                   ["Financing Costs", "financingCosts"],
+                  ["EARNEST MONEY", "earnestMoney"],
+                  ["HOLDING MONTHS", "holdingMonths"],
                   ["Initial Cash Invested", "initialCashInvested"],
                   ["Refinance LTV Percentage", "refinanceLtvPercent"],
                   ["Refinance Interest Rate", "refinanceInterestRate"],
@@ -352,7 +362,15 @@ export default function BrrrrAnalyzer({ onBack, onOpenDealIntake, onOpenDealAnal
                 ].map(([label, name]) => (
                   <label key={name} style={styles.label}>
                     <span style={styles.fieldLabel}>{label}</span>
-                    <input type="number" name={name} value={formValues[name]} onChange={handleFieldChange} style={styles.input} />
+                    <input
+                      type="number"
+                      name={name}
+                      value={formValues[name]}
+                      onChange={handleFieldChange}
+                      min={name === "earnestMoney" || name === "holdingMonths" ? 0 : undefined}
+                      step={name === "holdingMonths" ? 1 : undefined}
+                      style={styles.input}
+                    />
                   </label>
                 ))}
               </div>

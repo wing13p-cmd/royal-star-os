@@ -1,4 +1,6 @@
 import { dealToCanonical, canonicalToDeal } from "./canonicalDataFoundation.js";
+import { evaluateRoyalStarBuyBox } from "../app/src/components/royalStarBuyBoxEngine.js";
+import { buildAppraisalIntelligenceResult } from "../app/src/components/appraisalIntelligenceEngine.js";
 
 function safeNumber(value, fallback = null) {
   if (value === null || value === undefined || value === "") return fallback;
@@ -730,6 +732,29 @@ export function evaluateCincinnatiBuyBox(deal = {}, context = {}) {
 }
 
 function evaluateBuyBoxForMarket(deal = {}, context = {}, expectedMarket = "Covington") {
+  void expectedMarket;
+  const central = evaluateRoyalStarBuyBox(deal, context);
+  const centralBlockers = central.failedRules.map((action) => ({ type: "ROYAL_STAR_BUY_BOX_FAIL", severity: "HARD_FAIL", action }));
+  return {
+    ...central,
+    confidenceScore: central.score,
+    reviewRequired: central.status !== "PASS",
+    warnings: central.reviewRules,
+    blockers: centralBlockers,
+    warningCount: central.reviewRules.length,
+    criticalBlockerCount: centralBlockers.length,
+    decisionBlockingActions: central.failedRules,
+    known: central.passedRules,
+    uncertain: central.reviewRules,
+    needed: central.reviewRules,
+    recommendation: central.status === "PASS"
+      ? "Proceed to review-first offer approval."
+      : central.status === "REVIEW"
+        ? "Do not advance until review conditions are cleared."
+        : "Reject unless hard policy conflicts are remediated.",
+    scoringDimensions: central.reasons.map((reason) => ({ dimension: "centralBuyBox", score: central.score, unknown: false, reason })),
+  };
+  /* Legacy scoring retained below for backward reference; this return makes the centralized result authoritative. */
   const canonical = normalizeDealForValuation(deal);
   const marketInfo = getBuyBoxZipMarket(canonical.zipCode);
   const isTargetMarket = marketInfo.market === expectedMarket;
@@ -862,6 +887,8 @@ function calculateUnifiedDealOutputs(deal = {}, comps = [], neighborhoods = [], 
 
   const offer = buildOfferPreview({ ...canonical, approvedArv: governance.approvedArv, recommendedArv: valuation.supportedArv }, valuationContext, assumptions);
   const buyBox = chooseMarketEvaluation(canonical, {
+    offer,
+    baseArv: effectiveArv,
     arvConfidenceScore: valuation.confidence?.score ?? 0,
     expectedProfit: offer.expectedProfit,
     dscr: offer.dscr,
@@ -898,6 +925,9 @@ function calculateUnifiedDealOutputs(deal = {}, comps = [], neighborhoods = [], 
     contradictoryRecommendations.length > 0;
 
   const appraisalPacketSupport = buildAppraiserPacketSupport(canonical, valuationContext, compUniverse.approved);
+  const appraisalIntelligence = buildAppraisalIntelligenceResult(canonical, compUniverse.approved, {
+    valuationResult: valuationContext,
+  });
 
   return {
     canonical: canonical,
@@ -906,6 +936,7 @@ function calculateUnifiedDealOutputs(deal = {}, comps = [], neighborhoods = [], 
     governance,
     offer,
     buyBox,
+    appraisalIntelligence,
     appraisalPacketSupport,
     contradictoryRecommendations,
     decisionConfidence,

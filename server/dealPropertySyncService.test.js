@@ -107,6 +107,31 @@ test("deal ARV synchronization updates linked property and does not create a new
   assert.equal(linkedProperty.currentValue, 301000);
 });
 
+test("canonical acquisition and holding updates propagate by linked deal ID", async () => {
+  const { store, service } = createHarness();
+  store.deals[0] = {
+    ...store.deals[0],
+    purchasePrice: 140000,
+    rehabBudget: 65000,
+    holdingMonths: 4,
+    holdingCosts: 8000,
+    earnestMoney: 3500,
+    closingCosts: 5500,
+    financingCosts: 6000,
+    updatedAt: "2026-08-06T19:01:00.000Z",
+  };
+
+  await service.synchronizeAfterSave({ sourceEntity: "deal", savedRecordId: "deal-952", sourceModule: "Deal Intake" });
+  const linked = store.properties.find((entry) => entry.linkedDealId === "deal-952");
+  assert.equal(linked.purchasePrice, 140000);
+  assert.equal(linked.currentRehabBudget, 65000);
+  assert.equal(linked.holdingMonths, 4);
+  assert.equal(linked.holdingCosts, 8000);
+  assert.equal(linked.earnestMoney, 3500);
+  assert.equal(linked.closingCosts, 5500);
+  assert.equal(linked.financingCosts, 6000);
+});
+
 test("property ARV synchronization updates linked deal", async () => {
   const { store, service } = createHarness();
 

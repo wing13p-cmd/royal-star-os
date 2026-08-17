@@ -1,5 +1,5 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { mkdir, readFile, writeFile, rename, access } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rename, access, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -23,6 +23,7 @@ const MAX_FAILURES = 5;
 const DEFAULT_MFA_CHALLENGE_TTL_MS = 1000 * 60 * 5;
 const DEFAULT_MFA_FAILURE_WINDOW_MS = 1000 * 60 * 5;
 const DEFAULT_MFA_MAX_FAILURES = 5;
+let authStateWriteQueue = Promise.resolve();
 
 const DEFAULT_MFA_STATE = {
   enabled: false,
@@ -100,10 +101,21 @@ async function readAuthState() {
 }
 
 async function writeAuthState(state) {
-  await ensureAuthDir();
-  const tmpFile = `${authStateFile}.tmp`;
-  await writeFile(tmpFile, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
-  await rename(tmpFile, authStateFile);
+  const operation = authStateWriteQueue.then(async () => {
+    await ensureAuthDir();
+    const tmpFile = `${authStateFile}.${process.pid}.${Date.now()}.${randomBytes(6).toString('hex')}.tmp`;
+    try {
+      await writeFile(tmpFile, `${JSON.stringify(state, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+      await rename(tmpFile, authStateFile);
+    } catch (error) {
+      await unlink(tmpFile).catch((cleanupError) => {
+        if (cleanupError?.code !== 'ENOENT') throw cleanupError;
+      });
+      throw error;
+    }
+  });
+  authStateWriteQueue = operation.catch(() => undefined);
+  return operation;
 }
 
 function pruneExpiredSessions(entries = [], now = Date.now()) {

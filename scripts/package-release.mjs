@@ -19,6 +19,7 @@ const safeCopyFiles = [
   'scripts/verify-deployment.mjs',
   'scripts/import-rsos-data.mjs',
   'server/index.js',
+  'server/compPersistenceContract.js',
   'server/authService.js',
   'server/mfaService.js',
   'server/secureGateway.js',

@@ -3,6 +3,7 @@ import logo from "../assets/royal-star-logo.png";
 import { buildAiDecisionEngine } from "./aiDecisionEngine.js";
 import { buildUnifiedUnderwritingIntelligence, normalizeDealForIntelligence, buildUnderwritingMetrics, buildDealScore } from "./intelligenceUpgradeEngine.js";
 import { buildApiUrl } from "../utils/apiClient.js";
+import { buildSessionAuthHeaders } from "../utils/sessionAuth.js";
 import { DEAL_STATUS_OPTIONS } from "../utils/dealWorkflowRegistry.js";
 import { getSidebarNavigation } from "../utils/navigationModel.js";
 import { useLogoutControl } from "../hooks/useLogoutControl.js";
@@ -50,6 +51,7 @@ function normalizeDeal(deal) {
   );
   const financingCosts = rawFinancingCosts > 0 ? rawFinancingCosts : (effectiveFinancingCosts > 0 ? effectiveFinancingCosts : "");
   const normalized = {
+    ...deal,
     id: deal.id || `${Date.now()}-${Math.random()}`,
     propertyAddress: deal.propertyAddress || deal.address || "",
     address: deal.address || deal.propertyAddress || "",
@@ -95,7 +97,7 @@ function normalizeDeal(deal) {
   return normalized;
 }
 
-export default function DealAnalyzer({ onBack, onOpenDealIntake, onOpenDealIntelligence, onEditDeal, currentView = "dealAnalyzer", onNavigate }) {
+export default function DealAnalyzer({ onBack, onOpenDealIntake, onOpenDealIntelligence, onOpenOfferGenerator, onEditDeal, currentView = "dealAnalyzer", onNavigate }) {
   const [deals, setDeals] = useState([]);
   const [connectionState, setConnectionState] = useState("Backend Connected");
   const [searchText, setSearchText] = useState("");
@@ -303,7 +305,10 @@ export default function DealAnalyzer({ onBack, onOpenDealIntake, onOpenDealIntel
     if (!confirmed) return;
 
     try {
-      const response = await fetch(buildApiUrl(`/api/deals/${deal.id}`), { method: "DELETE" });
+      const response = await fetch(buildApiUrl(`/api/deals/${deal.id}`), {
+        method: "DELETE",
+        headers: buildSessionAuthHeaders(),
+      });
       if (!response.ok) {
         throw new Error("Unable to delete deal");
       }
@@ -388,6 +393,9 @@ export default function DealAnalyzer({ onBack, onOpenDealIntake, onOpenDealIntel
             </button>
             <button type="button" style={styles.primaryButton} onClick={onOpenDealIntelligence}>
               DEAL INTELLIGENCE
+            </button>
+            <button type="button" style={styles.primaryButton} onClick={onOpenOfferGenerator}>
+              OFFER GENERATOR
             </button>
           </div>
         </section>
@@ -674,6 +682,7 @@ const styles = {
   },
   topBar: {
     display: "flex",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     alignItems: "center",
     gap: "12px",
@@ -704,6 +713,9 @@ const styles = {
   },
   headerActions: {
     display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    maxWidth: "100%",
     gap: "8px",
   },
   primaryButton: {

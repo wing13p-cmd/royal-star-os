@@ -1,6 +1,6 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -272,6 +272,22 @@ test('expired sessions are rejected and brute-force lockout remains active', asy
   await new Promise((resolve) => setTimeout(resolve, 5));
   const session = await verifySession(login.session.id, '127.0.0.1');
   assert.equal(session, null);
+});
+
+test('concurrent auth-state writes use isolated temp files and leave valid state without temp artifacts', async () => {
+  await resetAuthState({});
+  await initializeAuthState({ RSOS_ADMIN_USERNAME: 'concurrent@example.com', RSOS_ADMIN_PASSWORD: 'StrongPass123!' });
+  const attempts = await Promise.all(Array.from({ length: 12 }, (_, index) => authenticateUser({
+    username: 'concurrent@example.com',
+    password: 'StrongPass123!',
+    ipAddress: `127.0.0.${index + 1}`,
+  })));
+  assert.equal(attempts.every((entry) => entry.ok), true);
+  const persisted = await readAuthStateFile();
+  assert.equal(persisted.admin.username, 'concurrent@example.com');
+  assert.equal(Array.isArray(persisted.sessions), true);
+  const files = await readdir(path.dirname(authStateFile));
+  assert.equal(files.some((name) => /^auth-state\.json\..+\.tmp$/.test(name)), false);
 });
 
 after(async () => {

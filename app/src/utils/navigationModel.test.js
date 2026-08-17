@@ -29,9 +29,16 @@ test('canonical navigation returns a shallow copy', () => {
 
 test('resolveSafeViewKey falls back to dashboard for unknown view', () => {
   assert.equal(resolveSafeViewKey('dealAnalyzer', 'dashboard'), 'dealAnalyzer');
+  assert.equal(resolveSafeViewKey('offerGenerator', 'dashboard'), 'offerGenerator');
   assert.equal(resolveSafeViewKey('unknown-view', 'dashboard'), 'dashboard');
   assert.equal(isKnownViewKey('dashboard'), true);
+  assert.equal(isKnownViewKey('offerGenerator'), true);
   assert.equal(isKnownViewKey('not-a-view'), false);
+});
+
+test('Offer Generator is an auxiliary view and is not added to sidebar navigation', () => {
+  assert.equal(getSidebarNavigation().some((entry) => entry.viewKey === 'offerGenerator'), false);
+  assert.equal(getCanonicalNavigation().some((entry) => entry.viewKey === 'offerGenerator'), false);
 });
 
 test('shouldConfirmNavigation only prompts when unsaved data would be abandoned', () => {

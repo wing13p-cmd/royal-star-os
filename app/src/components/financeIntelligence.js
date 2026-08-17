@@ -1,3 +1,5 @@
+import { buildLeverageTruthSnapshot, normalizeInterestRatePercent } from "./dealIntelligenceTruthEngine.js";
+
 export function safeNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -7,6 +9,15 @@ export function safeDisplay(value, fallback = "Insufficient Data") {
   if (value === null || value === undefined || value === "" || Number.isNaN(value)) return fallback;
   if (typeof value === "number" && !Number.isFinite(value)) return fallback;
   return value;
+}
+
+function optionalNumber(...values) {
+  for (const value of values) {
+    if (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) continue;
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
 }
 
 function sanitize(value) {
@@ -26,17 +37,13 @@ function calculateEligibility(funding, lender, deal) {
   const requiredDscr = safeNumber(lender.DSCRMinimum ?? lender.minimumDSCR);
   const minCredit = safeNumber(lender.creditScoreMinimum);
   const loanAmount = funding.loanAmount;
-  const purchasePrice = safeNumber(deal.purchasePrice ?? deal.askingPrice);
-  const rehabBudget = safeNumber(deal.rehabBudget);
-  const arv = safeNumber(deal.estimatedArv ?? deal.arv ?? deal.projectedARV ?? deal.currentValue);
-  const totalCost = purchasePrice + rehabBudget + safeNumber(deal.closingCosts) + safeNumber(deal.financingCosts) + safeNumber(deal.taxes) + safeNumber(deal.insurance);
-  const ltc = totalCost > 0 ? loanAmount / totalCost : 0;
-  const ltv = purchasePrice > 0 ? loanAmount / purchasePrice : 0;
-  const ltarv = arv > 0 ? loanAmount / arv : 0;
+  const ltc = funding.ltc;
+  const ltv = funding.ltv;
+  const ltarv = funding.ltarv;
   const dscr = safeNumber(deal.estimatedRent) > 0 && funding.monthlyPrincipalAndInterest > 0 ? safeNumber(deal.estimatedRent) / funding.monthlyPrincipalAndInterest : 0;
 
   if (maxLtc > 0 && ltc > maxLtc) failures.push(`LTC exceeds ${Math.round(maxLtc * 100)}%`);
-  if (maxLtv > 0 && ltv > maxLtv) failures.push(`LTV exceeds ${Math.round(maxLtv * 100)}%`);
+  if (maxLtv > 0 && ltv !== null && ltv > maxLtv) failures.push(`LTV exceeds ${Math.round(maxLtv * 100)}%`);
   if (maxLtarv > 0 && ltarv > maxLtarv) failures.push(`LTARV exceeds ${Math.round(maxLtarv * 100)}%`);
   if (maxLtc > 0 && loanAmount > safeNumber(lender.maximumLoanAmount)) failures.push("Loan amount exceeds lender maximum");
   if (requiredCash > 0 && funding.cashRequired > requiredCash) failures.push("Cash contribution exceeds lender requirement");
@@ -55,46 +62,43 @@ function calculateEligibility(funding, lender, deal) {
   return { status: "Not Qualified", failures };
 }
 
-function calculateWarnings(funding, lender, deal) {
+function calculateWarnings(funding, lender, deal, hasLinkedLender) {
   const warnings = [];
-  const rate = safeNumber(lender.interestRate);
+  const push = (message, source, rule) => warnings.push({ message, source, rule });
+  const rate = funding.interestRateDecimal;
   const points = safeNumber(lender.originationPoints);
   const fees = funding.originationFees;
   const purchasePrice = safeNumber(deal.purchasePrice ?? deal.askingPrice);
   const rehabBudget = safeNumber(deal.rehabBudget);
   const arv = safeNumber(deal.estimatedArv ?? deal.arv ?? deal.projectedARV ?? deal.currentValue);
-  const totalCost = purchasePrice + rehabBudget + safeNumber(deal.closingCosts) + safeNumber(deal.financingCosts) + safeNumber(deal.taxes) + safeNumber(deal.insurance);
-  const ltc = totalCost > 0 ? funding.loanAmount / totalCost : 0;
-  const ltarv = arv > 0 ? funding.loanAmount / arv : 0;
+  const ltc = funding.ltc;
+  const ltarv = funding.ltarv;
   const dscr = safeNumber(deal.estimatedRent) > 0 && funding.monthlyPrincipalAndInterest > 0 ? safeNumber(deal.estimatedRent) / funding.monthlyPrincipalAndInterest : 0;
 
-  if (rate > 0.12) warnings.push("Excessive Interest Rate");
-  if (points > 0.03) warnings.push("High Points");
-  if (fees > 5000) warnings.push("High Fees");
-  if (ltc > 0.8) warnings.push("LTC Exceeded");
-  if (ltarv > 0.75) warnings.push("LTARV Exceeded");
-  if (dscr > 0 && dscr < 1.25) warnings.push("Low DSCR");
-  if (funding.loanAmount > 0 && purchasePrice > 0 && funding.loanAmount > purchasePrice * 0.8) warnings.push("Loan Amount Too Large");
-  if (funding.cashRequired > 25000) warnings.push("Cash Requirement Too High");
-  if (safeNumber(lender.loanTermMonths) > 0 && safeNumber(lender.loanTermMonths) < 12) warnings.push("Short Loan Term");
-  if (safeNumber(lender.loanTermMonths) > 0 && safeNumber(lender.loanTermMonths) < 24) warnings.push("Maturity Risk");
+  if (rate !== null && rate > 0.12) push("Excessive Interest Rate", "ROYAL_STAR_INTERNAL", "INTERNAL_RATE");
+  if (points > 0.03) push("High Points", hasLinkedLender ? "LENDER_RULE" : "ROYAL_STAR_INTERNAL", "POINTS");
+  if (fees > 5000) push("High Fees", hasLinkedLender ? "LENDER_RULE" : "ROYAL_STAR_INTERNAL", "FEES");
+  if (ltc > 0.8) push("LTC Exceeded", "ROYAL_STAR_INTERNAL", "INTERNAL_LTC");
+  if (ltarv > 0.75) push("LTARV Exceeded", "ROYAL_STAR_INTERNAL", "INTERNAL_LTARV");
+  if (/brrrr|rental|hold/i.test(String(deal.strategy || deal.exitStrategy || "")) && dscr > 0 && dscr < 1.25) push("Low DSCR", "STRATEGY", "RENTAL_DSCR");
+  if (funding.loanAmount > 0 && purchasePrice > 0 && funding.loanAmount > purchasePrice * 0.8) push("Loan Amount Too Large", "ROYAL_STAR_INTERNAL", "INTERNAL_LOAN_TO_PURCHASE");
+  if (funding.cashRequired > 25000) push("Cash Requirement Too High", "ROYAL_STAR_INTERNAL", "INTERNAL_CASH_REQUIREMENT");
+  if (hasLinkedLender && safeNumber(lender.loanTermMonths) > 0 && safeNumber(lender.loanTermMonths) < 12) push("Short Loan Term", "LENDER_RULE", "LENDER_TERM");
+  if (hasLinkedLender && safeNumber(lender.loanTermMonths) > 0 && safeNumber(lender.loanTermMonths) < 24) push("Maturity Risk", "LENDER_RULE", "LENDER_MATURITY");
 
   return warnings;
 }
 
 function calculateFinancingScore(funding, lender, deal) {
-  const rate = safeNumber(lender.interestRate);
+  const rate = funding.interestRateDecimal ?? 0;
   const points = safeNumber(lender.originationPoints);
   const fees = funding.originationFees;
   const cashRequired = funding.cashRequired;
-  const purchasePrice = safeNumber(deal.purchasePrice ?? deal.askingPrice);
-  const rehabBudget = safeNumber(deal.rehabBudget);
-  const arv = safeNumber(deal.estimatedArv ?? deal.arv ?? deal.projectedARV ?? deal.currentValue);
-  const totalCost = purchasePrice + rehabBudget + safeNumber(deal.closingCosts) + safeNumber(deal.financingCosts) + safeNumber(deal.taxes) + safeNumber(deal.insurance);
-  const ltc = totalCost > 0 ? funding.loanAmount / totalCost : 0;
-  const ltarv = arv > 0 ? funding.loanAmount / arv : 0;
+  const ltc = funding.ltc;
+  const ltarv = funding.ltarv;
   const monthlyPayment = funding.monthlyPrincipalAndInterest;
-  const dscr = safeNumber(deal.estimatedRent) > 0 && monthlyPayment > 0 ? safeNumber(deal.estimatedRent) / monthlyPayment : 0;
+  const rentalApplicable = /brrrr|rental|hold/i.test(String(deal.strategy || deal.exitStrategy || ""));
+  const dscr = rentalApplicable && safeNumber(deal.estimatedRent) > 0 && monthlyPayment > 0 ? safeNumber(deal.estimatedRent) / monthlyPayment : 0;
   const closingSpeed = safeNumber(lender.drawTurnaroundDays);
   const flexibility = safeNumber(lender.flexibilityScore);
 
@@ -156,27 +160,39 @@ export function buildFinancingIntelligence(deal = {}, lender = {}) {
   const insurance = safeNumber(deal.insurance);
   const arv = safeNumber(deal.estimatedArv ?? deal.arv ?? deal.projectedARV ?? deal.currentValue);
   const estimatedRent = safeNumber(deal.estimatedRent ?? deal.marketRent ?? deal.projectedRent);
-  const interestRate = safeNumber(lender.interestRate);
+  const hasLinkedLender = Boolean(lender.id || lender.lenderName || lender.loanProgramName);
+  const savedInterestRate = optionalNumber(deal.annualInterestRate, deal.interestRate, deal.rate);
+  const lenderInterestRate = hasLinkedLender ? optionalNumber(lender.interestRate) : null;
+  const interestRate = normalizeInterestRatePercent(lenderInterestRate ?? savedInterestRate);
   const points = safeNumber(lender.originationPoints);
   const originationFees = safeNumber(lender.underwritingFee) + safeNumber(lender.processingFee) + safeNumber(lender.appraisalFee) + safeNumber(lender.legalFee) + safeNumber(lender.drawFee) + safeNumber(lender.extensionFee);
   const totalProjectCost = purchasePrice + rehabBudget + closingCosts + financingCosts + taxes + insurance;
   const maxLoanAmount = safeNumber(lender.maximumLoanAmount);
   const minimumLoanAmount = safeNumber(lender.minimumLoanAmount);
+  const savedLoanAmount = optionalNumber(deal.actualLoanAmount, deal.actualLoan, deal.loanAmount, deal.fundingAmount);
   const baseLoanAmount = totalProjectCost > 0 ? totalProjectCost * 0.8 : 0;
-  const loanAmount = maxLoanAmount > 0 ? Math.min(baseLoanAmount, maxLoanAmount) : baseLoanAmount;
-  const cashRequired = Math.max(0, totalProjectCost - loanAmount);
+  const modeledLoanAmount = maxLoanAmount > 0 ? Math.min(baseLoanAmount, maxLoanAmount) : baseLoanAmount;
+  const loanAmount = savedLoanAmount ?? (hasLinkedLender ? modeledLoanAmount : 0);
+  const explicitCashRequired = optionalNumber(deal.initialCashInvested, deal.totalInitialCashInvested);
+  const cashRequired = explicitCashRequired ?? Math.max(0, totalProjectCost - loanAmount);
   const pointsCost = loanAmount * points;
   const totalFinancingCost = pointsCost + originationFees;
-  const monthlyInterestPayment = loanAmount > 0 ? (loanAmount * interestRate) / 12 : 0;
-  const monthlyPrincipalAndInterest = loanAmount > 0 ? (loanAmount / 12) + monthlyInterestPayment : 0;
-  const ltc = totalProjectCost > 0 ? loanAmount / totalProjectCost : 0;
-  const ltv = purchasePrice > 0 ? loanAmount / purchasePrice : 0;
-  const ltarv = arv > 0 ? loanAmount / arv : 0;
-  const dscr = estimatedRent > 0 && monthlyPrincipalAndInterest > 0 ? estimatedRent / monthlyPrincipalAndInterest : 0;
-  const interestCarryDuringRehab = monthlyInterestPayment * 6;
-  const totalInterestExpense = monthlyInterestPayment * 12;
+  const normalizedRate = interestRate === null ? null : interestRate / 100;
+  const monthlyInterestPayment = loanAmount > 0 && normalizedRate !== null ? (loanAmount * normalizedRate) / 12 : null;
+  const savedMonthlyPayment = optionalNumber(deal.monthlyPayment, deal.monthlyCarry);
+  const interestOnly = /interest|intrest/i.test(String(deal.paymentType || ""));
+  const monthlyPrincipalAndInterest = savedMonthlyPayment ?? (interestOnly ? monthlyInterestPayment : (loanAmount > 0 && monthlyInterestPayment !== null ? (loanAmount / 12) + monthlyInterestPayment : null));
+  const leverage = buildLeverageTruthSnapshot(deal, { loanAmount });
+  const ltc = leverage.ltc;
+  const ltv = leverage.ltv;
+  const ltarv = leverage.ltarv;
+  const dscr = estimatedRent > 0 && monthlyPrincipalAndInterest > 0 ? estimatedRent / monthlyPrincipalAndInterest : null;
+  const holdingMonths = optionalNumber(deal.holdingMonths) ?? 0;
+  const interestCarryDuringRehab = monthlyInterestPayment !== null ? monthlyInterestPayment * holdingMonths : null;
+  const totalInterestExpense = monthlyInterestPayment !== null ? monthlyInterestPayment * 12 : null;
   const estimatedCashToClose = cashRequired + totalFinancingCost + closingCosts + financingCosts + taxes + insurance;
-  const remainingLiquidityAfterClosing = safeNumber(deal.cashOnHand) - estimatedCashToClose;
+  const availableLiquidity = optionalNumber(deal.availableLiquidity, deal.cashOnHand, deal.liquidity);
+  const remainingLiquidityAfterClosing = availableLiquidity !== null ? availableLiquidity - estimatedCashToClose : null;
 
   const funding = {
     loanAmount: Math.max(0, loanAmount),
@@ -189,25 +205,30 @@ export function buildFinancingIntelligence(deal = {}, lender = {}) {
     ltc,
     ltv,
     ltarv,
+    leverage,
     dscr,
     interestCarryDuringRehab,
     totalInterestExpense,
     estimatedCashToClose,
     remainingLiquidityAfterClosing,
+    interestRateDecimal: normalizedRate,
   };
 
-  const qualification = calculateEligibility(funding, lender, deal);
-  const financingWarnings = calculateWarnings(funding, lender, deal);
+  const qualification = hasLinkedLender ? calculateEligibility(funding, lender, deal) : { status: "Not Evaluated — No Lender Linked", failures: [] };
+  const financingWarningDetails = calculateWarnings(funding, lender, deal, hasLinkedLender);
+  const financingWarnings = financingWarningDetails.map((warning) => warning.message);
   const financingScore = calculateFinancingScore(funding, lender, deal);
   const riskLevel = calculateRiskLevel(financingWarnings);
 
   return {
     ...funding,
     lenderId: lender.id || "",
-    selectedLender: lender.lenderName || lender.loanProgramName || "Insufficient Data",
+    selectedLender: hasLinkedLender ? (lender.lenderName || lender.loanProgramName || "Insufficient Data") : "Insufficient Data",
     loanProgram: lender.loanProgramName || lender.loanType || "Insufficient Data",
     loanType: lender.loanType || lender.loanProgramName || "Insufficient Data",
     interestRate,
+    interestRateKnown: interestRate !== null,
+    lenderLinked: hasLinkedLender,
     points,
     fees: originationFees,
     minimumLoanAmount,
@@ -233,8 +254,10 @@ export function buildFinancingIntelligence(deal = {}, lender = {}) {
     qualifyingStatus: qualification.status,
     qualificationFailures: qualification.failures,
     financingWarnings,
+    financingWarningDetails,
+    lenderQualificationWarnings: hasLinkedLender ? qualification.failures.map((message) => ({ message, source: "LENDER_RULE", rule: "QUALIFICATION" })) : [],
     financingRisk: riskLevel,
-    activeWarnings: financingWarnings.join(" • ") || "No active warnings",
+    activeWarnings: financingWarningDetails.map((warning) => `[${warning.source.replaceAll("_", " ")}] ${warning.message}`).join(" • ") || "No active warnings",
     displayValue: sanitize,
   };
 }

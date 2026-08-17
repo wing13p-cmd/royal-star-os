@@ -5,6 +5,7 @@ import { buildUnifiedUnderwritingIntelligence } from "./intelligenceUpgradeEngin
 import { getSidebarNavigation } from "../utils/navigationModel.js";
 import { useLogoutControl } from "../hooks/useLogoutControl.js";
 import { buildFlipScenarioSet } from "./flipScenarioModel.js";
+import { buildPropertyAutomation } from "./propertyAutomationEngine.js";
 
 const navigation = getSidebarNavigation();
 
@@ -18,6 +19,7 @@ const initialValues = {
   insurance: "",
   holdingMonths: "",
   monthlyHoldingCost: "",
+  holdingCosts: "",
   sellingCostPercent: "8",
   contingencyPercent: "10",
   additionalCosts: "",
@@ -90,17 +92,19 @@ export default function FlipAnalyzer({ onBack, onOpenDealIntake, onOpenDealAnaly
     const selectedDeal = deals.find((deal) => String(deal.id) === String(chosenId));
 
     if (!selectedDeal) return;
+    const canonical = buildPropertyAutomation(selectedDeal).moduleData.flipAnalyzer;
 
     setFormValues({
-      purchasePrice: selectedDeal.purchasePrice ?? "",
-      rehabBudget: selectedDeal.rehabBudget ?? "",
-      arv: selectedDeal.estimatedArv ?? selectedDeal.arv ?? "",
-      financingCosts: selectedDeal.financingCosts ?? "",
-      closingCosts: selectedDeal.closingCosts ?? "",
-      taxes: selectedDeal.taxes ?? "",
-      insurance: selectedDeal.insurance ?? "",
-      holdingMonths: selectedDeal.holdingMonths ?? "",
-      monthlyHoldingCost: "",
+      purchasePrice: canonical.purchasePrice ?? "",
+      rehabBudget: canonical.rehabBudget ?? "",
+      arv: canonical.arv ?? "",
+      financingCosts: canonical.financingCosts ?? "",
+      closingCosts: canonical.closingCosts ?? "",
+      taxes: canonical.annualPropertyTaxes ?? "",
+      insurance: canonical.annualInsurance ?? "",
+      holdingMonths: canonical.holdingMonths ?? "",
+      monthlyHoldingCost: selectedDeal.monthlyHoldingCost ?? "",
+      holdingCosts: canonical.holdingCosts ?? "",
       sellingCostPercent: "8",
       contingencyPercent: "10",
       additionalCosts: "",
@@ -115,7 +119,9 @@ export default function FlipAnalyzer({ onBack, onOpenDealIntake, onOpenDealAnaly
       estimatedArv: formValues.arv,
       closingCosts: formValues.closingCosts,
       financingCosts: formValues.financingCosts,
-      holdingCosts: formValues.holdingMonths && formValues.monthlyHoldingCost ? Number(formValues.holdingMonths) * Number(formValues.monthlyHoldingCost) : 0,
+      holdingCosts: formValues.monthlyHoldingCost !== "" && formValues.monthlyHoldingCost != null
+        ? Number(formValues.holdingMonths || 0) * Number(formValues.monthlyHoldingCost)
+        : Number(formValues.holdingCosts || 0),
       sellingCosts: formValues.arv && formValues.sellingCostPercent ? Number(formValues.arv) * (Number(formValues.sellingCostPercent) / 100) : 0,
       contingency: formValues.rehabBudget && formValues.contingencyPercent ? Number(formValues.rehabBudget) * (Number(formValues.contingencyPercent) / 100) : 0,
     }, []);

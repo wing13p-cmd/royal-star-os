@@ -17,6 +17,7 @@ import {
 
 const Dashboard = lazy(() => import("./components/Dashboard"));
 const DealAnalyzer = lazy(() => import("./components/DealAnalyzer"));
+const OfferGenerator = lazy(() => import("./components/OfferGenerator"));
 const DealIntake = lazy(() => import("./components/DealIntake.jsx"));
 const DealIntelligence = lazy(() => import("./components/DealIntelligence"));
 const FlipAnalyzer = lazy(() => import("./components/FlipAnalyzer"));
@@ -288,6 +289,7 @@ export default function App() {
           onBack={handleBackToDashboard}
           onOpenDealIntake={() => handleOpenDealIntake(null)}
           onOpenDealIntelligence={() => navigateToView("dealIntelligence")}
+          onOpenOfferGenerator={() => navigateToView("offerGenerator")}
           onEditDeal={(deal) => handleOpenDealIntake(deal)}
           currentView={currentView}
           onNavigate={navigateToView}
@@ -297,6 +299,10 @@ export default function App() {
 
     if (currentView === "dealIntelligence") {
       return <DealIntelligence onBack={handleBackToDashboard} currentView={currentView} onNavigate={navigateToView} />;
+    }
+
+    if (currentView === "offerGenerator") {
+      return <OfferGenerator onBackToDealAnalyzer={() => navigateToView("dealAnalyzer")} currentView={currentView} onNavigate={navigateToView} />;
     }
 
     if (currentView === "knowledgeBase") {

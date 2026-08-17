@@ -1,4 +1,5 @@
 import { resolveDealStatusValue } from "../utils/dealWorkflowRegistry.js";
+import { normalizeCanonicalProperty } from "./propertyAutomationEngine.js";
 
 const REQUIRED_FIELDS = {
   address: "Address is required.",
@@ -35,6 +36,7 @@ const NUMERIC_FIELDS = {
   otherLenderFees: "Other Lender Fees",
   fundedRehab: "Funded Rehab",
   holdingMonths: "Holding Months",
+  holdingCosts: "Total Holding Costs",
 };
 
 export function toNumberOrBlank(value) {
@@ -44,42 +46,45 @@ export function toNumberOrBlank(value) {
 }
 
 export function hydrateDealIntakeFormData(deal = {}, financingCostState = {}) {
+  const canonical = normalizeCanonicalProperty(deal);
   return {
-    address: deal.propertyAddress || deal.address || "",
-    city: deal.city || "",
-    state: deal.state || "",
-    zip: deal.zipCode || deal.zip || "",
-    propertyType: deal.propertyType || "",
+    address: canonical.address,
+    city: canonical.city,
+    state: canonical.state,
+    zip: canonical.zip,
+    propertyType: canonical.propertyType,
     bedrooms: deal.bedrooms ?? "",
     bathrooms: deal.bathrooms ?? "",
     squareFeet: deal.squareFeet ?? "",
     yearBuilt: deal.yearBuilt ?? "",
-    askingPrice: deal.askingPrice ?? "",
-    purchasePrice: deal.purchasePrice ?? "",
-    rehabBudget: deal.rehabBudget ?? "",
-    arv: deal.estimatedArv ?? deal.arv ?? "",
-    estimatedRent: deal.estimatedRent ?? "",
-    taxes: deal.taxes ?? "",
-    insurance: deal.insurance ?? "",
+    askingPrice: canonical.askingPrice ?? "",
+    purchasePrice: canonical.purchasePrice ?? "",
+    rehabBudget: canonical.rehabBudget ?? "",
+    arv: canonical.arv ?? "",
+    estimatedRent: canonical.monthlyRent ?? "",
+    taxes: canonical.annualPropertyTaxes ?? "",
+    insurance: canonical.annualInsurance ?? "",
     financingCosts: financingCostState.rawFinancingCostInput ?? deal.financingCosts ?? "",
-    closingCosts: deal.closingCosts ?? "",
-    actualLoanAmount: deal.actualLoanAmount ?? deal.loanAmount ?? "",
-    annualInterestRate: deal.annualInterestRate ?? deal.interestRate ?? "",
-    cashToClose: deal.cashToClose ?? "",
-    earnestMoney: deal.earnestMoney ?? "",
-    totalInitialCashInvested: deal.totalInitialCashInvested ?? deal.initialCashInvested ?? "",
-    constructionHoldback: deal.constructionHoldback ?? "",
-    originationFee: deal.originationFee ?? "",
-    underwritingFee: deal.underwritingFee ?? "",
-    servicingFee: deal.servicingFee ?? "",
-    lenderLegalFee: deal.lenderLegalFee ?? "",
-    monitoringFee: deal.monitoringFee ?? "",
-    otherLenderFees: deal.otherLenderFees ?? "",
-    fundedRehab: deal.fundedRehab ?? deal.rehabFunding ?? "",
-    paymentType: deal.paymentType ?? "",
-    holdingMonths: deal.holdingMonths ?? "",
-    leadSource: deal.leadSource || "",
-    exitStrategy: deal.exitStrategy || deal.strategy || "",
+    closingCosts: canonical.closingCosts ?? "",
+    actualLoanAmount: canonical.actualLoanAmount ?? "",
+    annualInterestRate: canonical.interestRate ?? "",
+    cashToClose: canonical.cashToClose ?? "",
+    earnestMoney: canonical.earnestMoney ?? "",
+    totalInitialCashInvested: canonical.initialCashInvested ?? "",
+    constructionHoldback: canonical.constructionHoldback ?? "",
+    originationFee: canonical.originationFee ?? "",
+    underwritingFee: canonical.underwritingFee ?? "",
+    servicingFee: canonical.servicingFee ?? "",
+    lenderLegalFee: canonical.lenderLegalFee ?? "",
+    monitoringFee: canonical.monitoringFee ?? "",
+    otherLenderFees: canonical.otherLenderFees ?? "",
+    fundedRehab: canonical.fundedRehab ?? "",
+    paymentType: canonical.paymentType,
+    holdingMonths: canonical.holdingMonths ?? "",
+    holdingCosts: canonical.holdingCosts ?? "",
+    monthlyHoldingCost: deal.monthlyHoldingCost ?? "",
+    leadSource: canonical.leadSource,
+    exitStrategy: canonical.strategy,
     status: resolveDealStatusValue(deal.status || "Lead"),
     pipelineStage: deal.pipelineStage || "New Lead",
     notes: deal.notes || "",
@@ -101,6 +106,8 @@ export function validateDealIntakeFormData(formData = {}) {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) {
       fieldErrors[field] = `${label} must be a valid number.`;
+    } else if (field === "holdingCosts" && parsed < 0) {
+      fieldErrors[field] = "Total Holding Costs cannot be negative.";
     }
   });
 

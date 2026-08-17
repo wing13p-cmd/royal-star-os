@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { buildApiUrl } from "../utils/apiClient.js";
+import { buildSessionAuthHeaders } from "../utils/sessionAuth.js";
 import { buildFinancingCostState, getDisplayedFinancingCostValue } from "../utils/financingCostSchema.js";
 import { buildUnifiedUnderwritingIntelligence, normalizeDealForIntelligence } from "./intelligenceUpgradeEngine.js";
 import { buildStatusOptionsWithCurrent, getDealPipelineStageOptions, resolveDealStatusValue } from "../utils/dealWorkflowRegistry.js";
 import { hydrateDealIntakeFormData, toNumberOrBlank, validateDealIntakeFormData } from "./dealIntakeFormUtils.js";
+import { buildDealIntakePayload } from "./dealIntakeFieldContract.js";
 import logo from "../assets/royal-star-logo.png";
 import { getSidebarNavigation, shouldConfirmNavigation } from "../utils/navigationModel.js";
 import { useLogoutControl } from "../hooks/useLogoutControl.js";
@@ -43,12 +45,22 @@ const initialFormState = {
   fundedRehab: "",
   paymentType: "",
   holdingMonths: "",
+  holdingCosts: "",
+  monthlyHoldingCost: "",
   leadSource: "",
   exitStrategy: "",
   status: "Lead",
   pipelineStage: "New Lead",
   notes: "",
 };
+
+export const DEAL_INTAKE_MONEY_FIELDS = Object.freeze([
+  "askingPrice", "purchasePrice", "rehabBudget", "arv", "estimatedRent", "taxes", "insurance",
+  "financingCosts", "closingCosts", "actualLoanAmount", "cashToClose", "earnestMoney",
+  "totalInitialCashInvested", "constructionHoldback", "originationFee", "underwritingFee",
+  "servicingFee", "lenderLegalFee", "monitoringFee", "otherLenderFees", "fundedRehab", "holdingCosts",
+]);
+const MONEY_FIELD_SET = new Set(DEAL_INTAKE_MONEY_FIELDS);
 
 const pipelineStageOptions = getDealPipelineStageOptions();
 
@@ -245,67 +257,16 @@ export default function DealIntake({ onBack, dealToEdit, currentView = "dealInta
     setIsSaving(true);
     setFieldErrors({});
 
-    const payload = {
-      propertyAddress: formData.address,
-      city: formData.city,
-      state: formData.state,
-      zipCode: formData.zip,
-      propertyType: formData.propertyType,
-      bedrooms: toNumberOrBlank(formData.bedrooms),
-      bathrooms: toNumberOrBlank(formData.bathrooms),
-      squareFeet: toNumberOrBlank(formData.squareFeet),
-      yearBuilt: toNumberOrBlank(formData.yearBuilt),
-      askingPrice: toNumberOrBlank(formData.askingPrice),
-      purchasePrice: toNumberOrBlank(formData.purchasePrice),
-      rehabBudget: toNumberOrBlank(formData.rehabBudget),
-      estimatedArv: toNumberOrBlank(formData.arv),
-      estimatedRent: toNumberOrBlank(formData.estimatedRent),
-      taxes: toNumberOrBlank(formData.taxes),
-      insurance: toNumberOrBlank(formData.insurance),
-      financingCosts: toNumberOrBlank(formData.financingCosts),
-      financials: {
-        rawFinancingCostInput: toNumberOrBlank(formData.financingCosts) === "" ? 0 : Number(formData.financingCosts),
-        calculatedFinancingCosts: 0,
-        effectiveFinancingCosts: toNumberOrBlank(formData.financingCosts) === "" ? 0 : Number(formData.financingCosts),
-        financingCostSource: formData.financingCosts ? "manual-override" : "calculated",
-      },
-      closingCosts: toNumberOrBlank(formData.closingCosts),
-      actualLoanAmount: toNumberOrBlank(formData.actualLoanAmount),
-      annualInterestRate: toNumberOrBlank(formData.annualInterestRate),
-      cashToClose: toNumberOrBlank(formData.cashToClose),
-      earnestMoney: toNumberOrBlank(formData.earnestMoney),
-      totalInitialCashInvested: toNumberOrBlank(formData.totalInitialCashInvested),
-      constructionHoldback: toNumberOrBlank(formData.constructionHoldback),
-      originationFee: toNumberOrBlank(formData.originationFee),
-      underwritingFee: toNumberOrBlank(formData.underwritingFee),
-      servicingFee: toNumberOrBlank(formData.servicingFee),
-      lenderLegalFee: toNumberOrBlank(formData.lenderLegalFee),
-      monitoringFee: toNumberOrBlank(formData.monitoringFee),
-      otherLenderFees: toNumberOrBlank(formData.otherLenderFees),
-      fundedRehab: toNumberOrBlank(formData.fundedRehab),
-      paymentType: formData.paymentType,
-      holdingMonths: toNumberOrBlank(formData.holdingMonths),
-      leadSource: formData.leadSource,
-      strategy: formData.exitStrategy,
-      exitStrategy: formData.exitStrategy,
-      status: formData.status,
-      pipelineStage: formData.pipelineStage,
-      linkedPropertyId: currentDeal?.linkedPropertyId || currentDeal?.propertyId || "",
-      propertyId: currentDeal?.propertyId || currentDeal?.linkedPropertyId || "",
-      parcelNumber: currentDeal?.parcelNumber || "",
-      mapUrl: currentDeal?.mapUrl || "",
-      updatedByModule: "Deal Intake",
-      notes: formData.notes,
-    };
+    const payload = buildDealIntakePayload(formData, currentDeal);
 
     try {
       const endpoint = isEditMode ? buildApiUrl(`/api/deals/${currentDeal.id}`) : buildApiUrl("/api/deals");
       const method = isEditMode ? "PUT" : "POST";
       const response = await fetch(endpoint, {
         method,
-        headers: {
+        headers: buildSessionAuthHeaders({
           "Content-Type": "application/json",
-        },
+        }),
         body: JSON.stringify(payload),
       });
 
@@ -338,61 +299,12 @@ export default function DealIntake({ onBack, dealToEdit, currentView = "dealInta
         );
 
         const dealToSave = {
+          ...payload,
           id: currentDeal?.id || Date.now(),
-          propertyAddress: formData.address,
           address: formData.address,
-          city: formData.city,
-          state: formData.state,
           zip: formData.zip,
-          zipCode: formData.zip,
-          propertyType: formData.propertyType,
-          bedrooms: toNumberOrBlank(formData.bedrooms),
-          bathrooms: toNumberOrBlank(formData.bathrooms),
-          squareFeet: toNumberOrBlank(formData.squareFeet),
-          yearBuilt: toNumberOrBlank(formData.yearBuilt),
-          askingPrice: toNumberOrBlank(formData.askingPrice),
-          purchasePrice: toNumberOrBlank(formData.purchasePrice),
-          rehabBudget: toNumberOrBlank(formData.rehabBudget),
-          estimatedArv: toNumberOrBlank(formData.arv),
           arv: toNumberOrBlank(formData.arv),
           projectedARV: toNumberOrBlank(formData.arv),
-          estimatedRent: toNumberOrBlank(formData.estimatedRent),
-          taxes: toNumberOrBlank(formData.taxes),
-          insurance: toNumberOrBlank(formData.insurance),
-          financingCosts: toNumberOrBlank(formData.financingCosts),
-          financials: {
-            rawFinancingCostInput: toNumberOrBlank(formData.financingCosts) === "" ? 0 : Number(formData.financingCosts),
-            calculatedFinancingCosts: 0,
-            effectiveFinancingCosts: toNumberOrBlank(formData.financingCosts) === "" ? 0 : Number(formData.financingCosts),
-            financingCostSource: formData.financingCosts ? "manual-override" : "calculated",
-          },
-          closingCosts: toNumberOrBlank(formData.closingCosts),
-          actualLoanAmount: toNumberOrBlank(formData.actualLoanAmount),
-          annualInterestRate: toNumberOrBlank(formData.annualInterestRate),
-          cashToClose: toNumberOrBlank(formData.cashToClose),
-          earnestMoney: toNumberOrBlank(formData.earnestMoney),
-          totalInitialCashInvested: toNumberOrBlank(formData.totalInitialCashInvested),
-          constructionHoldback: toNumberOrBlank(formData.constructionHoldback),
-          originationFee: toNumberOrBlank(formData.originationFee),
-          underwritingFee: toNumberOrBlank(formData.underwritingFee),
-          servicingFee: toNumberOrBlank(formData.servicingFee),
-          lenderLegalFee: toNumberOrBlank(formData.lenderLegalFee),
-          monitoringFee: toNumberOrBlank(formData.monitoringFee),
-          otherLenderFees: toNumberOrBlank(formData.otherLenderFees),
-          fundedRehab: toNumberOrBlank(formData.fundedRehab),
-          paymentType: formData.paymentType,
-          holdingMonths: toNumberOrBlank(formData.holdingMonths),
-          leadSource: formData.leadSource,
-          strategy: formData.exitStrategy,
-          exitStrategy: formData.exitStrategy,
-          status: formData.status,
-          pipelineStage: formData.pipelineStage,
-          linkedPropertyId: currentDeal?.linkedPropertyId || currentDeal?.propertyId || "",
-          propertyId: currentDeal?.propertyId || currentDeal?.linkedPropertyId || "",
-          parcelNumber: currentDeal?.parcelNumber || "",
-          mapUrl: currentDeal?.mapUrl || "",
-          updatedByModule: "Deal Intake",
-          notes: formData.notes,
           createdAt: currentDeal?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
@@ -496,10 +408,10 @@ export default function DealIntake({ onBack, dealToEdit, currentView = "dealInta
                 <Field label="State" name="state" value={formData.state} onChange={handleChange} errors={fieldErrors} />
                 <Field label="ZIP" name="zip" value={formData.zip} onChange={handleChange} errors={fieldErrors} />
                 <Field label="Property Type" name="propertyType" value={formData.propertyType} onChange={handleChange} errors={fieldErrors} />
-                <Field label="Bedrooms" name="bedrooms" value={formData.bedrooms} onChange={handleChange} type="number" errors={fieldErrors} />
-                <Field label="Bathrooms" name="bathrooms" value={formData.bathrooms} onChange={handleChange} type="number" errors={fieldErrors} />
-                <Field label="Square Feet" name="squareFeet" value={formData.squareFeet} onChange={handleChange} type="number" errors={fieldErrors} />
-                <Field label="Year Built" name="yearBuilt" value={formData.yearBuilt} onChange={handleChange} type="number" errors={fieldErrors} />
+                <Field label="Bedrooms" name="bedrooms" value={formData.bedrooms} onChange={handleChange} type="number" step="1" errors={fieldErrors} />
+                <Field label="Bathrooms" name="bathrooms" value={formData.bathrooms} onChange={handleChange} type="number" step="0.5" errors={fieldErrors} />
+                <Field label="Square Feet" name="squareFeet" value={formData.squareFeet} onChange={handleChange} type="number" step="1" errors={fieldErrors} />
+                <Field label="Year Built" name="yearBuilt" value={formData.yearBuilt} onChange={handleChange} type="number" step="1" errors={fieldErrors} />
               </div>
             </Section>
 
@@ -534,7 +446,7 @@ export default function DealIntake({ onBack, dealToEdit, currentView = "dealInta
                 </div>
                 <Field label="Closing Costs" name="closingCosts" value={formData.closingCosts} onChange={handleChange} type="number" errors={fieldErrors} />
                 <Field label="Actual Loan Amount" name="actualLoanAmount" value={formData.actualLoanAmount} onChange={handleChange} type="number" errors={fieldErrors} />
-                <Field label="Annual Interest Rate" name="annualInterestRate" value={formData.annualInterestRate} onChange={handleChange} type="number" errors={fieldErrors} />
+                <Field label="Annual Interest Rate" name="annualInterestRate" value={formData.annualInterestRate} onChange={handleChange} type="number" step="0.01" errors={fieldErrors} />
                 <Field label="Cash to Close" name="cashToClose" value={formData.cashToClose} onChange={handleChange} type="number" errors={fieldErrors} />
                 <Field label="Earnest Money" name="earnestMoney" value={formData.earnestMoney} onChange={handleChange} type="number" errors={fieldErrors} />
                 <Field label="Total Initial Cash Invested" name="totalInitialCashInvested" value={formData.totalInitialCashInvested} onChange={handleChange} type="number" errors={fieldErrors} />
@@ -547,7 +459,8 @@ export default function DealIntake({ onBack, dealToEdit, currentView = "dealInta
                 <Field label="Other Lender Fees" name="otherLenderFees" value={formData.otherLenderFees} onChange={handleChange} type="number" errors={fieldErrors} />
                 <Field label="Funded Rehab" name="fundedRehab" value={formData.fundedRehab} onChange={handleChange} type="number" errors={fieldErrors} />
                 <Field label="Payment Type" name="paymentType" value={formData.paymentType} onChange={handleChange} errors={fieldErrors} />
-                <Field label="Holding Months" name="holdingMonths" value={formData.holdingMonths} onChange={handleChange} type="number" errors={fieldErrors} />
+                <Field label="Holding Months" name="holdingMonths" value={formData.holdingMonths} onChange={handleChange} type="number" step="1" errors={fieldErrors} />
+                <Field label="TOTAL HOLDING COSTS" name="holdingCosts" value={formData.holdingCosts} onChange={handleChange} type="number" min={0} errors={fieldErrors} />
               </div>
             </Section>
 
@@ -615,7 +528,7 @@ function Section({ title, children }) {
   );
 }
 
-function Field({ label, name, value, onChange, type = "text", errors = {} }) {
+function Field({ label, name, value, onChange, type = "text", min, step, errors = {} }) {
   const error = errors[name];
   return (
     <label style={styles.label}>
@@ -625,6 +538,8 @@ function Field({ label, name, value, onChange, type = "text", errors = {} }) {
         name={name}
         value={value}
         onChange={onChange}
+        min={min}
+        step={step ?? (type === "number" && MONEY_FIELD_SET.has(name) ? "0.01" : undefined)}
         style={error ? { ...styles.input, ...styles.inputError } : styles.input}
       />
       {error ? <span style={styles.errorText}>{error}</span> : null}

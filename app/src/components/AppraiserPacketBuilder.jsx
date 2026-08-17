@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { buildApiUrl } from "../utils/apiClient.js";
 import logo from "../assets/royal-star-logo.png";
 import { buildAppraisalPacketIntelligence } from "./optionExpansionIntelligence.js";
+import { buildAppraisalIntelligenceResult, buildAppraiserPacketEvidence } from "./appraisalIntelligenceEngine.js";
 
 const navigation = [
   ["🏠", "COMMAND CENTER"],
@@ -804,6 +805,14 @@ export default function AppraiserPacketBuilder({ onBack, onOpenDealAnalyzer, onO
       support = null;
     }
 
+    const appraisalEvidence = buildAppraiserPacketEvidence(buildAppraisalIntelligenceResult(deal, support?.compSet || [], {
+      valuationResult: support ? {
+        supportedArv: support.approvedArv || support.recommendedArv,
+        lowSupportedArv: support.lowArv,
+        highSupportedArv: support.highArv,
+      } : undefined,
+    }));
+
     setFormValues((current) => ({
       ...current,
       propertyName: current.propertyName || deal.propertyAddress || "",
@@ -815,8 +824,10 @@ export default function AppraiserPacketBuilder({ onBack, onOpenDealAnalyzer, onO
       purchasePrice: current.purchasePrice || deal.purchasePrice || deal.askingPrice || "",
       rehabBudget: current.rehabBudget || deal.rehabBudget || "",
       requestedARV: current.requestedARV || support?.recommendedArv || deal.estimatedArv || "",
-      supportedARV: current.supportedARV || support?.approvedArv || support?.recommendedArv || deal.supportedARV || deal.estimatedArv || "",
-      confidenceLevel: current.confidenceLevel || (support?.confidenceScore >= 80 ? "High" : support?.confidenceScore >= 60 ? "Moderate" : support?.confidenceScore > 0 ? "Low" : "Insufficient Data"),
+      supportedARV: current.supportedARV || appraisalEvidence.supportedARV || support?.approvedArv || support?.recommendedArv || deal.supportedARV || deal.estimatedArv || "",
+      confidenceLevel: current.confidenceLevel && current.confidenceLevel !== "Insufficient Data"
+        ? current.confidenceLevel
+        : ({ HIGH: "High", MEDIUM: "Moderate", LOW: "Low" }[appraisalEvidence.confidenceLevel] || "Insufficient Data"),
       ARVMethod: current.ARVMethod || (support?.appraisalReviewStatus === "REVIEW_REQUIRED" ? "Review Required" : "Comp Weighted"),
       compSelectionSummary: current.compSelectionSummary || (Array.isArray(support?.compSet) && support.compSet.length > 0 ? `Governed comp set (${support.compSet.length})` : current.compSelectionSummary || ""),
       comps: (current.comps && current.comps.length > 0)

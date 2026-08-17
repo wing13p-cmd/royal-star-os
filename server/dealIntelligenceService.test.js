@@ -71,7 +71,8 @@ test('buildDealIntelligenceFromDeals derives underwriting, offer guidance, and r
 
   const intelligence = result[0];
   assert.equal(intelligence.propertyName, '456 Oak Ave');
-  assert.equal(intelligence.buyBoxResult, 'PASS');
+  assert.equal(intelligence.buyBoxResult, 'FAIL');
+  assert.match(intelligence.buyBoxReason, /outside the Royal Star geographic buy box/i);
   assert.ok(intelligence.arvConfidenceScore > 0);
   assert.ok(intelligence.recommendedOffer > 0);
   assert.ok(intelligence.maximumAllowableOffer > 0);

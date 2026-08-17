@@ -5,7 +5,7 @@ import { fetchBackendConnectionStatus } from "../utils/backendConnectionStatus.j
 import logo from "../assets/royal-star-logo.png";
 import { buildFinancingIntelligence, buildLenderComparison } from "./financeIntelligence.js";
 import { buildRecommendationEngine } from "./recommendationEngine.js";
-import { buildScenarioAnalysis } from "./scenarioAnalysis.js";
+import { buildScenarioAnalysis, scenarioPercentFromInput, scenarioPercentToInput } from "./scenarioAnalysis.js";
 import { buildRedTeamReview, safeDisplay as redTeamSafeDisplay } from "./redTeamReview.js";
 import { buildExecutiveDecisionDashboard } from "./executiveDecisionDashboard.js";
 import { buildExecutiveDecisionExecutionEngine } from "./executiveDecisionExecutionEngine.js";
@@ -15,6 +15,12 @@ import { buildAiDecisionEngine } from "./aiDecisionEngine.js";
 import { getSidebarNavigation } from "../utils/navigationModel.js";
 import { useLogoutControl } from "../hooks/useLogoutControl.js";
 import { reconcileRecommendations } from "../utils/recommendationReconciliation.js";
+import {
+  buildArvTruthSnapshot, buildFinancingTruthSnapshot, gateStrategyMetrics, buildLiquidityTruthSnapshot,
+  reconcileDealRecommendation, buildOfferTruthSnapshot, buildRehabTruthScore, buildRentalTruthScore,
+  reconcileBuyBoxScoring, normalizeEffectLabel, formatInterestRatePercent, gradeForScore,
+  buildLeverageTruthSnapshot, buildRoiTruthSnapshot, buildRequiredDataTruth, normalizeWarningRecords, withOverallDealGrade, formatQualificationFailures,
+} from "./dealIntelligenceTruthEngine.js";
 
 const navigation = getSidebarNavigation();
 
@@ -45,6 +51,10 @@ function formatCurrencyInput(value, entered, zeroLabel = "$0") {
 function formatPercent(value) {
   if (!Number.isFinite(value)) return "Insufficient Data";
   return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatInterestRate(value) {
+  return formatInterestRatePercent(value);
 }
 
 function normalizeDecisionLabel(value, fallback = "Insufficient Data") {
@@ -163,10 +173,22 @@ function buildDealAnalysis(deal, comps, neighborhoods, lenders = [], selectedLen
   const upgradeBuyBox = unifiedUnderwriting.buyBox;
   const upgradeOffer = buildOfferIntelligence(normalizedDeal, { supportedBaseArv: upgradeArv.supportedBaseArv, supportedLowArv: upgradeArv.supportedLowArv, supportedHighArv: upgradeArv.supportedHighArv, confidenceLevel: upgradeArv.confidenceLabel === "HIGH" ? "High" : upgradeArv.confidenceLabel === "MODERATE" ? "Moderate" : upgradeArv.confidenceLabel === "LOW" ? "Low" : "Insufficient Data" }, upgradeBuyBox, { loanAmount: financing.loanAmount });
   const upgradeAppraisal = unifiedUnderwriting.appraisal;
+  const arvTruth = buildArvTruthSnapshot(normalizedDeal, upgradeAppraisal, {
+    calculatedArv: upgradeArv?.supportedBaseArv,
+    baseArv: upgradeArv?.supportedBaseArv,
+    valuationReviewStatus: "PRELIMINARY",
+  });
+  const financingTruth = buildFinancingTruthSnapshot(normalizedDeal, financing, selectedLender);
+  const strategyMetrics = gateStrategyMetrics(normalizedDeal, unifiedUnderwriting?.brrrrAnalysis || financing);
+  const liquidityTruth = buildLiquidityTruthSnapshot(normalizedDeal, { cashRequired: financing.cashRequired });
+  const offerTruth = buildOfferTruthSnapshot(upgradeOffer);
+  const rehabTruth = buildRehabTruthScore(normalizedDeal);
+  const rentalTruth = buildRentalTruthScore(normalizedDeal);
+  const buyBoxScoring = reconcileBuyBoxScoring(upgradeBuyBox);
 
-  const supportedLowArv = upgradeArv.supportedLowArv || (compCount ? avgSalePrice * 0.9 : 0);
-  const supportedBaseArv = upgradeArv.supportedBaseArv || (compCount ? avgSalePrice : 0);
-  const supportedHighArv = upgradeArv.supportedHighArv || (compCount ? avgSalePrice * 1.1 : 0);
+  const supportedLowArv = upgradeAppraisal?.lowSupportedArv ?? null;
+  const supportedBaseArv = arvTruth.supportedArv;
+  const supportedHighArv = upgradeAppraisal?.highSupportedArv ?? null;
 
   let confidenceLabel = upgradeArv.confidenceLabel || "Insufficient Data";
   let confidenceScore = 0;
@@ -207,17 +229,13 @@ function buildDealAnalysis(deal, comps, neighborhoods, lenders = [], selectedLen
 
   const marketScore = Math.round(Math.max(0, Math.min(100, 25 + rentalDemand * 0.3 + appreciation * 20 + employmentScore * 5 + populationGrowth * 2 + (100 - vacancyRisk * 100) * 0.2 + liquidityScore * 0.2 + (100 - crimeRisk) * 0.2 + Math.max(0, 100 - daysOnMarket * 0.3))));
 
-  const buyBoxResult = (() => {
-    const result = upgradeBuyBox.decision;
-    if (result === "Automatic Reject") return { result: "FAIL", reason: upgradeBuyBox.decisionBreakingRule || "Automatic reject due to prohibited property type or out-of-box location.", exceptions: upgradeBuyBox.rulesFailed };
-    if (result === "Strong Pass") return { result: "PASS", reason: "Meets the primary Royal Star buy box criteria.", exceptions: [] };
-    if (result === "Pass") return { result: "PASS", reason: upgradeBuyBox.exceptionJustification || "Meets the primary Royal Star buy box criteria.", exceptions: upgradeBuyBox.conditionalRules };
-    if (result === "Conditional Pass") return { result: "CONDITIONAL PASS", reason: upgradeBuyBox.exceptionJustification || "Conditional pass based on selective rubric.", exceptions: upgradeBuyBox.conditionalRules };
-    if (result === "Selective Area Review") return { result: "CONDITIONAL PASS", reason: upgradeBuyBox.exceptionJustification || "Selective area review required.", exceptions: upgradeBuyBox.rulesFailed };
-    return { result: "FAIL", reason: upgradeBuyBox.exceptionJustification || "Outside the buy box.", exceptions: upgradeBuyBox.rulesFailed };
-  })();
+  const buyBoxResult = {
+    result: upgradeBuyBox.status || upgradeBuyBox.result || "REVIEW",
+    reason: upgradeBuyBox.reasons?.[0] || upgradeBuyBox.exceptionJustification || "Buy Box review requires additional evidence.",
+    exceptions: [...(upgradeBuyBox.failedRules || []), ...(upgradeBuyBox.reviewRules || [])],
+  };
 
-  const valuationScore = Math.round(Math.max(0, Math.min(100, 30 + (supportedArv > 0 ? 20 : 0) + (appraisedValue > 0 ? 15 : 0) + (compCount >= 3 ? 20 : compCount >= 1 ? 10 : 0) + (projectedArv > 0 ? 15 : 0))));
+  const valuationScore = safeNumber(upgradeAppraisal?.appraisalSupportScore);
   const valuationExplanation = supportedArv > 0 ? `Supported ARV of ${formatCurrency(supportedArv)} provides a clear basis for valuation.` : "Supported ARV is not yet established.";
 
   const warnings = [];
@@ -228,11 +246,11 @@ function buildDealAnalysis(deal, comps, neighborhoods, lenders = [], selectedLen
   if (!supportedArv) warnings.push("Unsupported ARV");
   if (buyBoxResult.result !== "PASS") warnings.push("Property outside Buy Box");
   if (vacancyRisk > 0.08) warnings.push("High vacancy");
-  if (rentalDemand < 60) warnings.push("Weak rental demand");
+  if (rentalTruth.applicable && rentalDemand < 60) warnings.push("Weak rental demand");
   if (daysOnMarket > 60) warnings.push("Slow market");
   if (rehabBudget > 75000) warnings.push("Excessive rehab budget");
   if (!appraisedValue) warnings.push("Missing appraisal");
-  if (!neighborhood) warnings.push("Missing neighborhood data");
+  if (rentalTruth.applicable && !neighborhood) warnings.push("Missing neighborhood data");
 
   const dataCompleteness = [address, city, state, askingPrice, purchasePrice, rehabBudget, projectedArv, estimatedRent].filter(Boolean).length / 8;
   const arvMarginScore = Math.max(0, Math.min(25, grossSpread / Math.max(arv, 1) * 25));
@@ -243,17 +261,12 @@ function buildDealAnalysis(deal, comps, neighborhoods, lenders = [], selectedLen
   const completenessScore = Math.max(0, Math.min(10, dataCompleteness * 10));
   const dealScore = Math.round(arvMarginScore + profitScore + roiScore + rehabRiskScore + rentPotentialScore + completenessScore + Math.min(10, marketScore / 10) + Math.min(10, valuationScore / 10));
 
-  let grade = "F";
-  if (dealScore >= 85) grade = "A";
-  else if (dealScore >= 70) grade = "B";
-  else if (dealScore >= 55) grade = "C";
-  else if (dealScore >= 40) grade = "D";
-
   const riskScore = Math.min(100, Math.round(Math.max(0, 100 - dealScore) + Math.max(0, rehabBudget / Math.max(arv, 1) * 25) + (estimatedRent > 0 ? 5 : 10) + warnings.length * 3));
   const recommendedExit = buyBoxResult.result === "FAIL" ? "Pass" : estimatedFlipProfit > 40000 && roi > 0.15 ? "Flip" : rentToCostRatio > 0.01 && (purchasePrice + rehabBudget) > 0 && arv > 0 ? "BRRRR" : estimatedRent > 0 && roi > 0 ? "Hold" : "Hold";
   const overallDealScore = Math.round(dealScore * 0.75 + financing.financingScore * 0.25);
+  const grade = gradeForScore(overallDealScore);
   const rehabScore = Math.max(0, Math.min(100, 100 - Math.min(100, (rehabBudget / Math.max(arv, 1)) * 100)));
-  const monthlyCashFlow = estimatedRent - financing.monthlyPrincipalAndInterest;
+  const monthlyCashFlow = strategyMetrics.monthlyCashFlow;
   const capRate = purchasePrice > 0 ? (estimatedRent * 12) / purchasePrice : 0;
   const overallRisk = Math.min(100, Math.max(0, riskScore + financing.financingWarnings.length * 5 + warnings.length * 3));
   const recommendationInput = {
@@ -270,13 +283,13 @@ function buildDealAnalysis(deal, comps, neighborhoods, lenders = [], selectedLen
     estimatedFlipProfit,
     roi,
     rentToCostRatio,
-    dscr: financing.dscr,
+    dscr: strategyMetrics.dscr,
     loanAmount: financing.loanAmount,
     cashRequired: financing.cashRequired,
     monthlyCashFlow,
     capRate,
     overallRisk,
-    qualificationStatus: financing.qualifyingStatus,
+    qualificationStatus: financingTruth.qualificationStatus,
     selectedLenderName: financing.selectedLender,
     recommendedExit,
     recommendedOffer: upgradeOffer.recommendedOpeningOffer,
@@ -298,7 +311,7 @@ function buildDealAnalysis(deal, comps, neighborhoods, lenders = [], selectedLen
   if (estimatedFlipProfit > 0) strengths.push("Positive estimated flip profit");
   if (roi > 0.1) strengths.push("Strong ROI profile");
   if (rentToCostRatio > 0.01) strengths.push("Solid rent-to-cost ratio");
-  if (arvDiscount > 0) strengths.push("Healthy ARV discount cushion");
+  if (arvDiscount > 0) strengths.push("Healthy discount to projected ARV; independent valuation support remains separate");
   if (compCount >= 3) strengths.push("Three or more quality comps available");
   if (neighborhood) strengths.push("Neighborhood data available");
 
@@ -307,7 +320,7 @@ function buildDealAnalysis(deal, comps, neighborhoods, lenders = [], selectedLen
   if (roi <= 0) risks.push("ROI is below break-even");
   if (rehabBudget > 0 && rehabBudget > arv * 0.4) risks.push("Rehab budget is aggressive relative to ARV");
   if (!purchasePrice || !rehabBudget || !projectedArv) risks.push("Key cost inputs are missing");
-  if (estimatedRent <= 0) risks.push("Rental estimate is missing or weak");
+  if (rentalTruth.applicable && estimatedRent <= 0) risks.push("Rental estimate is missing or weak");
   if (buyBoxResult.result !== "PASS") risks.push("Property is outside the buy box");
 
   const inheritedRiskScore = safeNumber(sharedDecision?.overallRiskScore ?? riskScore);
@@ -342,19 +355,36 @@ function buildDealAnalysis(deal, comps, neighborhoods, lenders = [], selectedLen
   ], {
     criticalDataMissing: missingFinancialInputs.length > 0 || (Array.isArray(sharedDecision?.missingData) && sharedDecision.missingData.length > 0),
     confidenceLabel: safeDisplay(sharedDecision?.arvConfidence || inheritedArvConfidence || "Insufficient Data", "Insufficient Data"),
-    supportedArvEstablished: safeNumber(supportedBaseArv) > 0,
+    supportedArvEstablished: supportedBaseArv !== null,
     financingComplete: safeNumber(displayBindings.actualLoanAmount) > 0 && safeNumber(displayBindings.initialCashInvested) > 0,
     decisionBlockers,
   });
   const reconciledRecommendationDecision = recommendationReconciliation.displayRecommendation;
+  const controllingRecommendation = reconcileDealRecommendation({
+    deal: normalizedDeal,
+    acquisitionDecision: reconciledRecommendationDecision,
+    projectDecision: sharedDecision?.primaryAction || displayBindings.recommendationStrategy,
+    appraisalStatus: upgradeAppraisal?.appraisalStatus,
+    baseRecommendation: sharedDecision?.baseRecommendation || recommendation?.primaryRecommendation,
+    downsideRecommendation: sharedDecision?.downsideRecommendation,
+    strategyRecommendation: sharedDecision?.strategy || displayBindings.recommendationStrategy,
+  });
   const decisionHierarchy = {
-    controllingDecision: safeDisplay(reconciledRecommendationDecision, displayBindings.recommendationDecision),
+    controllingDecision: controllingRecommendation.controllingDecision,
     baseRecommendation: safeDisplay(sharedDecision?.baseRecommendation || recommendation?.primaryRecommendation || displayBindings.recommendationDecision, "Insufficient Data"),
     downsideRecommendation: safeDisplay(sharedDecision?.downsideRecommendation || "Insufficient Data", "Insufficient Data"),
     confidence: inheritedDecisionConfidence,
     conditions: decisionBlockers,
     controllingRule: safeDisplay(recommendationReconciliation?.controllingRule, "Insufficient Data"),
+    context: controllingRecommendation.context,
+    controllingSource: controllingRecommendation.controllingSource,
+    explanation: controllingRecommendation.explanation,
   };
+  const leverageTruth = buildLeverageTruthSnapshot(normalizedDeal, financingTruth);
+  const roiTruth = buildRoiTruthSnapshot({ profit: estimatedFlipProfit, totalProjectCost, cashInvested: displayBindings.initialCashInvested });
+  const requiredDataTruth = buildRequiredDataTruth(normalizedDeal, arvTruth, financingTruth);
+  const warningRecords = normalizeWarningRecords(warnings, financing.financingWarningDetails || financing.financingWarnings, (upgradeAppraisal?.warnings || []).map((message) => ({ message, source: "APPRAISAL" })));
+  const deduplicatedWarnings = warningRecords.map((warning) => warning.message);
 
   return {
     ...normalizedDeal,
@@ -392,13 +422,9 @@ function buildDealAnalysis(deal, comps, neighborhoods, lenders = [], selectedLen
     supportedBaseArv,
     supportedHighArv,
     arvBreakdown: {
-      projectedArv: projectedArv,
-      calculatedArv: safeNumber(arv),
-      supportedArv: safeNumber(supportedBaseArv),
-      confidenceLabel: inheritedArvConfidence,
-      supported: safeNumber(supportedBaseArv) > 0 && compCount >= 3,
+      ...arvTruth,
     },
-    arvConfidence: inheritedArvConfidence,
+    arvConfidence: upgradeAppraisal?.appraisalConfidence || inheritedArvConfidence,
     arvConfidenceScore: confidenceScore,
     marketGrade,
     marketScore,
@@ -415,22 +441,28 @@ function buildDealAnalysis(deal, comps, neighborhoods, lenders = [], selectedLen
     buyBoxExceptions: buyBoxResult.exceptions,
     valuationScore,
     valuationExplanation,
-    warnings,
-    financing,
+    warnings: deduplicatedWarnings,
+    financing: {
+      ...financing,
+      ...financingTruth,
+      interestCarryDuringRehab: financingTruth.interestCarry,
+      qualifyingStatus: financingTruth.qualificationStatus,
+    },
     selectedLenderId,
     selectedLenderName: financing.selectedLender,
     financingScore: financing.financingScore,
     financingGrade: financing.financingGrade,
     financingRisk: financing.financingRisk,
-    qualificationStatus: financing.qualifyingStatus,
+    qualificationStatus: financingTruth.qualificationStatus,
     financingWarnings: financing.financingWarnings,
+    financingWarningDetails: financing.financingWarningDetails,
     lenderComparison,
     qualificationFailures: financing.qualificationFailures,
     recommendation,
     recommendationDecision: safeDisplay(reconciledRecommendationDecision, displayBindings.recommendationDecision),
     recommendationStrategy: safeDisplay(sharedDecision?.strategy || displayBindings.recommendationStrategy, displayBindings.recommendationStrategy),
     underwritingSummary: safeDisplay(unifiedUnderwriting?.recommendation?.action || unifiedUnderwriting?.recommendation?.nextAction || "Insufficient Data", "Insufficient Data"),
-    arvOutput: safeNumber(unifiedUnderwriting?.arvAnalysis?.supportedBaseArv ?? 0),
+    arvOutput: arvTruth.supportedArv,
     offerGuidance: safeDisplay(unifiedUnderwriting?.mao?.targetOffer || unifiedUnderwriting?.recommendation?.nextAction || "Insufficient Data", "Insufficient Data"),
     exitStrategyComparison: safeDisplay(unifiedUnderwriting?.exitStrategy?.recommendedStrategy || "Insufficient Data", "Insufficient Data"),
     capitalRequired: safeNumber(unifiedUnderwriting?.financingAnalysis?.cashRequired ?? unifiedUnderwriting?.financingAnalysis?.initialCashInvested ?? 0),
@@ -439,7 +471,7 @@ function buildDealAnalysis(deal, comps, neighborhoods, lenders = [], selectedLen
     loanAmount: displayBindings.actualLoanAmount,
     cashRequired: displayBindings.initialCashInvested,
     monthlyPayment: displayBindings.monthlyCarry,
-    dscr: financing.dscr,
+    dscr: strategyMetrics.dscr,
     activeWarnings: financing.activeWarnings,
     upgradeArv,
     upgradeBuyBox,
@@ -453,6 +485,22 @@ function buildDealAnalysis(deal, comps, neighborhoods, lenders = [], selectedLen
     sharedDecision,
     recommendationReconciliation,
     decisionHierarchy,
+    controllingRecommendation,
+    financingTruth,
+    strategyMetrics,
+    liquidityTruth,
+    offerTruth,
+    rehabTruth,
+    rentalTruth,
+    buyBoxScoring,
+    leverageTruth,
+    roiTruth,
+    requiredDataTruth,
+    warningCount: deduplicatedWarnings.length,
+    warningRecords,
+    criticalRiskCount: warningRecords.filter((entry) => entry.severity === "HIGH" || entry.severity === "CRITICAL").length,
+    rehabScore: rehabTruth.budgetAttractiveness === null ? null : Math.round((rehabTruth.budgetAttractiveness + rehabTruth.dataCompletenessScore) / 2),
+    rentalScore: rentalTruth.score,
     decisionConfidence: inheritedDecisionConfidence,
     investmentDecision: {
       recommendation: safeDisplay(sharedDecision?.investmentDecision || sharedRecommendation || displayBindings.recommendationDecision || recommendation?.primaryRecommendation || "Insufficient Data", "Insufficient Data"),
@@ -730,10 +778,11 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
             const computed = buildDealAnalysis(deal, comps, neighborhoods, lenders, selectedLenderIds[dealKey] || "", recalcTick);
             const backendRiskFlags = Array.isArray(backendRecord?.majorRiskFlags) && backendRecord.majorRiskFlags.length ? backendRecord.majorRiskFlags : [];
             const backendFollowUps = Array.isArray(backendRecord?.requiredFollowUpItems) && backendRecord.requiredFollowUpItems.length ? backendRecord.requiredFollowUpItems : [];
-            return {
+            const authoritativeDealScore = safeNumber(backendRecord?.dealScore ?? computed.sharedDecision?.dealScore ?? computed.dealScore ?? 0);
+            return withOverallDealGrade({
               ...computed,
               dealId: backendRecord?.dealId || deal.id || dealKey,
-              dealScore: safeNumber(backendRecord?.dealScore ?? computed.sharedDecision?.dealScore ?? computed.dealScore ?? 0),
+              dealScore: authoritativeDealScore,
               recommendationDecision: computed.recommendationDecision ?? 'Insufficient Data',
               recommendationStrategy: computed.recommendationStrategy ?? 'Insufficient Data',
               investmentDecision: computed.investmentDecision || {
@@ -747,7 +796,7 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
               riskLevel: computed.riskLevel ?? 'Insufficient Data',
               confidenceScore: computed.confidenceScore ?? 0,
               underwritingSummary: computed.underwritingSummary ?? '',
-              arvOutput: computed.arvOutput ?? computed.supportedBaseArv ?? computed.arv ?? 0,
+              arvOutput: computed.arvOutput ?? computed.supportedBaseArv ?? null,
               offerGuidance: computed.offerGuidance ?? computed.recommendation?.executiveSummary?.recommendedOffer ?? computed.recommendedOffer,
               exitStrategyComparison: computed.exitStrategyComparison ?? computed.recommendedExit,
               capitalRequired: computed.capitalRequired ?? computed.cashRequired ?? 0,
@@ -759,7 +808,7 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
               majorRiskFlags: backendRiskFlags.length ? backendRiskFlags : computed.majorRiskFlags?.length ? computed.majorRiskFlags : computed.risks || [],
               requiredFollowUpItems: backendFollowUps.length ? backendFollowUps : computed.requiredFollowUpItems?.length ? computed.requiredFollowUpItems : computed.risks || [],
               manualOverrideStatus: computed.manualOverrideStatus ?? 'Not Applied',
-            };
+            }, authoritativeDealScore);
           } catch (error) {
             console.error("Unable to build deal intelligence for a deal", error);
             return {
@@ -817,7 +866,7 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
             ...topDeal,
             propertyAddress: safeDisplay(topDeal.propertyAddress || topDeal.address || "Untitled Deal", "Untitled Deal"),
             arvConfidence: safeDisplay(topDeal.arvConfidence || topDeal.arvConfidenceLabel || topDeal.confidenceLabel || "Insufficient Data", "Insufficient Data"),
-            supportedBaseArv: safeNumber(topDeal.supportedBaseArv || topDeal.supportedArv || topDeal.arvOutput || 0),
+            supportedBaseArv: topDeal.supportedBaseArv ?? topDeal.supportedArv ?? topDeal.arvOutput ?? null,
             marketScore: safeDisplay(topDeal.marketScore ?? topDeal.marketStabilityScore ?? topDeal.marketRating ?? "Insufficient Data", "Insufficient Data"),
             valuationScore: safeDisplay(topDeal.valuationScore ?? topDeal.valuationScoreValue ?? "Insufficient Data", "Insufficient Data"),
             buyBoxResult: safeDisplay(topDeal.buyBoxResult || topDeal.buyBox?.result || "Insufficient Data", "Insufficient Data"),
@@ -841,9 +890,9 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
             arvBreakdown: topDeal.arvBreakdown || {
               projectedArv: safeNumber(topDeal.projectedARV ?? topDeal.estimatedArv ?? 0),
               calculatedArv: safeNumber(topDeal.arv ?? topDeal.estimatedArv ?? 0),
-              supportedArv: safeNumber(topDeal.supportedBaseArv ?? topDeal.supportedArv ?? topDeal.arvOutput ?? 0),
+              supportedArv: topDeal.supportedBaseArv ?? topDeal.supportedArv ?? topDeal.arvOutput ?? null,
               confidenceLabel: safeDisplay(topDeal.arvConfidence || "Insufficient Data", "Insufficient Data"),
-              supported: safeNumber(topDeal.supportedBaseArv ?? topDeal.supportedArv ?? topDeal.arvOutput ?? 0) > 0,
+              supported: (topDeal.supportedBaseArv ?? topDeal.supportedArv ?? topDeal.arvOutput ?? null) !== null,
             },
             decisionHierarchy: topDeal.decisionHierarchy || {
               controllingDecision: safeDisplay(topDeal.recommendationReconciliation?.displayRecommendation || topDeal.recommendationDecision, "Insufficient Data"),
@@ -898,19 +947,22 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
       return buildRefinanceExitOptimizer({
         properties: analysis.map((deal) => ({
           ...deal,
-          currentValue: deal.supportedBaseArv || deal.arv || deal.askingPrice || 0,
-          currentLoanBalance: deal.loanAmount || deal.purchasePrice || 0,
-          monthlyRent: deal.estimatedRent || 0,
+          strategy: deal.strategy || deal.exitStrategy,
+          projectedARV: deal.arvBreakdown?.projectedArv ?? deal.projectedArv ?? deal.estimatedArv ?? deal.arv ?? null,
+          sellingCosts: deal.sellingCosts ?? null,
+          currentValue: deal.arvBreakdown?.supportedArv ?? deal.supportedBaseArv ?? null,
+          currentLoanBalance: deal.actualLoanAmount ?? deal.financingTruth?.actualLoanAmount ?? null,
+          monthlyRent: deal.rentalTruth?.verifiedRent ?? deal.estimatedRent ?? null,
           monthlyOperatingExpenses: safeNumber(deal.financing?.monthlyOperatingExpenses ?? 0),
           monthlyDebtService: deal.monthlyPayment || 0,
           annualTaxes: safeNumber(deal.taxes || 0),
           annualInsurance: safeNumber(deal.insurance || 0),
-          rehabRemainingBudget: safeNumber(deal.rehabBudget || 0) - safeNumber(deal.estimatedFlipProfit || 0) * 0.1,
+          rehabRemainingBudget: deal.rehabRemainingBudget ?? deal.remainingRehabBudget ?? null,
           rehabPercentComplete: safeNumber(deal.rehabPercentComplete || 0),
           loanMaturityDate: safeDisplay(deal.loanMaturityDate || '', 'Insufficient Data'),
-          interestRate: safeNumber(deal.financing?.interestRate || 0),
-          supportedARV: safeNumber(deal.supportedBaseArv || 0),
-          appraisedValue: safeNumber(deal.supportedBaseArv || 0),
+          interestRate: deal.financingTruth?.interestRate ?? null,
+          supportedARV: deal.arvBreakdown?.supportedArv ?? deal.supportedBaseArv ?? null,
+          appraisedValue: deal.upgradeAppraisal?.supportedArv ?? null,
           occupancyRate: safeNumber(deal.occupancyRate || 0),
           leaseStatus: safeDisplay(deal.leaseStatus || 'Insufficient Data', 'Insufficient Data'),
           lenderRequirements: { maxLtv: 0.75, minDscr: 1.2 },
@@ -919,8 +971,9 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
           titleStatus: safeDisplay(deal.titleStatus || 'Insufficient Data', 'Insufficient Data'),
           documentationCompleteness: safeNumber(deal.documentationCompleteness || 0.7),
           refinanceCandidate: safeNumber(deal.dealScore) >= 70,
-          totalCashInvested: safeNumber(deal.purchasePrice || 0) + safeNumber(deal.rehabBudget || 0),
-          remainingUnrecoveredCashInvestment: safeNumber(deal.rehabBudget || 0),
+          totalCashInvested: deal.initialCashInvested ?? deal.totalInitialCashInvested ?? null,
+          remainingUnrecoveredCashInvestment: deal.initialCashInvested ?? deal.totalInitialCashInvested ?? null,
+          refinanceLtv: deal.refinanceLtvPercentage ?? deal.refinanceLtv ?? null,
         })),
         deals,
         portfolioIntelligence: summary || {},
@@ -1033,7 +1086,7 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
                 <SummaryCard label="Calculated ARV" value={summary?.topDeal?.arvBreakdown?.calculatedArv > 0 ? formatCurrency(summary.topDeal.arvBreakdown.calculatedArv) : "Insufficient Data"} />
                 <SummaryCard label="Supported ARV" value={summary?.topDeal?.arvBreakdown?.supportedArv > 0 ? formatCurrency(summary.topDeal.arvBreakdown.supportedArv) : "Insufficient Data"} />
                 <SummaryCard label="Market Score" value={`${safeDisplay(summary?.topDeal?.marketScore, "Insufficient Data")}`} />
-                <SummaryCard label="Valuation Score" value={`${safeDisplay(summary?.topDeal?.valuationScore, "Insufficient Data")}`} />
+                <SummaryCard label="Appraisal Evidence Score" value={`${safeDisplay(summary?.topDeal?.valuationScore, "Insufficient Data")}`} />
                 <SummaryCard label="Buy Box Result" value={summary?.topDeal?.buyBoxResult || "Insufficient Data"} />
                 <SummaryCard label="Warning Count" value={summary?.topDeal?.warnings?.length || 0} />
                 <SummaryCard label="Financing Score" value={summary?.topDeal?.financingScore ?? "Insufficient Data"} />
@@ -1041,15 +1094,15 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
                 <SummaryCard label="Initial Cash Invested" value={formatCurrencyInput(summary?.topDeal?.initialCashInvested || summary?.topDeal?.cashRequired || 0, summary?.topDeal?.initialCashInvestedEntered)} />
                 <SummaryCard label="Monthly Carry" value={formatCurrencyInput(summary?.topDeal?.monthlyCarry || summary?.topDeal?.monthlyPayment || 0, summary?.topDeal?.monthlyCarryEntered)} />
                 <SummaryCard label="Cash Required" value={formatCurrencyInput(summary?.topDeal?.cashRequired || 0, summary?.topDeal?.initialCashInvestedEntered)} />
-                <SummaryCard label="DSCR" value={safeDisplay(summary?.topDeal?.dscr, "Insufficient Data")} />
-                <SummaryCard label="Selected Lender" value={summary?.topDeal?.selectedLenderName || "Insufficient Data"} />
-                <SummaryCard label="Qualification" value={summary?.topDeal?.qualificationStatus || "Insufficient Data"} />
-                <SummaryCard label="Recommendation" value={summary?.topDeal?.recommendationDecision || "Insufficient Data"} />
+                <SummaryCard label="DSCR" value={summary?.topDeal?.strategyMetrics?.dscrDisplay || safeDisplay(summary?.topDeal?.strategyMetrics?.dscr, "Insufficient Data")} />
+                <SummaryCard label="Current Financing" value={summary?.topDeal?.financingTruth?.currentFinancingStatus || "Not Entered"} />
+                <SummaryCard label="Lender Record" value={summary?.topDeal?.financingTruth?.lenderRecordStatus || "Not Linked"} />
+                <SummaryCard label="Acquisition Decision" value={summary?.topDeal?.controllingRecommendation?.acquisitionDecision || summary?.topDeal?.recommendationDecision || "Insufficient Data"} />
                 <SummaryCard label="Recommendation Reconciliation" value={summary?.topDeal?.recommendationReconciliation?.displayRecommendation || "Insufficient Data"} />
                 <SummaryCard label="Strategy" value={summary?.topDeal?.recommendationStrategy || "Insufficient Data"} />
                 <SummaryCard label="Investment Decision" value={summary?.topDeal?.investmentDecision?.recommendation || "Insufficient Data"} />
                 <SummaryCard label="Decision Confidence" value={`${summary?.topDeal?.investmentDecision?.confidence ?? 0}%`} />
-                <SummaryCard label="Controlling Decision" value={summary?.topDeal?.decisionHierarchy?.controllingDecision || "Insufficient Data"} />
+                <SummaryCard label="Current Operational Decision" value={summary?.topDeal?.decisionHierarchy?.controllingDecision || "Insufficient Data"} />
                 <SummaryCard label="Base/Downside" value={`${summary?.topDeal?.decisionHierarchy?.baseRecommendation || "Insufficient Data"} / ${summary?.topDeal?.decisionHierarchy?.downsideRecommendation || "Insufficient Data"}`} />
                 <SummaryCard label="Exit Strategy" value={summary?.topDeal?.exitStrategy?.recommendedStrategy || "Insufficient Data"} />
                 <SummaryCard label="Overall Risk" value={`${summary?.topDeal?.riskProfile?.overallRiskScore ?? summary?.topDeal?.riskScore ?? summary?.topDeal?.overallRiskScore ?? 0}/100`} />
@@ -1062,7 +1115,7 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
                 <SummaryCard label="Best-Case Profit" value={formatCurrency(scenarioAnalysis?.summary?.bestCaseProfit || 0)} />
                 <SummaryCard label="Expected Profit" value={formatCurrency(scenarioAnalysis?.summary?.expectedProfit || 0)} />
                 <SummaryCard label="Worst-Case Profit" value={formatCurrency(scenarioAnalysis?.summary?.worstCaseProfit || 0)} />
-                <SummaryCard label="Expected ROI" value={formatPercent(scenarioAnalysis?.summary?.expectedRoi || 0)} />
+                <SummaryCard label="Scenario ROI on Total Project Cost" value={formatPercent(scenarioAnalysis?.summary?.expectedRoi)} />
                 <SummaryCard label="Worst-Case ROI" value={formatPercent(scenarioAnalysis?.summary?.worstCaseRoi || 0)} />
                 <SummaryCard label="Downside Cash Required" value={formatCurrency(scenarioAnalysis?.summary?.downsideCashRequired || 0)} />
                 <SummaryCard label="Downside Monthly Cash Flow" value={formatCurrency(scenarioAnalysis?.summary?.downsideMonthlyCashFlow || 0)} />
@@ -1107,10 +1160,12 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
                   <div style={styles.listItem}>Recommended Timing: {refinanceExitOptimizer?.recommendedTiming || 'Insufficient Data'}</div>
                   <div style={styles.listItem}>Decision Status: {refinanceExitOptimizer?.decisionStatus || 'Insufficient Data'}</div>
                   <div style={styles.listItem}>Refinance Readiness: {refinanceExitOptimizer?.refinanceReadiness || 'Insufficient Data'}</div>
-                  <div style={styles.listItem}>Estimated Refinance Proceeds: {safeDisplay(refinanceExitOptimizer?.refinanceAnalysis?.netRefinanceProceeds, 'Insufficient Data')}</div>
-                  <div style={styles.listItem}>Estimated Sale Proceeds: {safeDisplay(refinanceExitOptimizer?.comparison?.find((entry) => entry.strategy === 'Sell After Rehab')?.estimatedNetProceeds, 'Insufficient Data')}</div>
-                  <div style={styles.listItem}>Cash Returned: {safeDisplay(refinanceExitOptimizer?.refinanceAnalysis?.cashReturned, 'Insufficient Data')}</div>
-                  <div style={styles.listItem}>Cash Left in Deal: {safeDisplay(refinanceExitOptimizer?.refinanceAnalysis?.cashLeftInDeal, 'Insufficient Data')}</div>
+                  <div style={styles.listItem}>New Refinance Loan Amount: {refinanceExitOptimizer?.refinanceAnalysis?.refinanceLoanAmount == null ? 'Insufficient Data' : formatCurrency(refinanceExitOptimizer.refinanceAnalysis.refinanceLoanAmount)}</div>
+                  <div style={styles.listItem}>Net Refinance Cash-Out After Payoff/Costs: {refinanceExitOptimizer?.refinanceAnalysis?.netRefinanceProceeds == null ? 'Insufficient Data' : formatCurrency(refinanceExitOptimizer.refinanceAnalysis.netRefinanceProceeds)}</div>
+                  <div style={styles.listItem}>Gross Sale Price: {refinanceExitOptimizer?.comparison?.find((entry) => entry.strategy === 'Sell After Rehab')?.estimatedGrossProceeds == null ? 'Insufficient Data' : formatCurrency(refinanceExitOptimizer.comparison.find((entry) => entry.strategy === 'Sell After Rehab').estimatedGrossProceeds)}</div>
+                  <div style={styles.listItem}>Net Sale Cash After Selling Costs/Payoff: {refinanceExitOptimizer?.comparison?.find((entry) => entry.strategy === 'Sell After Rehab')?.estimatedNetProceeds == null ? 'Insufficient Data' : formatCurrency(refinanceExitOptimizer.comparison.find((entry) => entry.strategy === 'Sell After Rehab').estimatedNetProceeds)}</div>
+                  <div style={styles.listItem}>Cash Returned at Refinance: {refinanceExitOptimizer?.refinanceAnalysis?.cashReturned == null ? 'Insufficient Data' : formatCurrency(refinanceExitOptimizer.refinanceAnalysis.cashReturned)}</div>
+                  <div style={styles.listItem}>Unrecovered Cash Left in Deal: {refinanceExitOptimizer?.refinanceAnalysis?.cashLeftInDeal == null ? 'Insufficient Data' : formatCurrency(refinanceExitOptimizer.refinanceAnalysis.cashLeftInDeal)}</div>
                   <div style={styles.listItem}>Main Exit Risk: {refinanceExitOptimizer?.comparison?.find((entry) => entry.strategy === refinanceExitOptimizer.primaryExit)?.mainWeakness || 'Insufficient Data'}</div>
                   <div style={styles.listItem}>Decision-Breaking Threshold: {refinanceExitOptimizer?.breakEvenThresholds?.[0]?.metric || 'Insufficient Data'}</div>
                   <div style={styles.listItem}>Required Next Action: {refinanceExitOptimizer?.comparison?.find((entry) => entry.strategy === refinanceExitOptimizer.primaryExit)?.requiredNextAction || 'Insufficient Data'}</div>
@@ -1149,14 +1204,26 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
                     <div style={styles.listItem}>Status: {executiveDashboard?.decisionStatus || "INSUFFICIENT DATA"}</div>
                   </div>
                   <div style={styles.explanationBox}>
-                    <div style={styles.explanationTitle}>Offer Decision</div>
+                    <div style={styles.explanationTitle}>{executiveDashboard?.offerDecision?.controlling === false ? "Historical Acquisition Underwriting — Reference Only" : "Offer Decision"}</div>
+                    <div style={styles.listItem}>Context: {executiveDashboard?.offerDecision?.controlling === false ? "Property already owned; acquisition guidance is not controlling" : "Active acquisition underwriting"}</div>
+                    <div style={styles.listItem}>Recommendation: {executiveDashboard?.offerDecision?.controlling === false ? "REFERENCE ONLY — USE CURRENT PROJECT OPERATING DECISION" : summary?.topDeal?.upgradeOffer?.recommendation || "Insufficient Data"}</div>
+                    <div style={styles.listItem}>Strategy: {summary?.topDeal?.upgradeOffer?.strategyOffer?.type || "Insufficient Data"}</div>
+                    <div style={styles.listItem}>Buy Box: {summary?.topDeal?.upgradeOffer?.buyBoxStatus || "Insufficient Data"}</div>
                     <div style={styles.listItem}>Asking Price: {executiveDashboard?.offerDecision?.askingPrice || "Insufficient Data"}</div>
                     <div style={styles.listItem}>Current Purchase Price: {executiveDashboard?.offerDecision?.currentPurchasePrice || "Insufficient Data"}</div>
-                    <div style={styles.listItem}>Maximum Allowable Offer: {executiveDashboard?.offerDecision?.maximumAllowableOffer || "Insufficient Data"}</div>
-                    <div style={styles.listItem}>Recommended Offer: {executiveDashboard?.offerDecision?.recommendedOffer || "Insufficient Data"}</div>
+                    <div style={styles.listItem}>{executiveDashboard?.offerDecision?.controlling === false ? "Historical Opening Offer" : "Opening Offer"}: {formatCurrency(summary?.topDeal?.upgradeOffer?.initialOffer)}</div>
+                    <div style={styles.listItem}>{executiveDashboard?.offerDecision?.controlling === false ? "Historical Target Offer" : "Target Offer"}: {formatCurrency(summary?.topDeal?.upgradeOffer?.targetOffer)}</div>
+                    <div style={styles.listItem}>Authoritative Acquisition MAO: {summary?.topDeal?.offerTruth?.maximumAllowableOffer != null ? formatCurrency(summary.topDeal.offerTruth.maximumAllowableOffer) : "Insufficient Data"}</div>
+                    <div style={styles.listItem}>{executiveDashboard?.offerDecision?.controlling === false ? "Historical Recommended Offer" : "Recommended Offer"}: {executiveDashboard?.offerDecision?.recommendedOffer || "Insufficient Data"}</div>
                     <div style={styles.listItem}>Walk-Away Price: {executiveDashboard?.offerDecision?.walkAwayPrice || "Insufficient Data"}</div>
+                    <div style={styles.listItem}>Difference to Target: {formatCurrency(summary?.topDeal?.upgradeOffer?.differenceToTarget)}</div>
+                    <div style={styles.listItem}>Difference to Walk-Away: {formatCurrency(summary?.topDeal?.upgradeOffer?.differenceToWalkAway)}</div>
                     <div style={styles.listItem}>Price Reduction Needed: {executiveDashboard?.offerDecision?.priceReductionNeeded || "Insufficient Data"}</div>
                     <div style={styles.listItem}>Offer Status: {executiveDashboard?.offerDecision?.offerStatus || "Insufficient Data"}</div>
+                    <div style={styles.listItem}>Why: {summary?.topDeal?.upgradeOffer?.offerDecision?.controllingReason || "Insufficient Data"}</div>
+                    {summary?.topDeal?.upgradeOffer?.calculationBreakdown?.map((entry) => (
+                      <div key={entry.label} style={styles.listItem}>{entry.label}: {formatCurrency(entry.amount)}</div>
+                    ))}
                   </div>
                   <div style={styles.explanationBox}>
                     <div style={styles.explanationTitle}>Strategy Decision</div>
@@ -1218,11 +1285,11 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
                     <div style={styles.listItem}>Final Decision: {executiveDashboard?.executiveSummary?.finalDecision || "Insufficient Data"}</div>
                     <div style={styles.listItem}>Why: {executiveDashboard?.executiveSummary?.why || "Insufficient Data"}</div>
                     <div style={styles.listItem}>Recommended Strategy: {executiveDashboard?.executiveSummary?.recommendedStrategy || "Insufficient Data"}</div>
-                    <div style={styles.listItem}>Recommended Offer: {executiveDashboard?.executiveSummary?.recommendedOffer || "Insufficient Data"}</div>
-                    <div style={styles.listItem}>Maximum Allowable Offer: {executiveDashboard?.executiveSummary?.maximumAllowableOffer || "Insufficient Data"}</div>
+                    <div style={styles.listItem}>Historical/Reference Target Offer: {executiveDashboard?.executiveSummary?.recommendedOffer || "Insufficient Data"}</div>
+                    <div style={styles.listItem}>Historical/Reference Acquisition MAO: {summary?.topDeal?.offerTruth?.maximumAllowableOffer != null ? formatCurrency(summary.topDeal.offerTruth.maximumAllowableOffer) : "Insufficient Data"}</div>
                     <div style={styles.listItem}>Walk-Away Price: {executiveDashboard?.executiveSummary?.walkAwayPrice || "Insufficient Data"}</div>
                     <div style={styles.listItem}>Expected Profit: {executiveDashboard?.executiveSummary?.expectedProfit || "Insufficient Data"}</div>
-                    <div style={styles.listItem}>Expected ROI: {executiveDashboard?.executiveSummary?.expectedRoi || "Insufficient Data"}</div>
+                    <div style={styles.listItem}>ROI on Total Project Cost: {executiveDashboard?.executiveSummary?.expectedRoi || "Insufficient Data"}</div>
                     <div style={styles.listItem}>Required Cash: {executiveDashboard?.executiveSummary?.requiredCash || "Insufficient Data"}</div>
                     <div style={styles.listItem}>Largest Risk: {executiveDashboard?.executiveSummary?.largestRisk || "Insufficient Data"}</div>
                     <div style={styles.listItem}>Strongest Opportunity: {executiveDashboard?.executiveSummary?.strongestOpportunity || "Insufficient Data"}</div>
@@ -1309,9 +1376,9 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
                         <div style={styles.listItem}>Base assumption: {challenge.baseAssumption}</div>
                         <div style={styles.listItem}>Challenged assumption: {challenge.challengedAssumption}</div>
                         <div style={styles.listItem}>Financial effect: {challenge.financialEffect}</div>
-                        <div style={styles.listItem}>Score effect: {challenge.scoreEffect}</div>
-                        <div style={styles.listItem}>Risk effect: {challenge.riskEffect}</div>
-                        <div style={styles.listItem}>Recommendation effect: {challenge.recommendationEffect}</div>
+                        <div style={styles.listItem}>Score effect: {normalizeEffectLabel(challenge.scoreEffect, "Score effect")}</div>
+                        <div style={styles.listItem}>Risk effect: {normalizeEffectLabel(challenge.riskEffect, "Risk effect")}</div>
+                        <div style={styles.listItem}>Recommendation effect: {normalizeEffectLabel(challenge.recommendationEffect, "Recommendation effect")}</div>
                         <div style={styles.listItem}>Supporting warnings: {challenge.supportingWarnings.length ? challenge.supportingWarnings.join(" • ") : "Insufficient Data"}</div>
                         <div style={styles.listItem}>Required actions: {challenge.requiredActions.length ? challenge.requiredActions.join(" • ") : "Insufficient Data"}</div>
                       </div>
@@ -1328,7 +1395,7 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
                             <th style={styles.th}>Scenario</th>
                             <th style={styles.th}>ARV</th>
                             <th style={styles.th}>Rehab</th>
-                            <th style={styles.th}>Timeline</th>
+                            <th style={styles.th}>Timeline (Months)</th>
                             <th style={styles.th}>Rate</th>
                             <th style={styles.th}>Rent</th>
                             <th style={styles.th}>Vacancy</th>
@@ -1356,15 +1423,15 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
                               <td style={styles.td}>{formatCurrency(scenario.summary.scenarioArv)}</td>
                               <td style={styles.td}>{formatCurrency(scenario.summary.scenarioRehabCost)}</td>
                               <td style={styles.td}>{safeDisplay(scenario.summary.scenarioHoldingPeriod, "Insufficient Data")}</td>
-                              <td style={styles.td}>{formatPercent(scenario.summary.scenarioInterestRate)}</td>
+                              <td style={styles.td}>{formatInterestRate(scenario.summary.scenarioInterestRate)}</td>
                               <td style={styles.td}>{formatCurrency(scenario.summary.scenarioRent)}</td>
                               <td style={styles.td}>{formatPercent(scenario.summary.scenarioVacancy)}</td>
                               <td style={styles.td}>{formatCurrency(scenario.summary.totalProjectCost)}</td>
                               <td style={styles.td}>{formatCurrency(scenario.summary.profit)}</td>
                               <td style={styles.td}>{formatPercent(scenario.summary.roi)}</td>
                               <td style={styles.td}>{formatCurrency(scenario.summary.cashRequired)}</td>
-                              <td style={styles.td}>{formatCurrency(scenario.summary.monthlyCashFlow)}</td>
-                              <td style={styles.td}>{safeDisplay(scenario.summary.dscr, "Insufficient Data")}</td>
+                              <td style={styles.td}>{scenario.summary.formatted?.monthlyCashFlow || formatCurrency(scenario.summary.monthlyCashFlow)}</td>
+                              <td style={styles.td}>{scenario.summary.formatted?.dscr || safeDisplay(scenario.summary.dscr, "Insufficient Data")}</td>
                               <td style={styles.td}>{formatCurrency(scenario.summary.cashLeftInDeal)}</td>
                               <td style={styles.td}>{safeDisplay(scenario.summary.dealScore, "Insufficient Data")}</td>
                               <td style={styles.td}>{safeDisplay(scenario.summary.overallRisk, "Insufficient Data")}</td>
@@ -1400,8 +1467,8 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
                             <input
                               type="number"
                               step="0.01"
-                              value={scenarioState[key] ?? defaultValue}
-                              onChange={(event) => setScenarioState((current) => ({ ...current, [key]: Number(event.target.value) }))}
+                              value={key === "timelineDays" ? (scenarioState[key] ?? defaultValue) : scenarioPercentToInput(scenarioState[key] ?? defaultValue)}
+                              onChange={(event) => setScenarioState((current) => ({ ...current, [key]: key === "timelineDays" ? Number(event.target.value) : scenarioPercentFromInput(event.target.value) }))}
                               style={styles.input}
                             />
                           </label>
@@ -1504,13 +1571,13 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
 
                     <div style={styles.metricRow}>
                       <Metric label="Estimated Profit" value={formatCurrency(deal.estimatedFlipProfit)} />
-                      <Metric label="ROI" value={formatPercent(deal.roi)} />
+                      <Metric label="ROI on Total Project Cost" value={formatPercent(deal.roiTruth?.roiOnTotalProjectCost)} />
                       <Metric label="Rent/Cost" value={formatPercent(deal.rentToCostRatio)} />
                     </div>
 
                     <div style={styles.metricRow}>
                       <Metric label="ARV Confidence" value={deal.arvConfidence} />
-                      <Metric label="Supported ARV" value={formatCurrency(deal.supportedBaseArv)} />
+                      <Metric label="Supported ARV" value={deal.supportedBaseArv == null || deal.supportedBaseArv === "" ? "Insufficient Data" : formatCurrency(deal.supportedBaseArv)} />
                       <Metric label="Market Score" value={`${deal.marketScore}/100`} />
                     </div>
 
@@ -1518,22 +1585,24 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
                       <div style={styles.explanationTitle}>Financing Intelligence</div>
                       <div style={styles.listItem}>Selected Lender: {deal.selectedLenderName || "Insufficient Data"}</div>
                       <div style={styles.listItem}>Loan Program: {deal.financing?.loanProgram || "Insufficient Data"}</div>
-                      <div style={styles.listItem}>Interest Rate: {formatPercent(deal.financing?.interestRate || 0)}</div>
+                      <div style={styles.listItem}>Interest Rate: {formatInterestRate(deal.financing?.interestRate)}</div>
+                      <div style={styles.listItem}>Current Financing: {deal.financingTruth?.currentFinancingStatus || "Not Entered"}</div>
+                      <div style={styles.listItem}>Lender Record: {deal.financingTruth?.lenderRecordStatus || "Not Linked"}</div>
                       <div style={styles.listItem}>Points: {formatPercent(deal.financing?.points || 0)}</div>
                       <div style={styles.listItem}>Fees: {formatCurrency(deal.financing?.fees || 0)}</div>
                       <div style={styles.listItem}>{deal.loanAmountLabel || "Actual Loan Amount"}: {formatCurrency(deal.actualLoanAmount || deal.loanAmount || 0)}</div>
                       <div style={styles.listItem}>Initial Cash Invested: {formatCurrency(deal.initialCashInvested || deal.cashRequired || 0)}</div>
                       <div style={styles.listItem}>Monthly Carry: {formatCurrency(deal.monthlyCarry || deal.monthlyPayment || 0)}</div>
                       <div style={styles.listItem}>Cash Required: {formatCurrency(deal.cashRequired || 0)}</div>
-                      <div style={styles.listItem}>LTC: {formatPercent(deal.financing?.ltc || 0)}</div>
-                      <div style={styles.listItem}>LTV: {formatPercent(deal.financing?.ltv || 0)}</div>
-                      <div style={styles.listItem}>LTARV: {formatPercent(deal.financing?.ltarv || 0)}</div>
+                      <div style={styles.listItem}>LTC (Loan / Total Project Cost): {formatPercent(deal.leverageTruth?.ltc)}</div>
+                      <div style={styles.listItem}>LTV (Loan / Current As-Is Value): {formatPercent(deal.leverageTruth?.ltv)}</div>
+                      <div style={styles.listItem}>LTARV (Loan / Projected ARV): {formatPercent(deal.leverageTruth?.ltarv)}</div>
                       <div style={styles.listItem}>Monthly Payment: {formatCurrency(deal.monthlyPayment || 0)}</div>
-                      <div style={styles.listItem}>Interest Carry: {formatCurrency(deal.financing?.interestCarryDuringRehab || 0)}</div>
+                      <div style={styles.listItem}>Interest Carry: {deal.financing?.interestCarryDuringRehab == null ? "Insufficient Data" : formatCurrency(deal.financing.interestCarryDuringRehab)}</div>
                       <div style={styles.listItem}>Financing Score: {deal.financingScore}/100</div>
                       <div style={styles.listItem}>Financing Risk: {deal.financingRisk}</div>
                       <div style={styles.listItem}>Qualification: {deal.qualificationStatus}</div>
-                      <div style={styles.listItem}>Failed Requirements: {deal.qualificationFailures?.length ? deal.qualificationFailures.join(" • ") : "None"}</div>
+                      <div style={styles.listItem}>Failed Requirements: {formatQualificationFailures(deal.qualificationStatus, deal.qualificationFailures)}</div>
                       <div style={styles.listItem}>Best Qualified Lender: {deal.lenderComparison?.bestLender?.lenderName || "Insufficient Data"}</div>
                       <div style={styles.listItem}>Active Warnings: {deal.activeWarnings || "No active warnings"}</div>
                     </div>
@@ -1551,7 +1620,7 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
                     </div>
 
                     <div style={styles.metricRow}>
-                      <Metric label="Valuation Score" value={`${deal.valuationScore}/100`} />
+                      <Metric label="Appraisal Evidence Score" value={`${deal.valuationScore}/100`} />
                       <Metric label="Buy Box" value={deal.buyBoxResult} />
                       <Metric label="Warnings" value={deal.warnings.length} />
                     </div>
@@ -1564,7 +1633,7 @@ export default function DealIntelligence({ onBack, currentView = "dealIntelligen
                       <div style={styles.listItem}>Market Score: {deal.buyBox?.marketScore ?? "Insufficient Data"}/100</div>
                       <div style={styles.listItem}>Neighborhood Score: {deal.buyBox?.neighborhoodScore ?? "Insufficient Data"}/100</div>
                       <div style={styles.listItem}>Overall Score: {deal.buyBox?.overallScore ?? "Insufficient Data"}/100</div>
-                      {deal.buyBox?.scoringBreakdown?.length ? <div style={styles.list}>{deal.buyBox.scoringBreakdown.map((item) => <div key={`${item.category}-${item.factor}`} style={styles.listItem}>{item.category}: {item.factor} (+{item.points}) — {item.rationale}</div>)}</div> : null}
+                      {deal.buyBox?.scoringBreakdown?.length ? <div style={styles.list}>{deal.buyBox.scoringBreakdown.map((item) => <div key={`${item.category}-${item.factor}`} style={styles.listItem}>{item.category}: {item.factor} ({item.points > 0 ? `+${item.points}` : item.points}) — {item.rationale}</div>)}</div> : null}
                     </div>
 
                     <div style={styles.explanationBox}>
@@ -1872,10 +1941,13 @@ const styles = {
   },
   tableWrap: {
     overflowX: "auto",
+    maxWidth: "100%",
+    WebkitOverflowScrolling: "touch",
     marginBottom: "14px",
   },
   table: {
-    width: "100%",
+    width: "max-content",
+    minWidth: "100%",
     borderCollapse: "collapse",
   },
   th: {

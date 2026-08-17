@@ -217,10 +217,11 @@ test('malformed auth-state JSON is handled safely without crash', async () => {
 });
 
 test('authService atomic write uses temp file then rename', async () => {
-  // Verified by static analysis: writeAuthState writes to .tmp then renames.
+  // Verified by static analysis: writeAuthState writes to a unique .tmp then renames.
   const authCode = await readFile(path.join(process.cwd(), 'server', 'authService.js'), 'utf8');
-  const writeFn = authCode.slice(authCode.indexOf('async function writeAuthState'), authCode.indexOf('async function writeAuthState') + 350);
+  const writeStart = authCode.indexOf('async function writeAuthState');
+  const writeFn = authCode.slice(writeStart, authCode.indexOf('function pruneExpiredSessions', writeStart));
   assert.ok(writeFn.includes('.tmp'), 'writeAuthState must write to a temp path');
-  assert.ok(writeFn.includes('rename(tmp'), 'writeAuthState must atomically rename temp to final path');
+  assert.match(writeFn, /rename\(tmp\w*,\s*authStateFile\)/, 'writeAuthState must atomically rename its temp file to the final path');
   // Integration: confirmed by authService.test.js suite (23/23 passing)
 });

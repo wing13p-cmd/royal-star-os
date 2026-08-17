@@ -1,5 +1,7 @@
-const APP_CACHE = "rsos-app-shell-v2-20260806";
-const STATIC_CACHE = "rsos-static-v2-20260806";
+// Bump these names whenever application assets change so existing clients do
+// not remain pinned to an obsolete Comp Database bundle indefinitely.
+const APP_CACHE = "rsos-app-shell-v3-20260809";
+const STATIC_CACHE = "rsos-static-v3-20260809";
 const APP_SHELL = [
   "/",
   "/index.html",

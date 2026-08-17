@@ -12,6 +12,31 @@ test("buildArvIntelligence returns safe defaults for empty input", () => {
   assert.equal(arv.compEvaluations.length, 0);
 });
 
+test("unified appraisal keeps one-comp indication preliminary and permits support at three qualifying comps", () => {
+  const deal = {
+    id: "deal-123", dealId: "deal-123", propertyId: "property-123",
+    address: "123 Test St", city: "Cincinnati", state: "OH", zipCode: "45211",
+    propertyType: "Single Family", bedrooms: 3, bathrooms: 2, squareFeet: 1400, yearBuilt: 1960,
+    purchasePrice: 135000, rehabBudget: 60000, estimatedArv: 285000, strategy: "Flip",
+  };
+  const baseComp = { subjectDealId: "deal-123", included: true, verified: true, saleDate: "2026-07-15", distanceMiles: 0.3, squareFeet: 1400, propertyType: "Single Family", bedrooms: 3, bathrooms: 2, yearBuilt: 1960 };
+  const one = buildUnifiedUnderwritingIntelligence(deal, [{ ...baseComp, id: "c1", salePrice: 280000 }], []);
+  assert.ok(one.arvAnalysis.supportedBaseArv > 0);
+  assert.equal(one.appraisal.supportedArv, null);
+  assert.equal(one.appraisal.appraisalStatus, "NOT_READY");
+  assert.equal(one.appraisal.appraisalConfidence, "LOW");
+  assert.equal(one.appraisal.appraisalSupportScore, 0);
+
+  const three = buildUnifiedUnderwritingIntelligence(deal, [
+    { ...baseComp, id: "c1", salePrice: 280000 },
+    { ...baseComp, id: "c2", salePrice: 282000, distanceMiles: 0.35 },
+    { ...baseComp, id: "c3", salePrice: 284000, distanceMiles: 0.4 },
+  ], []);
+  assert.equal(three.appraisal.appraisalStatus, "READY");
+  assert.equal(three.appraisal.appraisalConfidence, "HIGH");
+  assert.ok(three.appraisal.supportedArv > 0);
+});
+
 test("buildUnifiedUnderwritingIntelligence calibrates the Goss Rd deal without double counting financing and cash sources", () => {
   const result = buildUnifiedUnderwritingIntelligence({
     propertyAddress: "952 Goss Rd",
@@ -85,6 +110,10 @@ test("buildUnifiedUnderwritingIntelligence preserves persisted profit guidance f
 test("buildUnifiedUnderwritingIntelligence emits cross-module decision-layer signals", () => {
   const result = buildUnifiedUnderwritingIntelligence({
     propertyAddress: "123 Market St",
+    zipCode: "45211",
+    propertyType: "Single Family",
+    squareFeet: 1400,
+    yearBuilt: 1960,
     purchasePrice: "140000",
     rehabBudget: "50000",
     estimatedArv: "310000",
@@ -802,7 +831,7 @@ test("buildOfferIntelligence builds a negotiation ladder with per-level metrics 
   assert.ok(offer.negotiationSupport.closingTimelineRecommendation.length > 0);
 });
 
-test("buildOfferIntelligence preserves manual overrides without exceeding the approved ladder unless documented", () => {
+test("buildOfferIntelligence preserves documented manual overrides while capping them at MAO", () => {
   const offer = buildOfferIntelligence({
     askingPrice: 240000,
     purchasePrice: 200000,
@@ -822,8 +851,9 @@ test("buildOfferIntelligence preserves manual overrides without exceeding the ap
 
   assert.equal(offer.approvalWorkflow.manualOverrides.length, 1);
   assert.equal(offer.overrideApplied, true);
-  assert.equal(offer.offerLadder.levels[2].amount, 220000);
-  assert.ok(offer.offerLadder.maximumApprovedOffer >= 220000);
+  assert.equal(offer.targetOffer, offer.maximumOffer);
+  assert.ok(offer.targetOffer < 220000);
+  assert.equal(offer.offerLadder.maximumApprovedOffer, offer.maximumOffer);
 });
 
 test("buildOfferIntelligence keeps shared offer signals aligned across strategy views", () => {
@@ -866,7 +896,7 @@ test("buildOfferIntelligence keeps shared offer signals aligned across strategy 
 
   assert.equal(flipOffer.offerCalculations.shared.targetOffer, flipOffer.targetOffer);
   assert.equal(brrrrOffer.offerCalculations.shared.targetOffer, brrrrOffer.targetOffer);
-  assert.ok(brrrrOffer.offerCalculations.brrrrr.targetOffer >= flipOffer.offerCalculations.shared.targetOffer);
+  assert.equal(brrrrOffer.offerCalculations.brrrrr.targetOffer, brrrrOffer.targetOffer);
   assert.equal(brrrrOffer.strategyOffer.type, "BRRRR");
 });
 
@@ -896,7 +926,7 @@ test("buildOfferIntelligence builds a full offer ladder and decision for a suppo
   });
 
   assert.equal(offer.offerLadder.levels.length, 5);
-  assert.equal(offer.offerDecision.decision, "OFFER");
+  assert.equal(offer.offerDecision.decision, "DO NOT PROCEED");
   assert.equal(offer.offerDecision.confidenceLevel, "High");
   assert.ok(offer.offerLadder.maximumApprovedOffer <= offer.controllingMao);
   assert.ok(offer.offerLetterData.offerPrice > 0);
@@ -918,7 +948,7 @@ test("buildOfferIntelligence holds for more information when critical data is mi
     loanAmount: 0,
   });
 
-  assert.equal(offer.offerDecision.decision, "HOLD FOR MORE INFORMATION");
+  assert.equal(offer.offerDecision.decision, "INCOMPLETE");
   assert.ok(offer.offerDecision.missingInformation.length > 0);
 });
 
@@ -1003,10 +1033,11 @@ test("buildOfferIntelligence preserves manual overrides and recalculation trigge
   assert.equal(baseOffer.recommendedOffer, 160000);
   assert.equal(baseOffer.approvalWorkflow.manualOverrides.length, 1);
   assert.notEqual(baseOffer.recalculationKey, recalculatedOffer.recalculationKey);
-  assert.ok(recalculatedOffer.targetOffer > baseOffer.targetOffer);
+  assert.equal(recalculatedOffer.targetOffer, baseOffer.targetOffer);
+  assert.ok(recalculatedOffer.maximumOffer > baseOffer.maximumOffer);
 });
 
-test("buildOfferIntelligence preserves negative profit results for weak deals", () => {
+test("buildOfferIntelligence blocks a weak deal whose current price exceeds its ceiling", () => {
   const offer = buildOfferIntelligence({
     askingPrice: 220000,
     purchasePrice: 210000,
@@ -1022,8 +1053,9 @@ test("buildOfferIntelligence preserves negative profit results for weak deals", 
     loanAmount: 0,
   });
 
-  assert.ok(offer.expectedProfitAtEachOffer[0].expectedProfit < 0);
-  assert.equal(offer.offerDecision.decision, "HOLD FOR MORE INFORMATION");
+  assert.equal(offer.maximumOffer, 82400);
+  assert.ok(offer.currentPurchasePrice > offer.walkAwayPrice);
+  assert.equal(offer.offerDecision.decision, "DO NOT PROCEED");
 });
 
 test("buildArvIntelligence preserves manual ARV as the active source when comp support is weak", () => {
@@ -1063,7 +1095,174 @@ test("buildOfferIntelligence switches to retrospective acquisition review for ow
   assert.equal(offer.reviewMode, "retrospective-acquisition-review");
   assert.ok(offer.retrospectiveReview);
   assert.ok(offer.retrospectiveReview.originalAcquisitionVariance >= 0);
-  assert.ok(offer.retrospectiveReview.currentProjectedOutcome > 0);
+  assert.ok(Number.isFinite(offer.retrospectiveReview.currentProjectedOutcome));
+});
+
+function buildProductionOffer(overrides = {}, arvOverrides = {}, buyBoxOverrides = {}) {
+  return buildOfferIntelligence({
+    purchasePrice: 135000,
+    rehabBudget: 60000,
+    closingCosts: 5000,
+    financingCosts: 5000,
+    requiredProfit: 40000,
+    sellingCosts: 22000,
+    strategy: "Flip",
+    ...overrides,
+  }, {
+    supportedLowArv: 261250,
+    supportedBaseArv: 275000,
+    supportedHighArv: 288750,
+    confidenceLevel: "High",
+    ...arvOverrides,
+  }, {
+    decision: "Pass",
+    result: "PASS",
+    ...buyBoxOverrides,
+  }, { loanAmount: 0 });
+}
+
+test("production Flip offer engine calculates the transparent $143,000 MAO and ordered ladder", () => {
+  const offer = buildProductionOffer();
+
+  assert.equal(offer.maximumOffer, 143000);
+  assert.equal(offer.walkAwayPrice, 143000);
+  assert.ok(offer.initialOffer <= offer.targetOffer);
+  assert.ok(offer.targetOffer <= offer.walkAwayPrice);
+  assert.ok(offer.walkAwayPrice <= offer.maximumOffer);
+  assert.equal(offer.assumptions.requiredProfitDollars, 40000);
+  assert.equal(offer.assumptions.sellingCosts, 22000);
+});
+
+test("Flip current price above MAO is DO NOT PROCEED while viable price avoids a hard stop", () => {
+  const tooHigh = buildProductionOffer({ purchasePrice: 150000 });
+  const viable = buildProductionOffer({ purchasePrice: 135000 });
+
+  assert.equal(tooHigh.maximumOffer, 143000);
+  assert.equal(tooHigh.recommendation, "DO NOT PROCEED");
+  assert.ok(tooHigh.hardStopReasons.some((reason) => reason.includes("walk-away")));
+  assert.notEqual(viable.recommendation, "DO NOT PROCEED");
+});
+
+test("BRRRR offer ceiling normalizes 75 percent and follows refinance cash-recovery semantics", () => {
+  const offer = buildProductionOffer({
+    strategy: "BRRRR",
+    refinanceLtvPercentage: 75,
+    refinanceClosingCosts: 5000,
+    targetCashLeftInDeal: 0,
+  });
+
+  assert.equal(offer.assumptions.refinanceLtv, 0.75);
+  assert.equal(offer.strategyOffer.expectedRefinanceLoan, 206250);
+  assert.equal(offer.strategyOffer.cashReturned, 201250);
+  assert.equal(offer.maximumOffer, 131250);
+  assert.equal(offer.assumptions.targetCashLeftInDeal, 0);
+});
+
+test("earnest money and informational holding months do not alter MAO", () => {
+  const baseline = buildProductionOffer({ earnestMoney: 0, holdingMonths: 0 });
+  const cases = [0, 3, 12].map((holdingMonths) => buildProductionOffer({ earnestMoney: 3500, holdingMonths }));
+
+  for (const offer of cases) {
+    assert.equal(offer.maximumOffer, baseline.maximumOffer);
+    assert.equal(offer.assumptions.earnestMoney, 3500);
+    assert.equal(offer.assumptions.explicitHoldingCosts, 0);
+  }
+});
+
+test("explicit holding costs are deducted while holding months alone remain informational", () => {
+  const informational = buildProductionOffer({ holdingMonths: 12 });
+  const explicit = buildProductionOffer({ holdingMonths: 12, holdingCosts: 6000 });
+
+  assert.equal(informational.maximumOffer, 143000);
+  assert.equal(explicit.maximumOffer, 137000);
+});
+
+test("Offer Generator uses only entered holding costs for the $153,000 production MAO", () => {
+  const baseDeal = {
+    purchasePrice: 135000,
+    rehabBudget: 60000,
+    estimatedArv: 275000,
+    closingCosts: 5000,
+    financingCosts: 5000,
+    sellingCosts: 22000,
+    requiredProfit: 30000,
+    strategy: "Flip",
+  };
+  const build = (overrides = {}) => buildOfferIntelligence(
+    { ...baseDeal, ...overrides },
+    { supportedLowArv: 275000, supportedBaseArv: 275000, supportedHighArv: 275000, confidenceLevel: "High" },
+    { decision: "Pass", result: "PASS" },
+    {},
+  );
+
+  for (const holdingMonths of [0, 3, 12]) {
+    const offer = build({ holdingMonths, earnestMoney: 3500 });
+    assert.equal(offer.assumptions.explicitHoldingCosts, 0);
+    assert.equal(offer.assumptions.holdingCostSource, "none");
+    assert.equal(offer.maximumOffer, 153000);
+  }
+
+  const explicitTotal = build({ holdingMonths: 3, totalHoldingCosts: 6000 });
+  assert.equal(explicitTotal.assumptions.explicitHoldingCosts, 6000);
+  assert.equal(explicitTotal.assumptions.holdingCostSource, "explicit total");
+  assert.equal(explicitTotal.maximumOffer, 147000);
+  assert.notEqual(explicitTotal.assumptions.explicitHoldingCosts, 18000);
+  assert.ok(explicitTotal.initialOffer <= explicitTotal.targetOffer);
+  assert.ok(explicitTotal.targetOffer <= explicitTotal.walkAwayPrice);
+  assert.ok(explicitTotal.walkAwayPrice <= explicitTotal.maximumOffer);
+
+  const enteredMonthly = build({ holdingMonths: 3, monthlyHoldingCost: 2000 });
+  assert.equal(enteredMonthly.assumptions.explicitHoldingCosts, 6000);
+  assert.equal(enteredMonthly.assumptions.holdingCostSource, "entered monthly cost × holding months");
+  assert.equal(enteredMonthly.maximumOffer, 147000);
+});
+
+test("offer ARV sensitivity preserves best-base-worst ordering and directional ceilings", () => {
+  const offer = buildProductionOffer();
+
+  assert.ok(offer.sensitivity.best.arv >= offer.sensitivity.base.arv);
+  assert.ok(offer.sensitivity.base.arv >= offer.sensitivity.worst.arv);
+  assert.ok(offer.sensitivity.best.maximumAllowableOffer >= offer.sensitivity.base.maximumAllowableOffer);
+  assert.ok(offer.sensitivity.base.maximumAllowableOffer >= offer.sensitivity.worst.maximumAllowableOffer);
+});
+
+test("offer recommendation is INCOMPLETE for genuinely missing inputs and never proceeds", () => {
+  const offer = buildOfferIntelligence({ purchasePrice: 135000, strategy: "Flip" }, { supportedBaseArv: 0 }, { result: "PASS" }, {});
+
+  assert.equal(offer.recommendation, "INCOMPLETE");
+  assert.notEqual(offer.recommendation, "PROCEED");
+  assert.ok(offer.missingInformation.includes("ARV support"));
+});
+
+test("negative economics clamp MAO to zero with a hard-stop recommendation", () => {
+  const offer = buildProductionOffer({ rehabBudget: 200000, requiredProfit: 100000 });
+
+  assert.equal(offer.maximumOffer, 0);
+  assert.equal(offer.recommendation, "DO NOT PROCEED");
+});
+
+test("Buy Box fail prevents unconditional proceed and review remains cautionary", () => {
+  const failed = buildProductionOffer({}, {}, { result: "FAIL", decision: "Automatic Reject" });
+  const review = buildProductionOffer({}, {}, { result: "CONDITIONAL", decision: "Conditional Pass" });
+
+  assert.equal(failed.buyBoxStatus, "FAIL");
+  assert.equal(failed.recommendation, "DO NOT PROCEED");
+  assert.equal(review.buyBoxStatus, "REVIEW");
+  assert.notEqual(review.recommendation, "PROCEED");
+});
+
+test("older saved deals without newer offer fields remain safe and deterministic", () => {
+  const offer = buildOfferIntelligence({
+    purchasePrice: 135000,
+    rehabBudget: 60000,
+    estimatedArv: 275000,
+    strategy: "Flip",
+  }, { supportedBaseArv: 275000, confidenceLevel: "Moderate" }, { result: "PASS" }, {});
+
+  assert.ok(Number.isFinite(offer.maximumOffer));
+  assert.equal(offer.assumptions.earnestMoney, 0);
+  assert.equal(offer.assumptions.holdingMonths, 0);
+  assert.equal(offer.assumptions.targetCashLeftInDeal, 0);
 });
 
 test("buildAppraisalIntelligence surfaces critical risk for weak support", () => {
@@ -1106,12 +1305,10 @@ test("buildBuyBoxIntelligence provides explainable market and neighborhood scori
     averageDaysOnMarket: 28,
   }]);
 
-  assert.equal(result.decision, "Strong Pass");
-  assert.ok(result.scoringBreakdown.some((item) => item.category === "Property"));
-  assert.ok(result.scoringBreakdown.some((item) => item.category === "Market"));
-  assert.ok(result.scoringBreakdown.some((item) => item.category === "Neighborhood"));
-  assert.ok(result.scoringExplanation.includes("Primary market"));
-  assert.ok(result.marketScore > result.propertyLevelScore);
+  assert.equal(result.status, "REVIEW");
+  assert.equal(result.marketClassification, "PRIMARY");
+  assert.ok(result.reviewRules.some((rule) => rule.includes("1,800")));
+  assert.ok(result.reasons.length > 0);
 });
 
 test("normalizeDealForIntelligence maps intake fields into intelligence-ready values", () => {

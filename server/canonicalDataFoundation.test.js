@@ -55,6 +55,31 @@ test("canonical normalization preserves valid zero values", () => {
 
   assert.equal(canonical.financingCosts, 0);
   assert.equal(canonical.holdingMonths, 0);
+  assert.equal(canonical.holdingCosts, null);
+});
+
+test("canonical foundation preserves automation financing, holding, rental, and refinance fields", () => {
+  const canonical = normalizeDealRecord({
+    id: "deal-auto",
+    propertyAddress: "123 Test St",
+    holdingCosts: "6000",
+    earnestMoney: "3500",
+    fundedRehab: "50000",
+    annualPropertyTaxes: "3000",
+    annualInsurance: "1800",
+    monthlyHoa: 0,
+    refinanceLtvPercent: "75",
+    refinanceInterestRate: "7",
+  });
+  assert.equal(canonical.dealId, "deal-auto");
+  assert.equal(canonical.holdingCosts, 6000);
+  assert.equal(canonical.earnestMoney, 3500);
+  assert.equal(canonical.fundedRehab, 50000);
+  assert.equal(canonical.annualTaxes, 3000);
+  assert.equal(canonical.annualInsurance, 1800);
+  assert.equal(canonical.hoa, 0);
+  assert.equal(canonical.refinanceLtvPercentage, 75);
+  assert.equal(canonical.refinanceInterestRate, 7);
 });
 
 test("null values do not overwrite known values", () => {

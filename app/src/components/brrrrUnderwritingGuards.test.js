@@ -102,3 +102,79 @@ test('missing LTV blocks refinance amount outputs', () => {
   assert.equal(result.recommendation.action, 'REQUEST MORE DATA');
   assert.ok(result.recommendation.missingFinancialInputs.includes('Refinance LTV'));
 });
+
+test('negative BRRRR cash flow and sub-1.00 DSCR override proceed', () => {
+  const result = buildUnifiedUnderwritingIntelligence(buildBaseDeal({
+    estimatedArv: 275000,
+    closingCosts: 5000,
+    financingCosts: 5000,
+    initialCashInvested: 30000,
+    refinanceInterestRate: 7,
+    estimatedRent: 1800,
+    annualPropertyTaxes: 3000,
+    annualInsurance: 1800,
+  }), [], []);
+
+  assert.ok(result.brrrrAnalysis.monthlyCashFlow < 0);
+  assert.ok(result.brrrrAnalysis.debtServiceCoverageRatio < 1);
+  assert.equal(result.recommendation.action, 'DO NOT PROCEED');
+});
+
+test('complete positive BRRRR case can proceed without a false re-underwrite message', () => {
+  const result = buildUnifiedUnderwritingIntelligence(buildBaseDeal({
+    estimatedArv: 275000,
+    closingCosts: 5000,
+    financingCosts: 5000,
+    initialCashInvested: 30000,
+    refinanceInterestRate: 7,
+    estimatedRent: 3000,
+    annualPropertyTaxes: 3000,
+    annualInsurance: 1800,
+  }), [], []);
+
+  assert.ok(result.brrrrAnalysis.monthlyCashFlow > 0);
+  assert.ok(Math.abs(result.brrrrAnalysis.debtServiceCoverageRatio - 1.392) < 0.01);
+  assert.equal(result.recommendation.action, 'PROCEED');
+  assert.notEqual(result.recommendation.nextAction, 'Complete required inputs and re-underwrite');
+});
+
+test('missing a genuinely required BRRRR field is incomplete and never proceeds', () => {
+  const result = buildUnifiedUnderwritingIntelligence(buildBaseDeal({ estimatedRent: '' }), [], []);
+
+  assert.equal(result.recommendation.action, 'REQUEST MORE DATA');
+  assert.notEqual(result.recommendation.action, 'PROCEED');
+  assert.equal(result.recommendation.nextAction, 'Complete required inputs and re-underwrite');
+});
+
+test('earnest money and holding months remain informational without changing BRRRR project cost', () => {
+  const results = [0, 3, 12].map((holdingMonths) => buildUnifiedUnderwritingIntelligence(buildBaseDeal({
+    estimatedArv: 275000,
+    closingCosts: 5000,
+    financingCosts: 5000,
+    earnestMoney: 3500,
+    holdingMonths,
+    refinanceInterestRate: 7,
+    estimatedRent: 1800,
+    annualPropertyTaxes: 3000,
+    annualInsurance: 1800,
+    initialCashInvested: 30000,
+  }), [], []));
+
+  for (const [index, result] of results.entries()) {
+    assert.equal(result.brrrrAnalysis.earnestMoney, 3500);
+    assert.equal(result.brrrrAnalysis.holdingMonths, [0, 3, 12][index]);
+    assert.equal(result.brrrrAnalysis.totalProjectCost, 211000);
+    assert.equal(result.brrrrAnalysis.cashInvested, 211000);
+    assert.equal(result.brrrrAnalysis.maxLoanBasedOnLtv, 206250);
+    assert.equal(result.brrrrAnalysis.refinanceLoanAmount, 206250);
+    assert.equal(result.brrrrAnalysis.equityCreated, 68750);
+    assert.equal(result.brrrrAnalysis.cashReturnedAtRefinance, 201250);
+    assert.equal(result.brrrrAnalysis.cashLeftInDeal, 9750);
+    assert.equal(result.recommendation.action, 'DO NOT PROCEED');
+  }
+
+  assert.equal(results[0].brrrrAnalysis.monthlyCashFlow, results[1].brrrrAnalysis.monthlyCashFlow);
+  assert.equal(results[1].brrrrAnalysis.monthlyCashFlow, results[2].brrrrAnalysis.monthlyCashFlow);
+  assert.equal(results[0].brrrrAnalysis.debtServiceCoverageRatio, results[1].brrrrAnalysis.debtServiceCoverageRatio);
+  assert.equal(results[1].brrrrAnalysis.debtServiceCoverageRatio, results[2].brrrrAnalysis.debtServiceCoverageRatio);
+});

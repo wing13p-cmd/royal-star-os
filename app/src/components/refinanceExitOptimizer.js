@@ -67,7 +67,7 @@ function buildSafeOptimizerResult(overrides = {}) {
 
 function getSupportedValue(property) {
   const appraisedValue = safeNumber(property.appraisedValue ?? property.appraisalValue);
-  const supportedArv = safeNumber(property.supportedARV ?? property.projectedARV ?? property.estimatedArv);
+  const supportedArv = safeNumber(property.supportedARV ?? property.supportedArv ?? property.approvedArv);
   const currentValue = safeNumber(property.currentValue ?? property.currentEstimatedValue ?? property.value);
   if (appraisedValue > 0) return appraisedValue;
   if (supportedArv > 0) return supportedArv;
@@ -173,7 +173,10 @@ export function buildRefinanceExitOptimizer(payload = {}) {
   const monthlyDebtService = safeNumber(supportedProperty.monthlyDebtService ?? supportedProperty.debtService ?? supportedProperty.payment);
   const rehabRemainingBudget = safeNumber(supportedProperty.rehabRemainingBudget ?? supportedProperty.remainingRehabBudget ?? supportedProperty.rehabBudgetRemaining ?? supportedProperty.rehabNeed);
   const rehabPercentComplete = safeNumber(supportedProperty.rehabPercentComplete ?? supportedProperty.percentComplete ?? supportedProperty.rehabCompletionPercentage);
-  const hasMeaningfulInput = value > 0 || currentLoanBalance > 0 || monthlyRent > 0 || monthlyDebtService > 0 || rehabRemainingBudget > 0 || rehabPercentComplete > 0;
+  const strategy = String(supportedProperty.strategy || supportedProperty.exitStrategy || '').toLowerCase();
+  const isFlip = /flip|sale/.test(strategy);
+  const projectedArv = safeNumber(supportedProperty.projectedARV ?? supportedProperty.projectedArv ?? supportedProperty.estimatedArv ?? supportedProperty.arv);
+  const hasMeaningfulInput = value > 0 || projectedArv > 0 || currentLoanBalance > 0 || monthlyRent > 0 || monthlyDebtService > 0 || rehabRemainingBudget > 0 || rehabPercentComplete > 0;
 
   if (!hasMeaningfulInput) {
     return buildSafeOptimizerResult({
@@ -215,22 +218,76 @@ export function buildRefinanceExitOptimizer(payload = {}) {
       needed: ['Property values', 'Loan payoff', 'Appraisal or ARV support', 'Rent and expenses'],
     });
   }
-  const refinanceLtv = safeNumber(supportedProperty.refinanceLtv ?? supportedProperty.maxLtv ?? 0.75);
+  if (value <= 0 && isFlip && projectedArv > 0) {
+    const sellingCosts = safeNumber(supportedProperty.sellingCosts ?? projectedArv * 0.08);
+    const netSaleCash = projectedArv - sellingCosts - currentLoanBalance - rehabRemainingBudget;
+    const totalCashInvested = safeNumber(supportedProperty.totalCashInvested ?? supportedProperty.initialCashInvested);
+    const sale = buildStrategy({
+      strategy: 'Sell After Rehab', viability: netSaleCash > 0 ? 'Conditional' : 'Marginal', estimatedValue: projectedArv,
+      estimatedGrossProceeds: projectedArv, estimatedNetProceeds: netSaleCash, capitalRequired: rehabRemainingBudget,
+      capitalReturned: Math.max(0, netSaleCash), profit: netSaleCash - totalCashInvested,
+      roi: totalCashInvested > 0 ? (netSaleCash - totalCashInvested) / totalCashInvested : null,
+      annualizedRoi: null, monthlyCashFlow: null, annualCashFlow: null, dscr: null, cashLeftInDeal: null,
+      timeToExit: rehabRemainingBudget > 0 ? 'After Rehab Completion' : 'Prepare for Sale', liquidityImpact: 'Projected', reserveImpact: 'Review',
+      riskLevel: 'Elevated', scenarioSurvival: 'Conditional', dataConfidence: 'Projected — Not Appraisal Supported',
+      mainAdvantage: 'The entered Flip strategy and projected resale economics support sale planning.',
+      mainWeakness: 'Projected ARV is not independently supported by comps or appraisal evidence.',
+      requiredConditions: 'Complete rehab, establish comp/appraisal support, and obtain a payoff statement.',
+      requiredNextAction: 'Validate comps and prepare the Flip sale plan.', exitScore: netSaleCash > 0 ? 70 : 45,
+      grade: netSaleCash > 0 ? 'C' : 'D', explanation: 'Sale analysis uses projected ARV for Flip planning only; it is not used for refinance underwriting.',
+    });
+    return buildSafeOptimizerResult({
+      status: 'Available with Conditions', primaryExit: 'Sell After Rehab', secondaryExit: 'Insufficient Data', exitToAvoid: 'Refinance Until Valuation Is Supported',
+      recommendedTiming: sale.timeToExit, decisionStatus: netSaleCash > 0 ? 'Continue Flip With Controls' : 'Re-Underwrite Sale Exit',
+      reason: sale.explanation, refinanceReadiness: 'Not Ready — Supported Value Required', exitScore: sale.exitScore,
+      viability: sale.viability, strategies: [sale], comparison: [sale], warnings: ['Projected ARV is not appraisal-supported and was not used for refinance calculations.'],
+      requiredActions: ['Establish comp/appraisal support', 'Confirm payoff and selling costs', 'Complete remaining rehab scope'],
+      refinanceAnalysis: { readyToRefinance: false, refinanceValue: null, refinanceLoanAmount: null, grossRefinanceProceeds: null, netRefinanceProceeds: null, cashReturned: null, cashLeftInDeal: null, capitalRecoveryPercentage: null, newMonthlyPayment: monthlyDebtService || null, postRefinanceMonthlyCashFlow: null, postRefinanceDscr: null },
+      known: [`Primary strategy is Flip`, `Projected ARV is ${formatCurrency(projectedArv)}`, `Current loan balance is ${formatCurrency(currentLoanBalance)}`],
+      uncertain: ['Projected ARV is not independently supported.'], needed: ['Appraisal or comparable-sale support', 'Payoff statement', 'Listing estimate'],
+      summary: { message: 'Flip sale planning is available; refinance analysis remains unavailable without supported valuation evidence.', estimatedCapitalReleased: formatCurrency(Math.max(0, netSaleCash)), estimatedCapitalRequired: formatCurrency(rehabRemainingBudget), exitScore: sale.exitScore },
+    });
+  }
+  if (value <= 0) {
+    return buildSafeOptimizerResult({
+      status: 'Unavailable',
+      reason: 'A supported or appraised value is required before refinance or sale proceeds can be estimated.',
+      refinanceReadiness: 'Not Ready',
+      refinanceAnalysis: {
+        readyToRefinance: false,
+        refinanceValue: null,
+        refinanceLoanAmount: null,
+        grossRefinanceProceeds: null,
+        netRefinanceProceeds: null,
+        cashReturned: null,
+        cashLeftInDeal: null,
+        capitalRecoveryPercentage: null,
+        newMonthlyPayment: monthlyDebtService || null,
+        postRefinanceMonthlyCashFlow: null,
+        postRefinanceDscr: null,
+      },
+      comparison: [],
+      warnings: ['Projected ARV is not appraisal-supported and was not used as refinance or sale value.'],
+      requiredActions: ['Establish supported value through appraisal or comparable-sale evidence.'],
+      known: currentLoanBalance > 0 ? [`Current loan balance is ${formatCurrency(currentLoanBalance)}`] : [],
+      uncertain: ['Refinance and sale proceeds are unknown until valuation evidence is established.'],
+      needed: ['Appraisal or supported valuation', 'Payoff statement'],
+    });
+  }
+  const rawRefinanceLtv = safeNumber(supportedProperty.refinanceLtv ?? supportedProperty.maxLtv ?? 0.75);
+  const refinanceLtv = rawRefinanceLtv > 1 ? rawRefinanceLtv / 100 : rawRefinanceLtv;
   const refinanceLoanAmount = value * refinanceLtv;
   const closingCosts = safeNumber(supportedProperty.refinanceClosingCosts ?? supportedProperty.closingCosts ?? value * 0.02);
   const reserves = safeNumber(supportedProperty.requiredReserves ?? supportedProperty.reserveRequirement ?? 0);
   const existingLoanPayoff = currentLoanBalance;
   const netRefinanceProceeds = refinanceLoanAmount - existingLoanPayoff - closingCosts - reserves;
   const cashReturned = Math.max(0, netRefinanceProceeds);
-  const totalCashInvested = safeNumber(
-    supportedProperty.totalCashInvested
-    ?? ((safeNumber(supportedProperty.purchasePrice) + safeNumber(supportedProperty.rehabBudget)) || safeNumber(supportedProperty.currentValue))
-  );
+  const totalCashInvested = safeNumber(supportedProperty.totalCashInvested ?? supportedProperty.initialCashInvested);
   const cashLeftInDeal = Math.max(0, totalCashInvested - cashReturned);
   const annualNoi = getAnnualNoi(supportedProperty);
   const newMonthlyPayment = monthlyDebtService;
   const postRefinanceMonthlyCashFlow = safeNumber(supportedProperty.monthlyRent ?? supportedProperty.effectiveRent) - safeNumber(supportedProperty.monthlyOperatingExpenses ?? supportedProperty.operatingExpenses) - newMonthlyPayment;
-  const postRefinanceDscr = monthlyDebtService > 0 ? (annualNoi / (monthlyDebtService * 12)) : 0;
+  const postRefinanceDscr = monthlyDebtService > 0 && monthlyRent > 0 ? (annualNoi / (monthlyDebtService * 12)) : null;
   const appraisalStatus = safeDisplay(supportedProperty.appraisalStatus ?? supportedProperty.appraisalComplete, 'Insufficient Data');
   const insuranceStatus = safeDisplay(supportedProperty.insuranceStatus ?? supportedProperty.insuranceCurrent, 'Insufficient Data');
   const titleStatus = safeDisplay(supportedProperty.titleStatus ?? supportedProperty.titleClear, 'Insufficient Data');
@@ -243,7 +300,7 @@ export function buildRefinanceExitOptimizer(payload = {}) {
   const leaseStatus = safeDisplay(supportedProperty.leaseStatus ?? supportedProperty.tenantStatus, 'Insufficient Data');
   void leaseStatus;
   const rentReady = safeNumber(supportedProperty.monthlyRent ?? supportedProperty.effectiveRent) > 0 && occupancyRate >= 90;
-  const hasAppraisal = safeNumber(supportedProperty.appraisedValue ?? supportedProperty.appraisalValue) > 0 || safeNumber(supportedProperty.supportedARV ?? supportedProperty.projectedARV) > 0;
+  const hasAppraisal = safeNumber(supportedProperty.appraisedValue ?? supportedProperty.appraisalValue) > 0 || safeNumber(supportedProperty.supportedARV ?? supportedProperty.supportedArv) > 0;
   const hasLoanData = currentLoanBalance > 0 && safeNumber(supportedProperty.interestRate ?? supportedProperty.currentInterestRate) > 0;
 
   let refinanceReadiness;
@@ -300,9 +357,9 @@ export function buildRefinanceExitOptimizer(payload = {}) {
     profit: Math.max(0, value - currentLoanBalance - safeNumber(supportedProperty.sellingCosts ?? value * 0.08) - rehabRemainingBudget - totalCashInvested),
     roi: totalCashInvested > 0 ? (Math.max(0, value - currentLoanBalance - safeNumber(supportedProperty.sellingCosts ?? value * 0.08) - rehabRemainingBudget - totalCashInvested) / totalCashInvested) : 0,
     annualizedRoi: totalCashInvested > 0 ? (Math.max(0, value - currentLoanBalance - safeNumber(supportedProperty.sellingCosts ?? value * 0.08) - rehabRemainingBudget - totalCashInvested) / totalCashInvested) : 0,
-    monthlyCashFlow: 0,
-    annualCashFlow: 0,
-    dscr: 0,
+    monthlyCashFlow: null,
+    annualCashFlow: null,
+    dscr: null,
     cashLeftInDeal: Math.max(0, totalCashInvested - (value - currentLoanBalance - safeNumber(supportedProperty.sellingCosts ?? value * 0.08) - rehabRemainingBudget)),
     timeToExit: rehabRemainingBudget > 0 ? '90-180 Days' : '30-90 Days',
     liquidityImpact: 'High',

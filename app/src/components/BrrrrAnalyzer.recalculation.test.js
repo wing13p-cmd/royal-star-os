@@ -32,3 +32,16 @@ test("BRRRR analyzer includes maintenance and capex percentages in recalculation
   assert.equal(source.includes("capexPercent: formValues.capexPercent"), true);
   assert.equal(source.includes("propertyManagementPercent: formValues.propertyManagementPercent"), true);
 });
+
+test("BRRRR analyzer includes and constrains earnest money and holding months", () => {
+  const source = fs.readFileSync(analyzerFile, "utf8");
+
+  assert.equal(source.includes('["EARNEST MONEY", "earnestMoney"]'), true);
+  assert.equal(source.includes('["HOLDING MONTHS", "holdingMonths"]'), true);
+  assert.equal(source.includes("earnestMoney: formValues.earnestMoney"), true);
+  assert.equal(source.includes("holdingMonths: formValues.holdingMonths"), true);
+  assert.equal(source.includes("buildPropertyAutomation(selectedDeal).moduleData.brrrrAnalyzer"), true);
+  assert.equal(source.includes('earnestMoney: canonical.earnestMoney ?? ""'), true);
+  assert.equal(source.includes('holdingMonths: canonical.holdingMonths ?? ""'), true);
+  assert.equal(source.includes('step={name === "holdingMonths" ? 1 : undefined}'), true);
+});

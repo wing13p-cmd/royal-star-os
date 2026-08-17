@@ -47,6 +47,15 @@ test("service worker contains network-first API policy and no API cache persiste
   assert.equal(apiBlock.includes("cache.put"), false);
 });
 
+test("service worker cache namespace is versioned for asset replacement", () => {
+  const source = readAppFile("public/sw.js");
+  assert.match(source, /rsos-app-shell-v3-/);
+  assert.match(source, /rsos-static-v3-/);
+  assert.doesNotMatch(source, /rsos-app-shell-v2-20260806/);
+  assert.doesNotMatch(source, /rsos-static-v2-20260806/);
+  assert.match(source, /\.filter\(\(name\) => name !== APP_CACHE && name !== STATIC_CACHE\)/);
+});
+
 test("App shell includes mobile drawer, keyboard handling, and offline safety message", () => {
   const appSource = readAppFile("src/App.jsx");
   assert.match(appSource, /rsos-mobile-drawer/);

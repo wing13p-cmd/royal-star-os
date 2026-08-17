@@ -40,6 +40,8 @@ function resolvePersistedProjectedProfit(deal = {}) {
 import { normalizeUnderwritingInputs } from "./underwritingInputNormalizer.js";
 import { buildAcquisitionIntelligenceEngine } from "./acquisitionIntelligenceEngine.js";
 import { buildProjectExecutionIntelligenceEngine } from "./projectExecutionIntelligenceEngine.js";
+import { evaluateRoyalStarBuyBox } from "./royalStarBuyBoxEngine.js";
+import { normalizeCanonicalProperty } from "./propertyAutomationEngine.js";
 import { normalizePercent } from "../utils/percentageNormalization.js";
 
 export function buildUnderwritingMetrics(deal = {}, financing = {}, options = {}) {
@@ -98,6 +100,7 @@ export function normalizeDealForIntelligence(deal = {}) {
   const askingPrice = safeNumber(deal.askingPrice || deal.listPrice || deal.purchasePrice || deal.offerPrice);
   const rehabBudget = safeNumber(deal.rehabBudget || deal.repairBudget || deal.renovationBudget);
   const estimatedArv = safeNumber(deal.estimatedArv ?? deal.arv ?? deal.projectedARV ?? deal.supportedARV ?? deal.currentValue ?? deal.marketValue ?? deal.estimatedValue);
+  const approvedArv = toOptionalNumber(deal.approvedArv ?? deal.supportedARVApproved ?? deal.supportedArvApproved);
   const manualArv = safeNumber(deal.manualArv ?? deal.manualARV ?? deal.overrideArv ?? deal.overrideARV ?? deal.manualArvOverride ?? deal.manualARVOverride ?? 0);
   const estimatedRent = safeNumber(deal.estimatedRent ?? deal.marketRent ?? deal.projectedRent ?? deal.monthlyRent ?? deal.rent);
   const taxes = safeNumber(deal.taxes);
@@ -133,7 +136,7 @@ export function normalizeDealForIntelligence(deal = {}) {
   const notes = safeDisplay(deal.notes, "");
   const leadSource = safeDisplay(deal.leadSource, "");
 
-  return {
+  return normalizeCanonicalProperty({
     ...deal,
     propertyAddress: address,
     address,
@@ -152,7 +155,7 @@ export function normalizeDealForIntelligence(deal = {}) {
     estimatedArv,
     arv: estimatedArv,
     projectedARV: estimatedArv,
-    supportedARV: estimatedArv,
+    supportedARV: approvedArv,
     requestedARV: estimatedArv,
     manualArv,
     manualARV: manualArv,
@@ -187,7 +190,7 @@ export function normalizeDealForIntelligence(deal = {}) {
     exitStrategy,
     notes,
     leadSource,
-  };
+  });
 }
 
 function normalizeSubject(deal = {}) {
@@ -1075,7 +1078,7 @@ export function buildForecastConfidenceEngine(deal = {}, arv = {}, market = {}, 
   };
 }
 
-export function buildBuyBoxIntelligence(deal = {}, neighborhoods = []) {
+function buildLegacyBuyBoxIntelligence(deal = {}, neighborhoods = []) {
   const subject = normalizeSubject(deal);
   const normalizedNeighborhoods = Array.isArray(neighborhoods) ? neighborhoods : [];
   const rulesPassed = [];
@@ -1217,150 +1220,233 @@ export function buildBuyBoxIntelligence(deal = {}, neighborhoods = []) {
   };
 }
 
+export function buildBuyBoxIntelligence(deal = {}, neighborhoods = [], context = {}) {
+  void neighborhoods;
+  return evaluateRoyalStarBuyBox(deal, context);
+}
+
 export function buildOfferIntelligence(deal = {}, arv = {}, buyBox = {}, financing = {}) {
   const normalizedDeal = normalizeDealForIntelligence(deal);
   const rawStrategy = String(normalizedDeal.strategy || normalizedDeal.exitStrategy || "Flip").toLowerCase();
   const strategy = rawStrategy === "brrrrr" || rawStrategy === "brrrr" ? "brrrr" : rawStrategy;
-  const askingPrice = safeNumber(normalizedDeal.askingPrice || normalizedDeal.purchasePrice);
-  const currentPurchasePrice = safeNumber(normalizedDeal.purchasePrice || normalizedDeal.askingPrice);
-  const rehabBudget = safeNumber(normalizedDeal.rehabBudget);
-  const contingency = safeNumber(normalizedDeal.contingency || rehabBudget * 0.1);
-  const sellingCosts = safeNumber(normalizedDeal.sellingCosts || 0.08 * safeNumber(arv.supportedBaseArv || arv.supportedLowArv || arv.weightedAdjustedArv || 0));
-  const financingCost = safeNumber(normalizedDeal.financingCosts || financing.loanAmount * 0.02 || 0);
-  const holdCosts = safeNumber(normalizedDeal.holdingCosts || 0);
-  const profitTarget = safeNumber(normalizedDeal.requiredProfit || 30000);
-  const cashLeftTarget = safeNumber(normalizedDeal.requiredCashLeft || normalizedDeal.cashLeftTarget || 15000);
-  const minimumProfitMargin = safeNumber(normalizedDeal.minimumProfitMargin || 0.12);
-  const supportedArv = safeNumber(arv.supportedBaseArv || arv.weightedAdjustedArv || 0);
-  const conservativeArv = safeNumber(arv.supportedLowArv || supportedArv * 0.95 || 0);
-  const baseArv = supportedArv;
+  const optionalNumber = (...values) => {
+    for (const value of values) {
+      const parsed = toOptionalNumber(value);
+      if (parsed != null) return parsed;
+    }
+    return null;
+  };
+  const askingPrice = Math.max(0, optionalNumber(deal.askingPrice, deal.listPrice, normalizedDeal.askingPrice, normalizedDeal.purchasePrice) ?? 0);
+  const currentPurchasePrice = Math.max(0, optionalNumber(deal.purchasePrice, deal.askingPrice, normalizedDeal.purchasePrice, normalizedDeal.askingPrice) ?? 0);
+  const rehabBudgetValue = optionalNumber(deal.rehabBudget, deal.repairBudget, normalizedDeal.rehabBudget);
+  const rehabBudget = Math.max(0, rehabBudgetValue ?? 0);
+  const closingCosts = Math.max(0, optionalNumber(deal.closingCosts, deal.acquisitionClosingCosts, normalizedDeal.closingCosts) ?? 0);
+  const financingCost = Math.max(0, optionalNumber(deal.financingCosts, deal.financingCost, normalizedDeal.financingCosts) ?? 0);
+  const contingency = Math.max(0, optionalNumber(deal.contingency, deal.rehabContingency) ?? 0);
+  const explicitHoldingCosts = optionalNumber(deal.totalHoldingCosts, deal.holdingCosts, deal.holdingCost);
+  const monthlyHoldingCost = optionalNumber(deal.monthlyHoldingCost);
+  const holdingMonths = Math.max(0, Math.floor(optionalNumber(deal.holdingMonths, normalizedDeal.holdingMonths) ?? 0));
+  const holdCosts = Math.max(0, explicitHoldingCosts ?? (monthlyHoldingCost != null ? monthlyHoldingCost * holdingMonths : 0));
+  const earnestMoney = Math.max(0, optionalNumber(deal.earnestMoney, normalizedDeal.earnestMoney) ?? 0);
+  const supportedArvValue = optionalNumber(arv.supportedBaseArv, arv.weightedAdjustedArv, deal.estimatedArv, deal.arv);
+  const supportedArv = Math.max(0, supportedArvValue ?? 0);
+  const lowArvCandidate = optionalNumber(arv.supportedLowArv, deal.downsideArv);
+  const highArvCandidate = optionalNumber(arv.supportedHighArv, deal.upsideArv);
+  const conservativeArv = Math.min(supportedArv, Math.max(0, lowArvCandidate ?? supportedArv * 0.95));
+  const optimisticArv = Math.max(supportedArv, highArvCandidate ?? supportedArv * 1.05);
+  const explicitSellingCosts = optionalNumber(deal.sellingCosts, deal.sellingCost);
+  const sellingCostRateResult = normalizePercent(deal.sellingCostPercent ?? deal.sellingCostsPercent ?? 8, { min: 0, max: 1 });
+  const sellingCostRate = sellingCostRateResult.status === "ok" ? sellingCostRateResult.value : 0.08;
+  const sellingCostsForArv = (scenarioArv) => Math.max(0, explicitSellingCosts ?? scenarioArv * sellingCostRate);
+  const sellingCosts = sellingCostsForArv(supportedArv);
+  const explicitProfitTarget = optionalNumber(deal.requiredProfit, deal.minimumProfit, deal.minimumProfitDollars);
+  const profitPercentResult = normalizePercent(deal.minimumProfitPercentage ?? deal.minimumProfitPercent, { min: 0, max: 1 });
+  const minimumProfitPercentage = profitPercentResult.status === "ok" ? profitPercentResult.value : 0;
+  const defaultProfitTarget = 30000;
+  const profitTarget = Math.max(explicitProfitTarget ?? defaultProfitTarget, supportedArv * minimumProfitPercentage);
+  const targetCashLeftValue = optionalNumber(deal.targetCashLeftInDeal, deal.requiredCashLeft, deal.cashLeftTarget);
+  const cashLeftTarget = Math.max(0, targetCashLeftValue ?? 0);
+  const refinanceClosingCosts = Math.max(0, optionalNumber(deal.refinanceClosingCosts) ?? 0);
+  const refinanceLtvResult = normalizePercent(deal.refinanceLtvPercentage ?? deal.refinanceLtvPercent ?? deal.refinanceLtv, { min: 0, max: 1 });
+  const refinanceLtv = refinanceLtvResult.status === "ok" ? refinanceLtvResult.value : null;
+  const maxRefinanceLoan = refinanceLtv != null ? supportedArv * refinanceLtv : null;
+  const minimumProfitMargin = minimumProfitPercentage || (supportedArv > 0 ? profitTarget / supportedArv : 0);
+  const targetCushionResult = normalizePercent(deal.targetOfferCushionPercentage ?? deal.targetOfferCushionPercent ?? 5, { min: 0, max: 0.5 });
+  const openingCushionResult = normalizePercent(deal.openingOfferCushionPercentage ?? deal.openingOfferCushionPercent ?? 5, { min: 0, max: 0.5 });
+  const targetCushionPercent = targetCushionResult.status === "ok" ? targetCushionResult.value : 0.05;
+  const openingCushionPercent = openingCushionResult.status === "ok" ? openingCushionResult.value : 0.05;
+  const targetCushionDollars = Math.max(0, optionalNumber(deal.targetOfferCushionDollars) ?? 0);
+  const openingCushionDollars = Math.max(0, optionalNumber(deal.openingOfferCushionDollars) ?? 0);
   const status = String(normalizedDeal.status || normalizedDeal.projectStatus || "").toLowerCase();
   const notes = String(normalizedDeal.notes || "").toLowerCase();
   const reviewMode = ["acquired", "owned", "in-rehab", "in rehab", "rehab", "listed", "refinancing", "held", "active project", "active", "in progress", "in progress"].includes(status) || /(owned|acquired|rehab|listed|refinancing|held)/i.test(notes) || (safeNumber(normalizedDeal.actualLoanAmount) > 0 && safeNumber(normalizedDeal.purchasePrice) > 0)
     ? "retrospective-acquisition-review"
     : "acquisition-offer-review";
+  const calculateFlipMao = (scenarioArv) => Math.max(0, scenarioArv - sellingCostsForArv(scenarioArv) - profitTarget - rehabBudget - contingency - closingCosts - financingCost - holdCosts);
+  const calculateBrrrrMao = (scenarioArv) => {
+    if (refinanceLtv == null) return 0;
+    return Math.max(0, scenarioArv * refinanceLtv + cashLeftTarget - rehabBudget - contingency - closingCosts - financingCost - holdCosts - refinanceClosingCosts);
+  };
+  const calculateMao = strategy === "brrrr" ? calculateBrrrrMao : calculateFlipMao;
+  const maximumOffer = calculateMao(supportedArv);
+  const downsideMaximumOffer = calculateMao(conservativeArv);
+  const upsideMaximumOffer = calculateMao(optimisticArv);
   const retrospectiveReview = reviewMode === "retrospective-acquisition-review" ? {
     originalAcquisitionPrice: currentPurchasePrice,
-    originalAcquisitionVariance: Math.max(0, currentPurchasePrice - Math.max(0, supportedArv - rehabBudget - contingency - financingCost - holdCosts - sellingCosts)),
-    currentProjectedOutcome: Math.max(0, supportedArv - rehabBudget - contingency - financingCost - holdCosts - sellingCosts - Math.max(currentPurchasePrice * 0.8, currentPurchasePrice * 0.75)),
+    originalAcquisitionVariance: Math.max(0, currentPurchasePrice - maximumOffer),
+    currentProjectedOutcome: strategy === "brrrr"
+      ? (maxRefinanceLoan ?? 0) - currentPurchasePrice - rehabBudget - contingency - closingCosts - financingCost - holdCosts - refinanceClosingCosts
+      : supportedArv - currentPurchasePrice - rehabBudget - contingency - closingCosts - financingCost - holdCosts - sellingCosts,
     reviewSummary: "Owned-project underwriting is being reviewed with acquisition cost context and current projected economics.",
   } : null;
-  const lenderMaxLtv = safeNumber(financing.lenderMaxLtv || financing.maxLtv || 0.75);
-  const lenderLoanAmount = supportedArv > 0 ? supportedArv * lenderMaxLtv : 0;
-  const refinanceValue = safeNumber(normalizedDeal.refinanceValue || normalizedDeal.estimatedArv || supportedArv || 0);
-  const refinanceLtv = safeNumber(normalizedDeal.refinanceLtv || normalizedDeal.refinanceLtvPercent || 0.7);
-  const expectedRefinanceLoan = refinanceValue * refinanceLtv;
-  const expectedRent = safeNumber(normalizedDeal.estimatedRent || normalizedDeal.marketRent || normalizedDeal.projectedRent || 0);
-  const monthlyDebtService = expectedRefinanceLoan > 0 ? expectedRefinanceLoan / 360 : 0;
-  const monthlyCashFlow = Math.max(0, expectedRent - monthlyDebtService);
-  const dscr = monthlyDebtService > 0 ? expectedRent / monthlyDebtService : 0;
-  const nonPurchaseProjectCost = rehabBudget + contingency + financingCost + holdCosts + sellingCosts;
-  const baseCost = nonPurchaseProjectCost;
-  const purchasePricePenalty = Math.max(0, currentPurchasePrice - (supportedArv - nonPurchaseProjectCost));
-  const netProfitBeforeOffer = supportedArv - nonPurchaseProjectCost - purchasePricePenalty;
-  const netProfitAtOffer = (amount) => supportedArv - nonPurchaseProjectCost - amount - purchasePricePenalty;
-  const cashReturn = expectedRefinanceLoan - (currentPurchasePrice + rehabBudget + contingency + financingCost + holdCosts);
-  const cashRemainingInDeal = cashReturn - (currentPurchasePrice + rehabBudget + contingency + financingCost + holdCosts);
-  const flipMao = Math.max(0, baseArv - rehabBudget - contingency - sellingCosts - financingCost - holdCosts - profitTarget);
-  const conservativeFlipMao = Math.max(0, conservativeArv - rehabBudget - contingency - sellingCosts - financingCost - holdCosts - profitTarget);
-  const cashLeftMao = Math.max(0, baseArv - rehabBudget - contingency - sellingCosts - financingCost - holdCosts - cashLeftTarget);
-  const lenderConstrainedMao = lenderLoanAmount > 0 ? Math.max(0, lenderLoanAmount - rehabBudget - contingency - financingCost - holdCosts) : 0;
-  const maoCandidates = [
-    { label: "Profit Target", value: flipMao },
-    { label: "Cash Left", value: cashLeftMao },
-    { label: "Lender Cap", value: lenderConstrainedMao },
-    { label: "Conservative", value: conservativeFlipMao },
-  ].filter((candidate) => Number.isFinite(candidate.value) && candidate.value > 0);
-  const controlledMao = maoCandidates.sort((a, b) => a.value - b.value)[0] || { label: "Profit Target", value: 0 };
-  const riskAdjustedMao = Math.max(0, controlledMao.value * (arv.confidenceLevel === "High" ? 1 : arv.confidenceLevel === "Moderate" ? 0.9 : 0.8));
+  const controlledMao = { label: strategy === "brrrr" ? "Refinance Basis" : "Profit Target", value: maximumOffer };
+  const riskAdjustedMao = maximumOffer;
   const manualOverrideAmount = safeNumber(normalizedDeal.manualOfferAmount || normalizedDeal.manualOffer || normalizedDeal.overrideOffer || normalizedDeal.recommendedOffer);
   const hasDocumentedOverride = manualOverrideAmount > 0;
-  const approvedMaximumOffer = Math.max(0, Math.min(Math.max(0, riskAdjustedMao * 1.05), askingPrice));
-  const maximumApprovedOffer = hasDocumentedOverride ? Math.max(approvedMaximumOffer, manualOverrideAmount) : approvedMaximumOffer;
-  const baseOfferCandidates = [
-    manualOverrideAmount,
-    Math.min(Math.max(0, riskAdjustedMao), currentPurchasePrice),
-    Math.min(Math.max(0, riskAdjustedMao * 0.9), currentPurchasePrice),
-  ].filter((value) => Number.isFinite(value) && value >= 0);
-  const recommendedOffer = baseOfferCandidates[0] ?? 0;
-  const initialOffer = Math.min(Math.max(0, riskAdjustedMao * 0.9), maximumApprovedOffer);
-  const targetOffer = Math.min(Math.max(0, Math.max(recommendedOffer, riskAdjustedMao)), maximumApprovedOffer);
-  const walkAwayPrice = Math.min(Math.max(0, riskAdjustedMao * 0.95), maximumApprovedOffer);
-  const maximumOffer = Math.min(Math.max(0, Math.max(walkAwayPrice, riskAdjustedMao * 1.05)), maximumApprovedOffer, walkAwayPrice);
+  const walkAwayPrice = maximumOffer;
+  const calculatedTarget = Math.max(0, walkAwayPrice - Math.max(targetCushionDollars, walkAwayPrice * targetCushionPercent));
+  const targetOffer = hasDocumentedOverride ? Math.min(maximumOffer, manualOverrideAmount) : calculatedTarget;
+  const initialOffer = Math.max(0, targetOffer - Math.max(openingCushionDollars, targetOffer * openingCushionPercent));
+  const recommendedOffer = targetOffer;
   const offerRange = [initialOffer, targetOffer, maximumOffer, walkAwayPrice];
   const offerPositions = [
-    { label: "Initial Offer", amount: initialOffer },
+    { label: "Opening Offer", amount: initialOffer },
     { label: "Target Offer", amount: targetOffer },
-    { label: "Maximum Approved Offer", amount: maximumOffer },
     { label: "Walk-Away Price", amount: walkAwayPrice },
+    { label: "Maximum Allowable Offer", amount: maximumOffer },
   ];
-  const buyBoxResult = String(buyBox?.result || buyBox?.decision || "INSUFFICIENT DATA").toUpperCase();
+  const rawBuyBoxResult = String(buyBox?.result || buyBox?.decision || "INSUFFICIENT DATA").toUpperCase();
+  const rawBuyBoxDecision = String(buyBox?.decision || buyBox?.result || "INSUFFICIENT DATA").toUpperCase();
+  const buyBoxStatus = /FAIL|AUTOMATIC REJECT|OUTSIDE BUY BOX/.test(`${rawBuyBoxResult} ${rawBuyBoxDecision}`)
+    ? "FAIL"
+    : /CONDITIONAL|SELECTIVE|REVIEW|INSUFFICIENT/.test(`${rawBuyBoxResult} ${rawBuyBoxDecision}`)
+      ? "REVIEW"
+      : "PASS";
+  const buyBoxResult = buyBoxStatus === "PASS" ? "PASS" : buyBoxStatus === "REVIEW" ? "CONDITIONAL" : "FAIL";
   const controllingConstraint = strategy === "brrrr"
-    ? "Financing"
+    ? "Refinance Basis"
     : supportedArv <= 0
       ? "ARV"
-      : rehabBudget <= 0
+      : rehabBudgetValue == null
         ? "Rehab"
-        : buyBoxResult !== "PASS" && buyBoxResult !== "CONDITIONAL" && buyBoxResult !== "CONDITIONAL PASS"
+        : buyBoxStatus === "FAIL"
           ? "Buy Box"
           : "Profit Target";
-  const controllingMao = Math.max(0, Math.min(maximumOffer, riskAdjustedMao));
+  const controllingMao = maximumOffer;
+  const nonPurchaseProjectCost = rehabBudget + contingency + closingCosts + financingCost + holdCosts + (strategy === "brrrr" ? refinanceClosingCosts : sellingCosts);
+  const baseCost = nonPurchaseProjectCost;
+  const netProfitBeforeOffer = supportedArv - nonPurchaseProjectCost;
+  const netProfitAtOffer = (amount) => supportedArv - nonPurchaseProjectCost - amount;
   const flipProfitAtTarget = netProfitAtOffer(targetOffer);
   const flipProfitMarginAtTarget = supportedArv > 0 ? flipProfitAtTarget / supportedArv : 0;
-  const dealScore = Math.max(0, Math.min(100, Math.round((flipProfitMarginAtTarget > minimumProfitMargin ? 55 : 30) + (buyBox?.result === "PASS" ? 20 : 10) + (arv.confidenceLevel === "High" ? 15 : arv.confidenceLevel === "Moderate" ? 10 : 5) + (expectedRent > 0 ? 10 : 0))));
+  const expectedRentValue = optionalNumber(deal.estimatedRent, deal.monthlyRent, normalizedDeal.estimatedRent);
+  const expectedRent = Math.max(0, expectedRentValue ?? 0);
+  const refinanceRateResult = normalizePercent(deal.refinanceInterestRate, { min: 0, max: 1 });
+  const refinanceTermYears = Math.max(0, optionalNumber(deal.refinanceLoanTermYears) ?? 0);
+  let monthlyDebtService = null;
+  if (maxRefinanceLoan != null && refinanceRateResult.status === "ok" && refinanceTermYears > 0) {
+    const monthlyRate = refinanceRateResult.value / 12;
+    const termMonths = refinanceTermYears * 12;
+    monthlyDebtService = monthlyRate === 0
+      ? maxRefinanceLoan / termMonths
+      : maxRefinanceLoan * monthlyRate * Math.pow(1 + monthlyRate, termMonths) / (Math.pow(1 + monthlyRate, termMonths) - 1);
+  }
+  const annualTaxes = Math.max(0, optionalNumber(deal.annualPropertyTaxes, deal.annualTaxes, deal.taxes) ?? 0);
+  const annualInsurance = Math.max(0, optionalNumber(deal.annualInsurance, deal.insurance) ?? 0);
+  const otherMonthlyIncome = Math.max(0, optionalNumber(deal.otherMonthlyIncome) ?? 0);
+  const monthlyHoa = Math.max(0, optionalNumber(deal.monthlyHoa) ?? 0);
+  const monthlyUtilities = Math.max(0, optionalNumber(deal.monthlyUtilitiesPaidByOwner, deal.monthlyUtilities) ?? 0);
+  const otherMonthlyExpenses = Math.max(0, optionalNumber(deal.otherMonthlyExpenses) ?? 0);
+  const operatingPercent = [
+    deal.vacancyPercentage ?? deal.vacancyPercent ?? 5,
+    deal.maintenancePercentage ?? deal.maintenancePercent ?? 5,
+    deal.capitalExpendituresPercentage ?? deal.capexPercent ?? 5,
+    deal.propertyManagementPercentage ?? deal.propertyManagementPercent ?? 8,
+  ].reduce((sum, value) => {
+    const result = normalizePercent(value, { min: 0, max: 1 });
+    return sum + (result.status === "ok" ? result.value : 0);
+  }, 0);
+  const grossMonthlyIncome = expectedRentValue != null ? expectedRent + otherMonthlyIncome : null;
+  const monthlyOperatingExpenses = grossMonthlyIncome != null
+    ? grossMonthlyIncome * operatingPercent + annualTaxes / 12 + annualInsurance / 12 + monthlyHoa + monthlyUtilities + otherMonthlyExpenses
+    : null;
+  const monthlyNoi = grossMonthlyIncome != null ? grossMonthlyIncome - monthlyOperatingExpenses : null;
+  const monthlyCashFlow = monthlyNoi != null && monthlyDebtService != null ? monthlyNoi - monthlyDebtService : null;
+  const dscr = monthlyNoi != null && monthlyDebtService != null && monthlyDebtService > 0 ? monthlyNoi / monthlyDebtService : null;
+  const maxLoanAtCurrentOffer = maxRefinanceLoan ?? 0;
+  const cashReturnedAtRefinance = maxRefinanceLoan != null ? maxRefinanceLoan - refinanceClosingCosts : null;
+  const cashRemainingInDeal = cashReturnedAtRefinance != null ? currentPurchasePrice + rehabBudget + contingency + closingCosts + financingCost + holdCosts - cashReturnedAtRefinance : null;
+  const cashReturn = cashReturnedAtRefinance;
+  const dealScore = Math.max(0, Math.min(100, Math.round((maximumOffer > 0 ? 45 : 0) + (buyBoxStatus === "PASS" ? 25 : buyBoxStatus === "REVIEW" ? 12 : 0) + (arv.confidenceLevel === "High" ? 20 : arv.confidenceLevel === "Moderate" ? 12 : 6) + (currentPurchasePrice > 0 && currentPurchasePrice <= walkAwayPrice ? 10 : 0))));
   const riskLevel = dealScore >= 80 ? "Low" : dealScore >= 60 ? "Moderate" : dealScore >= 40 ? "High" : "Critical";
-  const hasCriticalData = supportedArv > 0 && rehabBudget > 0 && (buyBoxResult === "PASS" || buyBoxResult === "CONDITIONAL" || buyBoxResult === "CONDITIONAL PASS");
   const missingInformation = [];
   if (supportedArv <= 0) missingInformation.push("ARV support");
-  if (rehabBudget <= 0) missingInformation.push("Rehab budget");
-  if (expectedRent <= 0 && strategy === "brrrr") missingInformation.push("Rent support");
-  if (buyBoxResult !== "PASS" && buyBoxResult !== "CONDITIONAL" && buyBoxResult !== "CONDITIONAL PASS") missingInformation.push("Buy-box fit");
-  const profitThresholdMet = flipProfitAtTarget > 0 && (flipProfitMarginAtTarget >= minimumProfitMargin || flipProfitAtTarget >= profitTarget);
-  const decision = hasCriticalData && profitThresholdMet ? "OFFER" : missingInformation.length > 0 || !profitThresholdMet ? "HOLD FOR MORE INFORMATION" : "DO NOT OFFER";
+  if (rehabBudgetValue == null || rehabBudgetValue < 0) missingInformation.push("Rehab budget");
+  if (strategy === "brrrr" && refinanceLtv == null) missingInformation.push("Refinance LTV");
+  const currentPriceAboveCeiling = currentPurchasePrice > 0 && currentPurchasePrice > walkAwayPrice;
+  const brrrrHardStop = strategy === "brrrr" && monthlyCashFlow != null && dscr != null && (monthlyCashFlow <= 0 || dscr < 1);
+  const hardStopReasons = [
+    ...(maximumOffer <= 0 && missingInformation.length === 0 ? ["Maximum allowable offer is zero because required deductions exceed supported value."] : []),
+    ...(currentPriceAboveCeiling ? ["Current purchase price exceeds the walk-away price."] : []),
+    ...(buyBoxStatus === "FAIL" ? ["Royal Star Buy Box failed."] : []),
+    ...(brrrrHardStop ? [monthlyCashFlow <= 0 ? "BRRRR base cash flow is not positive." : "BRRRR base DSCR is below 1.00."] : []),
+  ];
+  const downsideBreaksDeal = downsideMaximumOffer <= 0 || (currentPurchasePrice > 0 && currentPurchasePrice > downsideMaximumOffer);
+  const nearCeiling = maximumOffer > 0 && currentPurchasePrice > 0 && currentPurchasePrice >= maximumOffer * 0.95;
+  const reviewReasons = [
+    ...(downsideBreaksDeal ? ["Downside ARV does not support the current purchase price."] : []),
+    ...(nearCeiling && !currentPriceAboveCeiling ? ["Current purchase price is within 5% of MAO."] : []),
+    ...(buyBoxStatus === "REVIEW" ? ["Royal Star Buy Box requires review."] : []),
+    ...(strategy === "brrrr" && (monthlyCashFlow == null || dscr == null) ? ["BRRRR cash flow and DSCR require complete refinance and rent inputs."] : []),
+  ];
+  const recommendation = missingInformation.length > 0
+    ? "INCOMPLETE"
+    : hardStopReasons.length > 0
+      ? "DO NOT PROCEED"
+      : reviewReasons.length > 0
+        ? "REVIEW"
+        : "PROCEED";
+  const decision = recommendation;
   const confidenceLevel = supportedArv > 0 && rehabBudget > 0 ? (arv.confidenceLevel === "High" ? "High" : arv.confidenceLevel === "Moderate" ? "Moderate" : "Low") : "Insufficient Data";
-  const decisionReason = decision === "OFFER" ? "The deal meets the minimum buy-box and valuation support threshold." : decision === "DO NOT OFFER" ? "The underwriting support is not strong enough to justify an offer." : "Critical underwriting inputs are still missing.";
-  const conditionsRequired = [];
-  if (buyBoxResult !== "PASS") conditionsRequired.push("Confirm buy-box fit");
-  if (supportedArv <= 0) conditionsRequired.push("Confirm ARV support");
-  if (rehabBudget <= 0) conditionsRequired.push("Verify rehab scope");
-  if (strategy === "brrrr" && expectedRent <= 0) conditionsRequired.push("Validate rent assumptions");
+  const decisionReason = missingInformation[0] || hardStopReasons[0] || reviewReasons[0] || "The current price and offer ladder satisfy the applicable underwriting guards.";
+  const conditionsRequired = [...reviewReasons, ...hardStopReasons];
   const deriveOfferConstraint = (amount) => {
-    if (strategy === "brrrr" && (expectedRent <= 0 || monthlyCashFlow <= 0)) return "Financing";
+    if (strategy === "brrrr" && refinanceLtv == null) return "Financing";
     if (supportedArv <= 0) return "ARV";
-    if (rehabBudget <= 0) return "Rehab";
-    if (buyBoxResult !== "PASS" && buyBoxResult !== "CONDITIONAL" && buyBoxResult !== "CONDITIONAL PASS") return "Buy Box";
-    if (amount > maximumApprovedOffer) return "Capital limits";
-    if (netProfitAtOffer(amount) <= 0 || (supportedArv > 0 && (netProfitAtOffer(amount) / supportedArv) < minimumProfitMargin)) return "Profit target";
+    if (rehabBudgetValue == null) return "Rehab";
+    if (buyBoxStatus === "FAIL") return "Buy Box";
+    if (amount > maximumOffer) return "Capital limits";
     if (dealScore < 60) return "Risk policy";
-    return "Profit target";
+    return strategy === "brrrr" ? "Financing" : "Profit target";
   };
   const offerLadderLevels = [
-    { level: "Initial Offer", amount: initialOffer, expectedProfit: netProfitAtOffer(initialOffer), profitMargin: supportedArv > 0 ? netProfitAtOffer(initialOffer) / supportedArv : 0, cashRequired: Math.max(0, baseCost - initialOffer), cashRemainingInDeal: netProfitAtOffer(initialOffer), monthlyCashFlow: strategy === "brrrr" ? monthlyCashFlow : 0, dscr: strategy === "brrrr" ? dscr : 0, marginOfSafety: supportedArv > 0 ? netProfitAtOffer(initialOffer) / Math.max(baseCost, 1) : 0, dealScore, riskLevel, conditionsRequired, constraint: deriveOfferConstraint(initialOffer), strategy: strategy === "brrrr" ? "BRRRR" : "Flip" },
+    { level: "Opening Offer", amount: initialOffer, expectedProfit: netProfitAtOffer(initialOffer), profitMargin: supportedArv > 0 ? netProfitAtOffer(initialOffer) / supportedArv : 0, cashRequired: Math.max(0, baseCost + initialOffer - safeNumber(financing.loanAmount)), cashRemainingInDeal: strategy === "brrrr" ? cashRemainingInDeal : netProfitAtOffer(initialOffer), monthlyCashFlow: strategy === "brrrr" ? monthlyCashFlow : 0, dscr: strategy === "brrrr" ? dscr : 0, marginOfSafety: maximumOffer - initialOffer, dealScore, riskLevel, conditionsRequired, constraint: deriveOfferConstraint(initialOffer), strategy: strategy === "brrrr" ? "BRRRR" : "Flip" },
     { level: "Second Offer", amount: targetOffer * 0.95, expectedProfit: netProfitAtOffer(targetOffer * 0.95), profitMargin: supportedArv > 0 ? netProfitAtOffer(targetOffer * 0.95) / supportedArv : 0, cashRequired: Math.max(0, baseCost - targetOffer * 0.95), cashRemainingInDeal: netProfitAtOffer(targetOffer * 0.95), monthlyCashFlow: strategy === "brrrr" ? monthlyCashFlow : 0, dscr: strategy === "brrrr" ? dscr : 0, marginOfSafety: supportedArv > 0 ? netProfitAtOffer(targetOffer * 0.95) / Math.max(baseCost, 1) : 0, dealScore, riskLevel, conditionsRequired, constraint: deriveOfferConstraint(targetOffer * 0.95), strategy: strategy === "brrrr" ? "BRRRR" : "Flip" },
     { level: "Target Offer", amount: targetOffer, expectedProfit: flipProfitAtTarget, profitMargin: flipProfitMarginAtTarget, cashRequired: Math.max(0, baseCost - targetOffer), cashRemainingInDeal: flipProfitAtTarget, monthlyCashFlow: strategy === "brrrr" ? monthlyCashFlow : 0, dscr: strategy === "brrrr" ? dscr : 0, marginOfSafety: supportedArv > 0 ? flipProfitAtTarget / Math.max(baseCost, 1) : 0, dealScore, riskLevel, conditionsRequired, constraint: deriveOfferConstraint(targetOffer), strategy: strategy === "brrrr" ? "BRRRR" : "Flip" },
-    { level: "Maximum Approved Offer", amount: maximumOffer, expectedProfit: netProfitAtOffer(maximumOffer), profitMargin: supportedArv > 0 ? netProfitAtOffer(maximumOffer) / supportedArv : 0, cashRequired: Math.max(0, baseCost - maximumOffer), cashRemainingInDeal: netProfitAtOffer(maximumOffer), monthlyCashFlow: strategy === "brrrr" ? monthlyCashFlow : 0, dscr: strategy === "brrrr" ? dscr : 0, marginOfSafety: supportedArv > 0 ? netProfitAtOffer(maximumOffer) / Math.max(baseCost, 1) : 0, dealScore, riskLevel, conditionsRequired, constraint: deriveOfferConstraint(maximumOffer), strategy: strategy === "brrrr" ? "BRRRR" : "Flip" },
+    { level: "Maximum Allowable Offer", amount: maximumOffer, expectedProfit: netProfitAtOffer(maximumOffer), profitMargin: supportedArv > 0 ? netProfitAtOffer(maximumOffer) / supportedArv : 0, cashRequired: Math.max(0, baseCost + maximumOffer - safeNumber(financing.loanAmount)), cashRemainingInDeal: strategy === "brrrr" ? cashRemainingInDeal : netProfitAtOffer(maximumOffer), monthlyCashFlow: strategy === "brrrr" ? monthlyCashFlow : 0, dscr: strategy === "brrrr" ? dscr : 0, marginOfSafety: 0, dealScore, riskLevel, conditionsRequired, constraint: deriveOfferConstraint(maximumOffer), strategy: strategy === "brrrr" ? "BRRRR" : "Flip" },
     { level: "Walk-Away Price", amount: walkAwayPrice, expectedProfit: netProfitAtOffer(walkAwayPrice), profitMargin: supportedArv > 0 ? netProfitAtOffer(walkAwayPrice) / supportedArv : 0, cashRequired: Math.max(0, baseCost - walkAwayPrice), cashRemainingInDeal: netProfitAtOffer(walkAwayPrice), monthlyCashFlow: strategy === "brrrr" ? monthlyCashFlow : 0, dscr: strategy === "brrrr" ? dscr : 0, marginOfSafety: supportedArv > 0 ? netProfitAtOffer(walkAwayPrice) / Math.max(baseCost, 1) : 0, dealScore, riskLevel, conditionsRequired, constraint: deriveOfferConstraint(walkAwayPrice), strategy: strategy === "brrrr" ? "BRRRR" : "Flip" },
   ];
   const strategyOffer = strategy === "brrrr" ? {
     type: "BRRRR",
-    refinanceValue,
+    refinanceValue: supportedArv,
     refinanceLtv,
-    expectedRefinanceLoan,
+    expectedRefinanceLoan: maxLoanAtCurrentOffer,
     cashReturned: cashReturn,
     cashRemainingInDeal,
     monthlyCashFlow,
     dscr,
-    recommendation: monthlyCashFlow > 0 && dscr >= 1.2 && cashReturn > 0 ? "OFFER" : "DO NOT OFFER",
+    targetCashLeftInDeal: cashLeftTarget,
+    recommendation,
   } : strategy === "long-term hold" || strategy === "hold" ? {
     type: "Long-Term Hold",
-    recommendation: expectedRent > 0 ? "OFFER WITH CONDITIONS" : "DO NOT OFFER",
+    recommendation,
   } : {
     type: "Flip",
-    recommendation: flipProfitAtTarget > 0 && flipProfitMarginAtTarget >= minimumProfitMargin ? "OFFER" : "DO NOT OFFER",
+    recommendation,
   };
   const sellerConcessionOpportunities = [
     ...(supportedArv > 0 ? ["Seller credit toward repairs if the price stays within the target position."] : []),
-    ...(buyBoxResult !== "PASS" && buyBoxResult !== "CONDITIONAL" && buyBoxResult !== "CONDITIONAL PASS" ? ["Flexible inspection and closing terms until buy-box support is confirmed."] : []),
+    ...(buyBoxStatus !== "PASS" ? ["Flexible inspection and closing terms until buy-box support is confirmed."] : []),
     ...(strategy === "brrrr" ? ["Rate buydown or repair credit if the refinance path is still pending."] : ["A modest repair credit or flexible close date if the offer remains disciplined."]),
   ];
   const priceVsTermsRecommendation = strategy === "brrrr"
@@ -1443,12 +1529,12 @@ export function buildOfferIntelligence(deal = {}, arv = {}, buyBox = {}, financi
       baseCost,
     },
     brrrrr: {
-      initialOffer: Math.max(0, initialOffer + monthlyCashFlow * 0.1),
-      targetOffer: Math.max(0, targetOffer + monthlyCashFlow * 0.1),
-      maximumOffer: Math.max(0, maximumOffer + monthlyCashFlow * 0.1),
-      walkAwayPrice: Math.max(0, walkAwayPrice + monthlyCashFlow * 0.1),
-      recommendedOffer: Math.max(0, (recommendedOffer || targetOffer) + monthlyCashFlow * 0.1),
-      controllingConstraint: strategy === "brrrrr" ? "Financing" : controllingConstraint,
+      initialOffer,
+      targetOffer,
+      maximumOffer,
+      walkAwayPrice,
+      recommendedOffer,
+      controllingConstraint: strategy === "brrrr" ? "Financing" : controllingConstraint,
       controllingMao,
       netProfitBeforeOffer,
       baseCost,
@@ -1459,7 +1545,12 @@ export function buildOfferIntelligence(deal = {}, arv = {}, buyBox = {}, financi
     normalizedDeal.rehabBudget,
     supportedArv,
     expectedRent,
-    refinanceValue,
+    refinanceLtv,
+    closingCosts,
+    financingCost,
+    holdCosts,
+    profitTarget,
+    cashLeftTarget,
     buyBoxResult,
     financing.loanAmount,
     confidenceLevel,
@@ -1479,6 +1570,8 @@ export function buildOfferIntelligence(deal = {}, arv = {}, buyBox = {}, financi
     controllingMao,
     controllingConstraint,
     priceReductionNeeded: Math.max(0, currentPurchasePrice - walkAwayPrice),
+    differenceToTarget: currentPurchasePrice - targetOffer,
+    differenceToWalkAway: currentPurchasePrice - walkAwayPrice,
     offerRange,
     sellerDiscountRequired: Math.max(0, currentPurchasePrice - targetOffer),
     estimatedCashRequired: Math.max(0, currentPurchasePrice - safeNumber(financing.loanAmount)),
@@ -1491,8 +1584,61 @@ export function buildOfferIntelligence(deal = {}, arv = {}, buyBox = {}, financi
     offerCalculations,
     offerLadder: {
       levels: offerLadderLevels,
-      maximumApprovedOffer: Math.max(hasDocumentedOverride ? manualOverrideAmount : 0, Math.min(maximumOffer, controllingMao)),
+      maximumApprovedOffer: maximumOffer,
     },
+    buyBoxStatus,
+    recommendation,
+    hardStopReasons,
+    reviewReasons,
+    missingInformation,
+    sensitivity: {
+      best: { arv: optimisticArv, maximumAllowableOffer: upsideMaximumOffer },
+      base: { arv: supportedArv, maximumAllowableOffer: maximumOffer },
+      worst: { arv: conservativeArv, maximumAllowableOffer: downsideMaximumOffer },
+    },
+    assumptions: {
+      requiredProfitDollars: profitTarget,
+      requiredProfitPercentage: minimumProfitPercentage,
+      profitTargetSource: explicitProfitTarget != null || minimumProfitPercentage > 0 ? "deal input" : "Royal Star default",
+      defaultProfitTargetDollars: defaultProfitTarget,
+      sellingCosts,
+      sellingCostPercentage: explicitSellingCosts == null ? sellingCostRate : null,
+      explicitHoldingCosts: holdCosts,
+      holdingCostSource: explicitHoldingCosts != null
+        ? "explicit total"
+        : monthlyHoldingCost != null
+          ? "entered monthly cost × holding months"
+          : "none",
+      holdingMonths,
+      earnestMoney,
+      targetCashLeftInDeal: cashLeftTarget,
+      targetCashLeftSource: targetCashLeftValue != null ? "deal input" : "explicit zero default",
+      refinanceLtv,
+      refinanceClosingCosts,
+      targetOfferCushionPercentage: targetCushionPercent,
+      targetOfferCushionDollars: targetCushionDollars,
+      openingOfferCushionPercentage: openingCushionPercent,
+      openingOfferCushionDollars: openingCushionDollars,
+    },
+    calculationBreakdown: strategy === "brrrr" ? [
+      { label: "Max refinance loan", amount: maxRefinanceLoan ?? 0 },
+      { label: "Target cash left in deal", amount: cashLeftTarget },
+      { label: "Less rehab", amount: -rehabBudget },
+      { label: "Less closing costs", amount: -closingCosts },
+      { label: "Less financing costs", amount: -financingCost },
+      { label: "Less explicit holding costs", amount: -holdCosts },
+      { label: "Less refinance closing costs", amount: -refinanceClosingCosts },
+      { label: "Maximum allowable offer", amount: maximumOffer },
+    ] : [
+      { label: "ARV", amount: supportedArv },
+      { label: "Less selling costs", amount: -sellingCosts },
+      { label: "Less required profit", amount: -profitTarget },
+      { label: "Less rehab", amount: -rehabBudget },
+      { label: "Less closing costs", amount: -closingCosts },
+      { label: "Less financing costs", amount: -financingCost },
+      { label: "Less explicit holding costs", amount: -holdCosts },
+      { label: "Maximum allowable offer", amount: maximumOffer },
+    ],
     strategyOffer,
     negotiationSupport: {
       mainPriceJustification: `The supported ARV of ${supportedArv} supports a disciplined offer based on rehab and carrying costs.`,
@@ -1512,9 +1658,12 @@ export function buildOfferIntelligence(deal = {}, arv = {}, buyBox = {}, financi
     },
     offerDecision: {
       decision,
+      recommendation,
       confidenceLevel,
       controllingReason: decisionReason,
       missingInformation,
+      hardStopReasons,
+      reviewReasons,
       requiredConditions: conditionsRequired,
       reUnderwritingTrigger: missingInformation.length > 0 ? "Missing underwriting evidence" : "No immediate trigger",
     },
@@ -2382,9 +2531,20 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
   });
   const normalizedInputs = normalizeUnderwritingInputs(deal);
   const arvAnalysis = buildArvIntelligence(normalizedDeal, comps, neighborhoods);
-  const buyBoxAnalysis = buildBuyBoxIntelligence(normalizedDeal, neighborhoods);
+  const preliminaryOfferAnalysis = buildOfferIntelligence(normalizedDeal, arvAnalysis, { result: "PASS", decision: "Pass" }, { loanAmount: safeNumber(normalizedDeal.financingCosts) });
+  const buyBoxAnalysis = buildBuyBoxIntelligence(normalizedDeal, neighborhoods, { offer: preliminaryOfferAnalysis, arvAnalysis });
   const offerAnalysis = buildOfferIntelligence(normalizedDeal, arvAnalysis, buyBoxAnalysis, { loanAmount: safeNumber(normalizedDeal.financingCosts) });
-  const appraisalAnalysis = buildAppraisalIntelligence({ supportedARV: arvAnalysis.supportedBaseArv, requestedARV: safeNumber(normalizedDeal.requestedARV ?? normalizedDeal.estimatedArv ?? normalizedDeal.projectedARV) }, comps);
+  const approvedArv = toOptionalNumber(normalizedDeal.approvedArv ?? normalizedDeal.supportedARVApproved ?? normalizedDeal.supportedArvApproved);
+  const appraisalAnalysis = buildAppraisalIntelligence({
+    ...normalizedDeal,
+    arv: safeNumber(normalizedDeal.requestedARV ?? normalizedDeal.estimatedArv ?? normalizedDeal.projectedARV),
+    requestedARV: safeNumber(normalizedDeal.requestedARV ?? normalizedDeal.estimatedArv ?? normalizedDeal.projectedARV),
+    valuationResult: approvedArv !== null ? {
+      approvedArv,
+      supportedArv: approvedArv,
+      valuationReviewStatus: "APPROVED",
+    } : undefined,
+  }, comps);
   const marketAnalysis = buildPredictiveMarketIntelligence(normalizedDeal, neighborhoods, comps);
   const marketRisk = {
     ...marketAnalysis.marketRiskEngine,
@@ -2450,12 +2610,12 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
   else if (rehabAsArvPct > 0.15) rehabRiskLevel = "Moderate";
 
   const monthlyRentValue = toOptionalNumber(deal.estimatedRent ?? deal.monthlyRent ?? deal.marketRent);
-  const otherMonthlyIncomeValue = toOptionalNumber(deal.otherMonthlyIncome);
+  const otherMonthlyIncomeValue = toOptionalNumber(deal.otherMonthlyIncome) ?? 0;
   const annualPropertyTaxesValue = toOptionalNumber(deal.annualPropertyTaxes ?? deal.annualTaxes ?? deal.taxes);
   const annualInsuranceValue = toOptionalNumber(deal.annualInsurance ?? deal.insurance);
-  const monthlyHoaValue = toOptionalNumber(deal.monthlyHoa);
-  const monthlyUtilitiesValue = toOptionalNumber(deal.monthlyUtilities);
-  const otherMonthlyExpensesValue = toOptionalNumber(deal.otherMonthlyExpenses);
+  const monthlyHoaValue = toOptionalNumber(deal.monthlyHoa) ?? 0;
+  const monthlyUtilitiesValue = toOptionalNumber(deal.monthlyUtilities) ?? 0;
+  const otherMonthlyExpensesValue = toOptionalNumber(deal.otherMonthlyExpenses) ?? 0;
   const vacancyPercentNormalized = normalizePercent(deal.vacancyPercent ?? 5, { min: 0, max: 1 });
   const maintenancePercentNormalized = normalizePercent(deal.maintenancePercent ?? 5, { min: 0, max: 1 });
   const capexPercentNormalized = normalizePercent(deal.capexPercent ?? 5, { min: 0, max: 1 });
@@ -2501,7 +2661,7 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
   const manualFinancingCosts = normalizedInputs.manualFinancingCosts ?? normalizedDeal.financingCosts ?? normalizedDeal.financingCost ?? 0;
   const financingCosts = manualFinancingCosts > 0 ? manualFinancingCosts : financingCostBreakdown.reduce((sum, value) => sum + (value || 0), 0);
   const cashToClose = normalizedInputs.cashToClose ?? normalizedDeal.cashToClose ?? 0;
-  const earnestMoney = normalizedInputs.earnestMoney ?? normalizedDeal.earnestMoney ?? 0;
+  const earnestMoney = Math.max(0, normalizedInputs.earnestMoney ?? normalizedDeal.earnestMoney ?? 0);
   const explicitInitialCashInvested = toOptionalNumber(
     normalizedInputs.initialCashInvested ??
     normalizedInputs.totalInitialCashInvested ??
@@ -2524,10 +2684,10 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
   const sellingCosts = arvAnalysis.supportedBaseArv > 0 ? (arvAnalysis.supportedBaseArv * sellingCostPercent) + sellerConcessions + fixedSaleCosts : 0;
   const holdingMonths = Math.max(
     0,
-    toOptionalNumber(
+    Math.floor(toOptionalNumber(
       normalizedInputs.holdingMonths ??
       normalizedDeal.holdingMonths
-    ) ?? 0
+    ) ?? 0)
   );
   const proratedPropertyTaxes =
     annualPropertyTaxesValue != null
@@ -2549,12 +2709,13 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
   const adjustedProjectedProfit = projectedProfit;
   const totalCashInvested = initialCashInvested + Math.max(0, rehabBudget - (normalizedInputs.fundedRehabDraws ?? 0) - (normalizedInputs.lenderPaidEligibleCosts ?? 0) - (normalizedInputs.creditsApplied ?? 0));
   const cashInvested = purchasePrice + rehabBudget + contingency + acquisitionClosingCosts + totalFinancingCost + holdingCosts;
+  const brrrrCashInvested = purchasePrice + rehabBudget + contingency + acquisitionClosingCosts + totalFinancingCost;
   const currentLoanPayoff = actualLoanAmount != null && actualLoanAmount > 0 ? actualLoanAmount : null;
   const refinanceClosingCosts = toOptionalNumber(deal.refinanceClosingCosts);
   const cashReturnedAtRefinance = refinanceLoanAmount != null
     ? refinanceLoanAmount - (currentLoanPayoff || 0) - (refinanceClosingCosts || 0)
     : null;
-  const cashLeftInDeal = cashReturnedAtRefinance != null ? cashInvested - cashReturnedAtRefinance : null;
+  const cashLeftInDeal = cashReturnedAtRefinance != null ? brrrrCashInvested - cashReturnedAtRefinance : null;
   const equityCreated = refinanceLoanAmount != null && arvAnalysis.supportedBaseArv > 0
     ? arvAnalysis.supportedBaseArv - refinanceLoanAmount
     : null;
@@ -2609,8 +2770,8 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
   const monthlyCashFlow = nopI != null && monthlyDebtService != null ? nopI - monthlyDebtService : null;
   const dscr = nopI != null && monthlyDebtService != null && monthlyDebtService > 0 ? nopI / monthlyDebtService : null;
   const cashOnCash = monthlyCashFlow != null && initialCashInvested > 0 ? (monthlyCashFlow * 12) / initialCashInvested : null;
-  const returnOnTotalCost = monthlyCashFlow != null && cashInvested > 0 ? (monthlyCashFlow * 12) / cashInvested : null;
-  const rentToCostRatio = monthlyRentValue != null && cashInvested > 0 ? monthlyRentValue / cashInvested : null;
+  const returnOnTotalCost = monthlyCashFlow != null && brrrrCashInvested > 0 ? (monthlyCashFlow * 12) / brrrrCashInvested : null;
+  const rentToCostRatio = monthlyRentValue != null && brrrrCashInvested > 0 ? monthlyRentValue / brrrrCashInvested : null;
   const breakEvenOccupancy = monthlyGrossIncome != null && monthlyGrossIncome > 0 && operatingExpenses != null ? operatingExpenses / monthlyGrossIncome : null;
 
   const brrrrAnalysis = {
@@ -2618,7 +2779,9 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
     closingCosts: acquisitionClosingCosts,
     rehab: rehabBudget,
     contingency,
-    totalProjectCost: cashInvested,
+    totalProjectCost: brrrrCashInvested,
+    earnestMoney: earnestMoney ?? 0,
+    holdingMonths,
     stabilizedArv: arvAnalysis.supportedBaseArv,
     expectedRent: monthlyRentValue,
     otherMonthlyIncome: otherMonthlyIncomeValue,
@@ -2634,7 +2797,7 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
     refinanceLoanAmount,
     currentLoanPayoff,
     refinanceClosingCosts,
-    cashInvested,
+    cashInvested: brrrrCashInvested,
     cashReturnedAtRefinance,
     cashLeftInDeal,
     equityCreated,
@@ -2645,7 +2808,7 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
     returnOnTotalCost,
     rentToCostRatio,
     breakEvenOccupancy,
-    refinanceShortfall: cashReturnedAtRefinance != null ? Math.max(0, cashInvested - cashReturnedAtRefinance) : null,
+    refinanceShortfall: cashReturnedAtRefinance != null ? Math.max(0, brrrrCashInvested - cashReturnedAtRefinance) : null,
     refinanceLoanConstraints,
   };
 
@@ -2754,13 +2917,19 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
     if (refinanceRateNormalized.status !== "ok") missingCoreFinancialInputs.push("Refinance interest rate");
     if (!(refinanceTermMonthsValue && refinanceTermMonthsValue > 0)) missingCoreFinancialInputs.push("Refinance term");
     if (monthlyRentValue == null) missingCoreFinancialInputs.push("Monthly rent");
-    if (otherMonthlyIncomeValue == null) missingCoreFinancialInputs.push("Other monthly income");
     if (annualPropertyTaxesValue == null) missingCoreFinancialInputs.push("Annual property taxes");
     if (annualInsuranceValue == null) missingCoreFinancialInputs.push("Annual insurance");
     if (initialCashInvested <= 0) missingCoreFinancialInputs.push("Initial cash invested");
   }
 
   const hasBlockingFinancialInputs = missingCoreFinancialInputs.length > 0;
+  const hasBrrrrHardStop = dealExitStrategy === "brrrr"
+    && !hasBlockingFinancialInputs
+    && (monthlyCashFlow == null || monthlyCashFlow <= 0 || dscr == null || dscr < 1);
+  const hasBrrrrCaution = dealExitStrategy === "brrrr"
+    && !hasBlockingFinancialInputs
+    && !hasBrrrrHardStop
+    && ((dscr - 0.3) < 1 || (monthlyCashFlow - 400) <= 0);
 
   const decisionRecommendation = hasBlockingFinancialInputs
     ? "CONDITIONAL BUY"
@@ -2771,6 +2940,10 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
   const recommendation = {
     action: hasBlockingFinancialInputs
       ? "REQUEST MORE DATA"
+      : hasBrrrrHardStop
+        ? "DO NOT PROCEED"
+        : hasBrrrrCaution
+          ? "REVIEW / CAUTION"
       : projectDecisionRecommendation === "CONTINUE PROJECT"
         ? "CONTINUE PROJECT"
         : projectDecisionRecommendation === "CONTINUE REHAB"
@@ -2788,8 +2961,12 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
     missingInfo: [...(normalizedInputs.missingFields || []), ...missingCoreFinancialInputs],
     missingFinancialInputs: missingCoreFinancialInputs,
     conditions: ["Validate scope of work", "Confirm rent assumptions", "Review closing-cost accuracy"],
-    nextAction: (normalizedInputs.hasMissingData || hasBlockingFinancialInputs)
+    nextAction: hasBlockingFinancialInputs
       ? "Complete required inputs and re-underwrite"
+      : hasBrrrrHardStop
+        ? (monthlyCashFlow <= 0 ? "Base-case cash flow is not positive; revise the deal terms before proceeding." : "Base-case DSCR is below 1.00; revise the deal terms before proceeding.")
+        : hasBrrrrCaution
+          ? "Base underwriting is positive, but downside coverage requires review before proceeding."
       : (isExistingProjectAnalysis && dealExitStrategy === "flip" ? (projectedProfit > 0 ? "Continue project execution" : "Reassess rehab scope and capital") : "Complete inspection and confirm comp support."),
   };
   const investmentDecision = buildInvestmentDecisionEngine(normalizedDeal, {
@@ -2915,13 +3092,10 @@ export function buildUnifiedUnderwritingIntelligence(deal = {}, comps = [], neig
     flipAnalysis,
     brrrrAnalysis,
     mao: {
+      ...offerAnalysis,
       strategy: normalizedDeal.strategy || "Flip",
-      maximumOffer: offerAnalysis.maximumOffer,
-      targetOffer: offerAnalysis.targetOffer,
-      walkAwayPrice: offerAnalysis.walkAwayPrice,
       amountAboveMao: Math.max(0, purchasePrice - offerAnalysis.maximumOffer),
       amountBelowMao: Math.max(0, offerAnalysis.maximumOffer - purchasePrice),
-      assumptions: offerAnalysis.negotiationSupport?.majorAssumptions || [],
       warning: offerAnalysis.maximumOffer <= 0 ? "Maximum allowable offer is unavailable" : "",
     },
     compReviewSummary,
@@ -2954,8 +3128,9 @@ export function buildKnowledgeIntelligence(deal = {}, analysis = {}, lessons = [
   const normalizedDeal = normalizeDealForIntelligence(deal);
   const normalizedLessons = Array.isArray(lessons) ? lessons : [];
   const supportedArv = safeNumber(analysis.supportedBaseArv ?? analysis.supportedArv ?? normalizedDeal.estimatedArv ?? 0);
+  const ownedProject = /owned|acquired|rehab|active project|in progress/i.test(String(normalizedDeal.status || normalizedDeal.projectStatus || normalizedDeal.pipelineStage || normalizedDeal.notes || ""));
   const baseEntries = normalizedLessons.length ? normalizedLessons : [{
-    title: "Validate valuation support before increasing the offer",
+    title: ownedProject ? "Validate valuation support before the next project decision" : "Validate valuation support before increasing the offer",
     topic: normalizedDeal.strategy || "underwriting",
     detail: supportedArv > 0 ? "Supported ARV is available, so the next review should focus on comp quality and scope accuracy." : "The current record lacks valuation support, so the next review should gather stronger evidence before moving forward.",
   }];
@@ -2969,7 +3144,9 @@ export function buildKnowledgeIntelligence(deal = {}, analysis = {}, lessons = [
   return {
     entries,
     summary: supportedArv > 0 ? "The knowledge base is aligned to the current underwriting posture." : "The knowledge base points to a missing evidence gap.",
-    recommendedNextInquiry: supportedArv > 0 ? "Confirm the latest comp set and appraisal notes before increasing the offer." : "Gather ARV support and rehab scope evidence before underwriting further.",
+    recommendedNextInquiry: supportedArv > 0
+      ? (ownedProject ? "Confirm the latest comp set and appraisal notes before the next project decision." : "Confirm the latest comp set and appraisal notes before increasing the offer.")
+      : "Gather ARV support and rehab scope evidence before underwriting further.",
     confidence: supportedArv > 0 ? "Moderate" : "Low",
     sources: entries.map((entry) => entry.topic),
   };
@@ -3110,69 +3287,13 @@ export function buildEnterpriseDealIntelligenceSummary(deal = {}, analysis = {},
 }
 
 export function buildAppraisalIntelligence(packet = {}, comps = []) {
-  const supportedArv = safeNumber(packet.supportedARV || packet.requestedARV || 0);
-  const requestedArv = safeNumber(packet.requestedARV || 0);
-  const normalizedComps = (Array.isArray(comps) ? comps : []).map(normalizeComp);
-  const includedComps = normalizedComps.filter((comp) => comp.included !== false);
-  const strongestComp = [...includedComps].sort((a, b) => safeNumber(b.salePrice) - safeNumber(a.salePrice))[0] || null;
-  const weakestComp = [...includedComps].sort((a, b) => safeNumber(a.salePrice) - safeNumber(b.salePrice))[0] || null;
-  const appraiserQuestions = [];
-  const risks = [];
-  let riskLevel = "Low Risk";
-
-  if (requestedArv > supportedArv * 1.2) {
-    risks.push("Projected ARV above supported range");
-    appraiserQuestions.push("Why is the projected ARV materially above the supported range?");
-  }
-  if (includedComps.length < 3) {
-    risks.push("Too few valid comps");
-    appraiserQuestions.push("What additional recent sales support the valuation?");
-  }
-  if (!includedComps.length) {
-    risks.push("No valid comps");
-    appraiserQuestions.push("Please provide at least one recent comparable sale.");
-  }
-  if (supportedArv <= 0) {
-    risks.push("Missing supported value");
-    appraiserQuestions.push("Provide a supported value range before underwriting.");
-  }
-  if (includedComps.some((comp) => safeNumber(comp.distanceMiles) > 10)) {
-    risks.push("Distant comps");
-    appraiserQuestions.push("Please explain the distance and relevance of the selected comps.");
-  }
-  if (normalizedComps.some((comp) => comp.included === false)) {
-    risks.push("Excluded comps may weaken support");
-  }
-
-  if (risks.length >= 3) riskLevel = "Critical Risk";
-  else if (risks.length >= 2) riskLevel = "High Risk";
-  else if (risks.length === 1) riskLevel = "Moderate Risk";
-
-  const lowArv = supportedArv > 0 ? supportedArv * 0.95 : 0;
-  const highArv = supportedArv > 0 ? supportedArv * 1.05 : 0;
-  const weightedArv = supportedArv > 0 ? supportedArv : 0;
-  const compCount = includedComps.length;
-  const calculationSummary = compCount > 0
-    ? `Weighted from ${compCount} supported comparable sales using the selected market and physical similarity factors.`
-    : "Insufficient Data: no supported comps were available for valuation support.";
-
-  return {
-    appraisalSupportScore: Math.max(0, 100 - risks.length * 20),
-    appraisalConfidence: riskLevel === "Low Risk" ? "High" : riskLevel === "Moderate Risk" ? "Moderate" : "Low",
-    strongestComp: strongestComp ? `${strongestComp.address || "Comp"} (${safeNumber(strongestComp.salePrice).toLocaleString()})` : "Insufficient Data",
-    weakestComp: weakestComp ? `${weakestComp.address || "Comp"} (${safeNumber(weakestComp.salePrice).toLocaleString()})` : "Insufficient Data",
-    compAdjustmentSummary: compCount > 0 ? "Transparent adjustment review based on available property and market factors." : "Insufficient Data",
-    supportedArvRange: [lowArv, weightedArv, highArv],
-    indicatedArvRange: [lowArv, weightedArv, highArv],
-    weightedArv,
-    lowArv,
-    highArv,
-    likelyAppraisalRisk: riskLevel,
-    riskLevel,
-    missingSupport: risks.length ? risks : ["No major support gaps identified"],
-    appraiserQuestions,
-    recommendedPacketActions: ["Add more recent comps", "Document the scope of work", "Add photos and contractor budget"],
-    calculationSummary,
-    compCount,
-  };
+  const approvedArv = toOptionalNumber(packet.approvedArv ?? packet.supportedARVApproved ?? packet.supportedArvApproved);
+  return buildAppraisalIntelligenceResult({ ...packet, arv: packet.requestedARV ?? packet.arv ?? packet.estimatedArv }, comps, {
+    valuationResult: packet.valuationResult || (approvedArv !== null ? {
+      approvedArv,
+      supportedArv: approvedArv,
+      valuationReviewStatus: "APPROVED",
+    } : undefined),
+  });
 }
+import { buildAppraisalIntelligenceResult } from "./appraisalIntelligenceEngine.js";
